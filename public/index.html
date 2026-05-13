@@ -1,4 +1,4 @@
-!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
@@ -283,13 +283,13 @@ FORMATO EXACTO (sin texto antes ni después):
           <div style={{width:32,height:32,background:G,borderRadius:9,display:"grid",placeItems:"center",color:"#fff",fontWeight:800,fontSize:15}}>M</div>
           <div>
             <div style={{fontFamily:"'Syne',sans-serif",fontSize:17,fontWeight:800}}>MCM</div>
-            <div style={{fontSize:9,color:"#444",letterSpacing:1}}>MY COMMUNITY MANAGER</div>
+            <div style={{fontSize:9,color:"#aaa",letterSpacing:1}}>MY COMMUNITY MANAGER</div>
           </div>
         </div>
         <div style={{display:"flex",gap:28}}>
           {["Funciones","Precios"].map(l=>(
-            <span key={l} style={{color:"#555",fontSize:14,cursor:"pointer"}}
-              onMouseEnter={e=>e.target.style.color="#fff"} onMouseLeave={e=>e.target.style.color="#555"}>{l}</span>
+            <span key={l} style={{color:"#888",fontSize:14,cursor:"pointer"}}
+              onMouseEnter={e=>e.target.style.color="#fff"} onMouseLeave={e=>e.target.style.color="#888"}>{l}</span>
           ))}
         </div>
         <button onClick={()=>setView("app")} style={{background:G,color:"#fff",border:"none",borderRadius:11,padding:"10px 24px",fontWeight:700,cursor:"pointer",fontSize:14}}>
@@ -302,14 +302,14 @@ FORMATO EXACTO (sin texto antes ni después):
           {["🧑🏻","👩🏽","👨🏾","👩🏻","🧑🏽"].map((e,i)=>(
             <div key={i} style={{width:34,height:34,borderRadius:"50%",background:`hsl(${260+i*20},55%,38%)`,border:"2px solid #05050a",display:"grid",placeItems:"center",fontSize:16,marginLeft:i===0?0:-10,zIndex:5-i}}>{e}</div>
           ))}
-          <span style={{fontSize:13,color:"#555",marginLeft:12}}>+2.400 marcas ya usan MCM</span>
+          <span style={{fontSize:13,color:"#888",marginLeft:12}}>+2.400 marcas ya usan MCM</span>
         </div>
  
         <h1 style={{fontSize:"clamp(36px,5.5vw,64px)",fontWeight:800,lineHeight:1.15,margin:"0 0 18px",letterSpacing:-1}}>
           Tu community manager.<br/>
           <span style={{background:G,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Con IA. Sin costo de agencia.</span>
         </h1>
-        <p style={{color:"#666",fontSize:17,maxWidth:480,margin:"0 auto 36px",lineHeight:1.7}}>
+        <p style={{color:"#999",fontSize:17,maxWidth:480,margin:"0 auto 36px",lineHeight:1.7}}>
           Subís tus fotos y videos, MCM genera posts listos para publicar en todas las redes.
         </p>
         <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap",marginBottom:48}}>
@@ -318,7 +318,7 @@ FORMATO EXACTO (sin texto antes ni después):
         </div>
         <div style={{display:"flex",justifyContent:"center",gap:10,flexWrap:"wrap"}}>
           {NETWORKS.map(n=>(
-            <div key={n.id} style={{display:"flex",alignItems:"center",gap:6,background:"rgba(255,255,255,0.04)",border:"1px solid #0d0d1a",borderRadius:50,padding:"7px 16px",fontSize:13,color:"#666"}}>
+            <div key={n.id} style={{display:"flex",alignItems:"center",gap:6,background:"rgba(255,255,255,0.04)",border:"1px solid #0d0d1a",borderRadius:50,padding:"7px 16px",fontSize:13,color:"#999"}}>
               <span>{n.icon}</span>{n.label}
             </div>
           ))}
@@ -328,7 +328,7 @@ FORMATO EXACTO (sin texto antes ni después):
       <div style={{padding:"60px 40px",maxWidth:1000,margin:"0 auto"}}>
         <div style={{textAlign:"center",marginBottom:48}}>
           <h2 style={{fontSize:"clamp(28px,4vw,44px)",fontWeight:800,letterSpacing:-0.5,marginBottom:10}}>Cómo funciona</h2>
-          <p style={{color:"#555",fontSize:15}}>De tus archivos a posts publicables en menos de 30 segundos.</p>
+          <p style={{color:"#888",fontSize:15}}>De tus archivos a posts publicables en menos de 30 segundos.</p>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:2}}>
           {[["📁","Subís tu contenido","Fotos y videos de tu negocio"],["🤖","MCM lo analiza","Entiende tu marca y tu mercado"],["✍️","Genera 5 posts","Uno por cada red social"],["⬇️","Descargás y publicás","Texto e imagen listos"]].map(([ic,ti,de],i)=>(
@@ -336,7 +336,7 @@ FORMATO EXACTO (sin texto antes ni después):
               <div style={{fontSize:10,color:"#7c3aed",fontWeight:700,letterSpacing:2,marginBottom:12}}>0{i+1}</div>
               <div style={{fontSize:28,marginBottom:12}}>{ic}</div>
               <div style={{fontWeight:700,fontSize:15,marginBottom:6}}>{ti}</div>
-              <div style={{color:"#555",fontSize:13,lineHeight:1.6}}>{de}</div>
+              <div style={{color:"#888",fontSize:13,lineHeight:1.6}}>{de}</div>
             </div>
           ))}
         </div>
@@ -357,7 +357,7 @@ FORMATO EXACTO (sin texto antes ni después):
               onMouseLeave={e=>e.currentTarget.style.borderColor="#1a1a35"}>
               <div style={{fontSize:26,marginBottom:10}}>{ic}</div>
               <div style={{fontWeight:700,fontSize:14,marginBottom:6}}>{ti}</div>
-              <div style={{color:"#555",fontSize:13,lineHeight:1.6}}>{de}</div>
+              <div style={{color:"#888",fontSize:13,lineHeight:1.6}}>{de}</div>
             </div>
           ))}
         </div>
@@ -365,7 +365,7 @@ FORMATO EXACTO (sin texto antes ni después):
  
       <div style={{textAlign:"center",padding:"60px 20px 80px",borderTop:"1px solid #0d0d1a"}}>
         <h2 style={{fontSize:"clamp(28px,4vw,44px)",fontWeight:800,marginBottom:12,letterSpacing:-0.5}}>Tu CM trabaja 24/7.</h2>
-        <p style={{color:"#555",fontSize:16,marginBottom:32}}>7 días gratis · Sin tarjeta · Cancelás cuando quieras</p>
+        <p style={{color:"#888",fontSize:16,marginBottom:32}}>7 días gratis · Sin tarjeta · Cancelás cuando quieras</p>
         <button onClick={()=>setView("app")} style={{background:G,color:"#fff",border:"none",borderRadius:13,padding:"15px 44px",fontWeight:800,cursor:"pointer",fontSize:16}}>
           Empezar gratis →
         </button>
@@ -388,7 +388,7 @@ FORMATO EXACTO (sin texto antes ni después):
       </nav>
       <div style={{textAlign:"center",padding:"60px 20px 44px"}}>
         <h1 style={{fontFamily:"'Syne',sans-serif",fontSize:48,fontWeight:800,letterSpacing:-1,marginBottom:10}}>Planes simples.</h1>
-        <p style={{color:"#555",fontSize:16}}>Sin contratos. Cancelás cuando quieras.</p>
+        <p style={{color:"#888",fontSize:16}}>Sin contratos. Cancelás cuando quieras.</p>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(270px,1fr))",gap:18,maxWidth:940,margin:"0 auto",padding:"0 24px 80px"}}>
         {[
@@ -400,7 +400,7 @@ FORMATO EXACTO (sin texto antes ni después):
             {p.pop&&<div style={{position:"absolute",top:-12,left:"50%",transform:"translateX(-50%)",background:G,color:"#fff",fontSize:11,fontWeight:800,padding:"4px 16px",borderRadius:50,whiteSpace:"nowrap"}}>⭐ MÁS POPULAR</div>}
             <div style={{color:p.color,fontSize:10,fontWeight:700,letterSpacing:2,marginBottom:8}}>{p.name.toUpperCase()}</div>
             <div style={{fontSize:44,fontWeight:800,fontFamily:"'Syne',sans-serif",lineHeight:1,marginBottom:4}}>${p.price}</div>
-            <div style={{color:"#444",fontSize:13,marginBottom:20}}>/mes USD</div>
+            <div style={{color:"#aaa",fontSize:13,marginBottom:20}}>/mes USD</div>
             <div style={{display:"flex",flexDirection:"column",gap:9,marginBottom:22,paddingTop:16,borderTop:"1px solid #1a1a35"}}>
               {p.features.map((f,i)=><div key={i} style={{display:"flex",gap:9,color:"#bbb",fontSize:13}}><span style={{color:p.color}}>✓</span>{f}</div>)}
             </div>
@@ -425,14 +425,14 @@ FORMATO EXACTO (sin texto antes ni después):
           <div style={{background:"#0d0d1a",border:"1px solid #1a1a35",borderRadius:22,padding:36,width:"100%",maxWidth:460,animation:"fadeIn 0.3s ease"}}>
             <div style={{width:40,height:40,background:G,borderRadius:11,display:"grid",placeItems:"center",color:"#fff",fontWeight:800,fontSize:18,marginBottom:20}}>M</div>
             <div style={{fontSize:22,fontWeight:800,marginBottom:6}}>Bienvenido a MCM</div>
-            <p style={{color:"#555",fontSize:13,marginBottom:24,lineHeight:1.6}}>Contanos sobre tu negocio para que la IA personalice cada post.</p>
+            <p style={{color:"#888",fontSize:13,marginBottom:24,lineHeight:1.6}}>Contanos sobre tu negocio para que la IA personalice cada post.</p>
             <div style={{display:"flex",flexDirection:"column",gap:13}}>
               <div>
-                <div style={{fontSize:10,color:"#555",letterSpacing:1.5,marginBottom:5}}>NOMBRE DE TU EMPRESA</div>
+                <div style={{fontSize:10,color:"#888",letterSpacing:1.5,marginBottom:5}}>NOMBRE DE TU EMPRESA</div>
                 <input value={obName} onChange={e=>setObName(e.target.value)} placeholder="Ej: La Josefa Granja Orgánica" style={INP}/>
               </div>
               <div>
-                <div style={{fontSize:10,color:"#555",letterSpacing:1.5,marginBottom:5}}>RUBRO / INDUSTRIA</div>
+                <div style={{fontSize:10,color:"#888",letterSpacing:1.5,marginBottom:5}}>RUBRO / INDUSTRIA</div>
                 <select
                   value={INDUSTRIES.slice(0,-1).includes(obIndustry)?obIndustry:(obIndustry?"Otro":"")}
                   onChange={e=>{ if(e.target.value!=="Otro"){setObIndustry(e.target.value);setObCustom("");}else{setObIndustry("");} }}
@@ -448,10 +448,10 @@ FORMATO EXACTO (sin texto antes ni después):
                 )}
               </div>
               <div>
-                <div style={{fontSize:10,color:"#555",letterSpacing:1.5,marginBottom:8}}>¿A QUIÉN LE VENDÉS?</div>
+                <div style={{fontSize:10,color:"#888",letterSpacing:1.5,marginBottom:8}}>¿A QUIÉN LE VENDÉS?</div>
                 <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
                   {["Consumidor final","Empresas (B2B)","Ambos"].map(t=>(
-                    <button key={t} onClick={()=>setObTarget(t)} style={{background:obTarget===t?"#7c3aed20":"transparent",border:`1px solid ${obTarget===t?"#7c3aed":"#1a1a35"}`,borderRadius:8,padding:"7px 13px",color:obTarget===t?"#a78bfa":"#555",cursor:"pointer",fontSize:12}}>
+                    <button key={t} onClick={()=>setObTarget(t)} style={{background:obTarget===t?"#7c3aed20":"transparent",border:`1px solid ${obTarget===t?"#7c3aed":"#1a1a35"}`,borderRadius:8,padding:"7px 13px",color:obTarget===t?"#a78bfa":"#888",cursor:"pointer",fontSize:12}}>
                       {t}
                     </button>
                   ))}
@@ -464,10 +464,10 @@ FORMATO EXACTO (sin texto antes ni después):
                   setShowOB(false);
                 }}
                 disabled={!obName||!obIndustry}
-                style={{background:obName&&obIndustry?G:"#1a1a35",color:obName&&obIndustry?"#fff":"#444",border:"none",borderRadius:11,padding:"13px",fontWeight:800,cursor:obName&&obIndustry?"pointer":"not-allowed",fontSize:14,marginTop:4}}>
+                style={{background:obName&&obIndustry?G:"#1a1a35",color:obName&&obIndustry?"#fff":"#aaa",border:"none",borderRadius:11,padding:"13px",fontWeight:800,cursor:obName&&obIndustry?"pointer":"not-allowed",fontSize:14,marginTop:4}}>
                 Empezar a generar posts →
               </button>
-              <button onClick={()=>setShowOB(false)} style={{background:"none",border:"none",color:"#333",cursor:"pointer",fontSize:12}}>
+              <button onClick={()=>setShowOB(false)} style={{background:"none",border:"none",color:"#777",cursor:"pointer",fontSize:12}}>
                 Saltar por ahora
               </button>
             </div>
@@ -480,17 +480,17 @@ FORMATO EXACTO (sin texto antes ni después):
         <div style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer"}} onClick={()=>setView("landing")}>
           <div style={{width:26,height:26,background:G,borderRadius:7,display:"grid",placeItems:"center",color:"#fff",fontWeight:800,fontSize:12}}>M</div>
           <span style={{fontFamily:"'Syne',sans-serif",fontSize:14,fontWeight:800}}>MCM</span>
-          <span style={{fontSize:9,color:"#333",letterSpacing:1}}>MY COMMUNITY MANAGER</span>
+          <span style={{fontSize:9,color:"#777",letterSpacing:1}}>MY COMMUNITY MANAGER</span>
         </div>
         <div style={{display:"flex",gap:3}}>
           {[["generator","✦","Generador"],["gallery","📁","Mi contenido"],["brand","🎨","Mi marca"]].map(([id,ic,lb])=>(
-            <button key={id} onClick={()=>setTab(id)} style={{background:tab===id?"#0d0d1a":"transparent",border:`1px solid ${tab===id?"#1a1a35":"transparent"}`,borderRadius:7,padding:"6px 14px",color:tab===id?"#fff":"#444",cursor:"pointer",fontSize:12,display:"flex",alignItems:"center",gap:5}}>
+            <button key={id} onClick={()=>setTab(id)} style={{background:tab===id?"#0d0d1a":"transparent",border:`1px solid ${tab===id?"#1a1a35":"transparent"}`,borderRadius:7,padding:"6px 14px",color:tab===id?"#fff":"#aaa",cursor:"pointer",fontSize:12,display:"flex",alignItems:"center",gap:5}}>
               <span>{ic}</span>{lb}
             </button>
           ))}
         </div>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
-          {postCount>0&&<span style={{fontSize:10,color:"#333"}}>{postCount} posts</span>}
+          {postCount>0&&<span style={{fontSize:10,color:"#777"}}>{postCount} posts</span>}
           {needsOnboarding&&<button onClick={()=>setShowOB(true)} style={{background:"transparent",color:"#7c3aed",border:"1px solid #7c3aed30",borderRadius:7,padding:"6px 12px",cursor:"pointer",fontSize:11,fontWeight:700}}>Completar perfil</button>}
           <button onClick={()=>setView("pricing")} style={{background:G,color:"#fff",border:"none",borderRadius:7,padding:"6px 16px",cursor:"pointer",fontWeight:700,fontSize:11}}>Suscribirme →</button>
         </div>
@@ -503,19 +503,19 @@ FORMATO EXACTO (sin texto antes ni después):
           <div style={{width:280,borderRight:"1px solid #0d0d1a",padding:"14px",display:"flex",flexDirection:"column",gap:13,overflowY:"auto",flexShrink:0}}>
             <div>
               <div style={{fontSize:14,fontWeight:700,marginBottom:2}}>Generador</div>
-              <div style={{fontSize:11,color:"#444"}}>Seleccioná fotos/videos y generá posts para 5 redes.</div>
+              <div style={{fontSize:11,color:"#aaa"}}>Seleccioná fotos/videos y generá posts para 5 redes.</div>
             </div>
  
             {/* RUBRO — always visible */}
             <div style={{background:"#0d0d1a",border:`1px solid ${industryVal?"#7c3aed30":"#1a1a35"}`,borderRadius:10,padding:"10px 12px"}}>
-              <div style={{fontSize:10,color:"#555",letterSpacing:1.5,marginBottom:6}}>RUBRO DEL NEGOCIO</div>
+              <div style={{fontSize:10,color:"#888",letterSpacing:1.5,marginBottom:6}}>RUBRO DEL NEGOCIO</div>
               <select
                 value={isCustomInd?"Otro":(industryVal||"")}
                 onChange={e=>{
                   if(e.target.value!=="Otro"){ upd("industry",e.target.value); setCustomInd(false); }
                   else{ upd("industry",""); setCustomInd(true); }
                 }}
-                style={{...INP,background:"transparent",border:"none",padding:"0",color:industryVal?"#a78bfa":"#3a3a4a",fontSize:13,cursor:"pointer",marginBottom:industryVal||customInd?5:0}}>
+                style={{...INP,background:"transparent",border:"none",padding:"0",color:industryVal?"#a78bfa":"#666",fontSize:13,cursor:"pointer",marginBottom:industryVal||customInd?5:0}}>
                 <option value="">¿Cuál es tu rubro?</option>
                 {INDUSTRIES.slice(0,-1).map(i=><option key={i} value={i}>{i}</option>)}
                 <option value="Otro">✏️ Mi rubro no está en la lista</option>
@@ -530,7 +530,7 @@ FORMATO EXACTO (sin texto antes ni después):
             {/* Selected files */}
             <div>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                <div style={{fontSize:10,color:"#555",letterSpacing:1.5}}>ARCHIVOS ({selItems.length})</div>
+                <div style={{fontSize:10,color:"#888",letterSpacing:1.5}}>ARCHIVOS ({selItems.length})</div>
                 {selItems.length>0&&<button onClick={()=>setSelected([])} style={{fontSize:10,color:"#f43f5e",background:"none",border:"none",cursor:"pointer"}}>Limpiar</button>}
               </div>
               {selItems.length>0?(
@@ -544,23 +544,23 @@ FORMATO EXACTO (sin texto antes ni después):
                       <button onClick={()=>toggleSel(item.id)} style={{position:"absolute",top:-4,right:-4,background:"#f43f5e",border:"none",color:"#fff",width:15,height:15,borderRadius:"50%",cursor:"pointer",fontSize:8,lineHeight:"15px"}}>✕</button>
                     </div>
                   ))}
-                  <div onClick={()=>setTab("gallery")} style={{width:52,height:52,borderRadius:7,border:"2px dashed #1a1a35",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:"#333",fontSize:18}}>+</div>
+                  <div onClick={()=>setTab("gallery")} style={{width:52,height:52,borderRadius:7,border:"2px dashed #1a1a35",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:"#777",fontSize:18}}>+</div>
                 </div>
               ):(
                 <div onClick={()=>setTab("gallery")} style={{border:"2px dashed #1a1a35",borderRadius:9,padding:"12px",textAlign:"center",cursor:"pointer",marginBottom:6}}
                   onMouseEnter={e=>e.currentTarget.style.borderColor="#7c3aed40"} onMouseLeave={e=>e.currentTarget.style.borderColor="#1a1a35"}>
                   <div style={{fontSize:22,marginBottom:3}}>📁</div>
-                  <div style={{fontSize:11,color:"#555"}}>Seleccioná fotos o videos</div>
+                  <div style={{fontSize:11,color:"#888"}}>Seleccioná fotos o videos</div>
                 </div>
               )}
-              <div onClick={()=>fileRef.current.click()} style={{border:"1px dashed #1a1a35",borderRadius:7,padding:"6px",textAlign:"center",cursor:"pointer",fontSize:11,color:"#333"}}>
+              <div onClick={()=>fileRef.current.click()} style={{border:"1px dashed #1a1a35",borderRadius:7,padding:"6px",textAlign:"center",cursor:"pointer",fontSize:11,color:"#777"}}>
                 <input ref={fileRef} type="file" accept="image/*,video/*" multiple style={{display:"none"}} onChange={e=>addFiles(e.target.files)}/>
                 + Subir archivos nuevos
               </div>
             </div>
  
             <div>
-              <div style={{fontSize:10,color:"#555",letterSpacing:1.5,marginBottom:5}}>BRIEF DEL POST</div>
+              <div style={{fontSize:10,color:"#888",letterSpacing:1.5,marginBottom:5}}>BRIEF DEL POST</div>
               <textarea value={topic} onChange={e=>setTopic(e.target.value)} rows={3}
                 placeholder="Ej: Lanzamiento nueva colección, promo fin de semana, apertura de local..."
                 style={INP}/>
@@ -568,14 +568,14 @@ FORMATO EXACTO (sin texto antes ni después):
  
             {brand.name&&(
               <div style={{background:"#0d0d1a",border:"1px solid #1a1a35",borderRadius:9,padding:"9px 11px"}}>
-                <div style={{fontSize:10,color:"#333",marginBottom:3,letterSpacing:1}}>PERFIL</div>
+                <div style={{fontSize:10,color:"#777",marginBottom:3,letterSpacing:1}}>PERFIL</div>
                 <div style={{color:"#a78bfa",fontWeight:700,fontSize:13}}>{brand.name}</div>
-                {brand.target&&<div style={{color:"#444",fontSize:11,marginTop:2}}>→ {brand.target}</div>}
-                <span onClick={()=>setTab("brand")} style={{color:"#333",fontSize:10,cursor:"pointer",marginTop:4,display:"block"}}>Editar →</span>
+                {brand.target&&<div style={{color:"#aaa",fontSize:11,marginTop:2}}>→ {brand.target}</div>}
+                <span onClick={()=>setTab("brand")} style={{color:"#777",fontSize:10,cursor:"pointer",marginTop:4,display:"block"}}>Editar →</span>
               </div>
             )}
  
-            <button onClick={generate} disabled={!canGen} style={{background:canGen?G:"#0d0d1a",color:canGen?"#fff":"#333",border:"none",borderRadius:10,padding:"12px",fontSize:14,fontWeight:800,cursor:canGen?"pointer":"not-allowed",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+            <button onClick={generate} disabled={!canGen} style={{background:canGen?G:"#0d0d1a",color:canGen?"#fff":"#777",border:"none",borderRadius:10,padding:"12px",fontSize:14,fontWeight:800,cursor:canGen?"pointer":"not-allowed",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
               {generating
                 ? <><div style={{width:13,height:13,border:"2px solid rgba(255,255,255,0.3)",borderTopColor:"#fff",borderRadius:"50%",animation:"spin 0.7s linear infinite"}}/>Generando...</>
                 : `✦ Generar${selItems.length>0?` (${selItems.length} archivos)`:""}`}
@@ -585,7 +585,7 @@ FORMATO EXACTO (sin texto antes ni después):
               <div style={{background:"#0d0d1a",border:"1px solid #1a1a35",borderRadius:9,padding:"9px 12px"}}>
                 <div style={{fontSize:11,color:"#a78bfa",marginBottom:5,animation:"pulse 1.2s ease infinite"}}>✦ Trabajando...</div>
                 {[generating&&"Analizando contenido",generating&&"Investigando tu rubro",generating&&"Escribiendo 5 posts",genImg&&"Generando imágenes"].filter(Boolean).map((s,i)=>(
-                  <div key={i} style={{fontSize:10,color:"#333",padding:"1px 0"}}>· {s}</div>
+                  <div key={i} style={{fontSize:10,color:"#777",padding:"1px 0"}}>· {s}</div>
                 ))}
               </div>
             )}
@@ -595,7 +595,7 @@ FORMATO EXACTO (sin texto antes ni después):
           <div style={{flex:1,display:"flex",flexDirection:"column",padding:"13px 16px",gap:9,overflow:"hidden"}}>
             <div style={{display:"flex",gap:5,flexWrap:"wrap",flexShrink:0}}>
               {NETWORKS.map(n=>(
-                <button key={n.id} onClick={()=>setActiveNet(n.id)} style={{background:activeNet===n.id?"#7c3aed18":"#0d0d1a",border:`1px solid ${activeNet===n.id?"#7c3aed":"#1a1a35"}`,borderRadius:7,padding:"7px 13px",color:activeNet===n.id?"#a78bfa":"#444",cursor:"pointer",fontSize:12,display:"flex",alignItems:"center",gap:5,transition:"all 0.15s"}}>
+                <button key={n.id} onClick={()=>setActiveNet(n.id)} style={{background:activeNet===n.id?"#7c3aed18":"#0d0d1a",border:`1px solid ${activeNet===n.id?"#7c3aed":"#1a1a35"}`,borderRadius:7,padding:"7px 13px",color:activeNet===n.id?"#a78bfa":"#aaa",cursor:"pointer",fontSize:12,display:"flex",alignItems:"center",gap:5,transition:"all 0.15s"}}>
                   <span>{n.icon}</span>{n.label}
                   {results[n.id]&&<span style={{width:4,height:4,borderRadius:"50%",background:"#34d399",flexShrink:0}}/>}
                 </button>
@@ -615,7 +615,7 @@ FORMATO EXACTO (sin texto antes ni después):
                 {generating&&!results[activeNet]&&(
                   <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:10}}>
                     <div style={{width:28,height:28,border:"3px solid #1a1a35",borderTopColor:"#7c3aed",borderRadius:"50%",animation:"spin 0.7s linear infinite"}}/>
-                    <div style={{color:"#333",fontSize:12}}>Generando para {NETWORKS.find(n=>n.id===activeNet)?.label}...</div>
+                    <div style={{color:"#777",fontSize:12}}>Generando para {NETWORKS.find(n=>n.id===activeNet)?.label}...</div>
                   </div>
                 )}
                 {results[activeNet]&&(
@@ -631,8 +631,8 @@ FORMATO EXACTO (sin texto antes ni después):
                         style={{flex:1,background:copied===activeNet?"#0a1f0a":G,color:"#fff",border:copied===activeNet?"1px solid #34d399":"none",borderRadius:7,padding:"9px",fontWeight:700,cursor:"pointer",fontSize:12,transition:"all 0.2s"}}>
                         {copied===activeNet?"✓ Copiado":"📋 Copiar texto"}
                       </button>
-                      <button onClick={()=>dlText(activeNet)} style={{background:"#0d0d1a",color:"#555",border:"1px solid #1a1a35",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontSize:11}}>⬇ .txt</button>
-                      <button onClick={generate} style={{background:"#0d0d1a",color:"#444",border:"1px solid #0d0d1a",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontSize:13}}>🔁</button>
+                      <button onClick={()=>dlText(activeNet)} style={{background:"#0d0d1a",color:"#888",border:"1px solid #1a1a35",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontSize:11}}>⬇ .txt</button>
+                      <button onClick={generate} style={{background:"#0d0d1a",color:"#aaa",border:"1px solid #0d0d1a",borderRadius:7,padding:"9px 11px",cursor:"pointer",fontSize:13}}>🔁</button>
                     </div>
                   </div>
                 )}
@@ -641,11 +641,11 @@ FORMATO EXACTO (sin texto antes ni después):
               {/* Image */}
               {(results[activeNet]||genImg)&&(
                 <div style={{width:200,background:"#08080f",border:"1px solid #0d0d1a",borderRadius:12,padding:"12px",display:"flex",flexDirection:"column",gap:8,flexShrink:0}}>
-                  <div style={{fontSize:9,color:"#444",letterSpacing:1}}>IMAGEN DEL POST</div>
+                  <div style={{fontSize:9,color:"#aaa",letterSpacing:1}}>IMAGEN DEL POST</div>
                   {genImg&&!postImgs[activeNet]?(
                     <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:6,minHeight:100}}>
                       <div style={{width:20,height:20,border:"2px solid #1a1a35",borderTopColor:"#7c3aed",borderRadius:"50%",animation:"spin 0.7s linear infinite"}}/>
-                      <div style={{fontSize:9,color:"#333",textAlign:"center"}}>Generando...</div>
+                      <div style={{fontSize:9,color:"#777",textAlign:"center"}}>Generando...</div>
                     </div>
                   ):postImgs[activeNet]?(
                     <>
@@ -653,7 +653,7 @@ FORMATO EXACTO (sin texto antes ni después):
                       <button onClick={()=>dlImg(activeNet)} style={{background:G,color:"#fff",border:"none",borderRadius:7,padding:"9px",fontWeight:700,cursor:"pointer",fontSize:11}}>
                         ⬇ Descargar imagen
                       </button>
-                      <div style={{fontSize:9,color:"#333",textAlign:"center"}}>1080×1080px</div>
+                      <div style={{fontSize:9,color:"#777",textAlign:"center"}}>1080×1080px</div>
                     </>
                   ):null}
                 </div>
@@ -680,7 +680,7 @@ FORMATO EXACTO (sin texto antes ni después):
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
             <div>
               <div style={{fontSize:16,fontWeight:800,marginBottom:2}}>Mi contenido</div>
-              <div style={{fontSize:11,color:"#444"}}>{gallery.length} archivo{gallery.length!==1?"s":""} · {selected.length} seleccionado{selected.length!==1?"s":""}</div>
+              <div style={{fontSize:11,color:"#aaa"}}>{gallery.length} archivo{gallery.length!==1?"s":""} · {selected.length} seleccionado{selected.length!==1?"s":""}</div>
             </div>
             <div style={{display:"flex",gap:7}}>
               {selected.length>0&&<button onClick={()=>setTab("generator")} style={{background:G,color:"#fff",border:"none",borderRadius:9,padding:"8px 16px",fontWeight:700,cursor:"pointer",fontSize:12}}>Generar con {selected.length} →</button>}
@@ -693,8 +693,8 @@ FORMATO EXACTO (sin texto antes ni después):
             style={{border:"2px dashed #1a1a35",borderRadius:12,padding:"22px",textAlign:"center",marginBottom:16,cursor:"pointer"}}
             onMouseEnter={e=>e.currentTarget.style.borderColor="#7c3aed40"} onMouseLeave={e=>e.currentTarget.style.borderColor="#1a1a35"}>
             <div style={{fontSize:28,marginBottom:6}}>📁</div>
-            <div style={{fontSize:13,color:"#666",marginBottom:3}}>Arrastrá tus fotos y videos acá</div>
-            <div style={{fontSize:11,color:"#333"}}>JPG, PNG, WEBP, MP4, MOV</div>
+            <div style={{fontSize:13,color:"#999",marginBottom:3}}>Arrastrá tus fotos y videos acá</div>
+            <div style={{fontSize:11,color:"#777"}}>JPG, PNG, WEBP, MP4, MOV</div>
           </div>
  
           {selected.length>0&&(
@@ -702,7 +702,7 @@ FORMATO EXACTO (sin texto antes ni después):
               <span style={{color:"#a78bfa",fontSize:12,fontWeight:700}}>✓ {selected.length} seleccionado{selected.length>1?"s":""}</span>
               <div style={{display:"flex",gap:7}}>
                 <button onClick={()=>setSelected(gallery.map(g=>g.id))} style={{background:"transparent",color:"#a78bfa",border:"1px solid #7c3aed30",borderRadius:6,padding:"3px 9px",cursor:"pointer",fontSize:11}}>Todos</button>
-                <button onClick={()=>setSelected([])} style={{background:"transparent",color:"#444",border:"1px solid #1a1a35",borderRadius:6,padding:"3px 9px",cursor:"pointer",fontSize:11}}>Ninguno</button>
+                <button onClick={()=>setSelected([])} style={{background:"transparent",color:"#aaa",border:"1px solid #1a1a35",borderRadius:6,padding:"3px 9px",cursor:"pointer",fontSize:11}}>Ninguno</button>
               </div>
             </div>
           )}
@@ -720,7 +720,7 @@ FORMATO EXACTO (sin texto antes ni después):
                 return(
                   <div key={item.id} className="mwrap" style={{position:"relative",borderRadius:10,overflow:"hidden",border:`2px solid ${isSel?"#7c3aed":"transparent"}`,cursor:"pointer",aspectRatio:"1",background:"#0d0d1a",transition:"border-color 0.2s"}} onClick={()=>toggleSel(item.id)}>
                     {item.isVideo
-                      ? <div style={{width:"100%",height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:5}}><div style={{fontSize:28}}>🎬</div><div style={{fontSize:9,color:"#444",textAlign:"center",padding:"0 6px"}}>{item.name.slice(0,16)}</div></div>
+                      ? <div style={{width:"100%",height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:5}}><div style={{fontSize:28}}>🎬</div><div style={{fontSize:9,color:"#aaa",textAlign:"center",padding:"0 6px"}}>{item.name.slice(0,16)}</div></div>
                       : <img src={item.preview} style={{width:"100%",height:"100%",objectFit:"cover"}} alt=""/>
                     }
                     {isSel&&<div style={{position:"absolute",inset:0,background:"#7c3aed18",display:"flex",alignItems:"flex-start",justifyContent:"flex-end",padding:6}}>
@@ -742,16 +742,16 @@ FORMATO EXACTO (sin texto antes ni después):
           <div style={{maxWidth:500}}>
             <div style={{marginBottom:20}}>
               <div style={{fontSize:16,fontWeight:800,marginBottom:3}}>Perfil de mi marca</div>
-              <div style={{fontSize:12,color:"#444"}}>La IA usa este perfil para personalizar todos los posts automáticamente.</div>
+              <div style={{fontSize:12,color:"#aaa"}}>La IA usa este perfil para personalizar todos los posts automáticamente.</div>
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:13}}>
               <div>
-                <div style={{fontSize:10,color:"#555",letterSpacing:1.5,marginBottom:5}}>NOMBRE DE LA EMPRESA</div>
+                <div style={{fontSize:10,color:"#888",letterSpacing:1.5,marginBottom:5}}>NOMBRE DE LA EMPRESA</div>
                 <input value={brand.name||""} onChange={e=>upd("name",e.target.value)} placeholder="Ej: La Josefa Granja Orgánica" style={INP}/>
               </div>
  
               <div>
-                <div style={{fontSize:10,color:"#555",letterSpacing:1.5,marginBottom:5}}>RUBRO / INDUSTRIA</div>
+                <div style={{fontSize:10,color:"#888",letterSpacing:1.5,marginBottom:5}}>RUBRO / INDUSTRIA</div>
                 <select
                   value={INDUSTRIES.slice(0,-1).includes(brand.industry||"")?brand.industry:(brand.industry?"Otro":"")}
                   onChange={e=>{ if(e.target.value!=="Otro"){upd("industry",e.target.value);setCustomInd(false);}else{upd("industry","");setCustomInd(true);} }}
@@ -768,23 +768,23 @@ FORMATO EXACTO (sin texto antes ni después):
               </div>
  
               <div>
-                <div style={{fontSize:10,color:"#555",letterSpacing:1.5,marginBottom:5}}>PROPUESTA DE VALOR</div>
+                <div style={{fontSize:10,color:"#888",letterSpacing:1.5,marginBottom:5}}>PROPUESTA DE VALOR</div>
                 <textarea value={brand.description||""} onChange={e=>upd("description",e.target.value)} rows={3}
                   placeholder="Qué hacés, qué te diferencia de la competencia..."
                   style={INP}/>
               </div>
  
               <div>
-                <div style={{fontSize:10,color:"#555",letterSpacing:1.5,marginBottom:5}}>CLIENTE IDEAL</div>
+                <div style={{fontSize:10,color:"#888",letterSpacing:1.5,marginBottom:5}}>CLIENTE IDEAL</div>
                 <input value={brand.target||""} onChange={e=>upd("target",e.target.value)}
                   placeholder="Ej: Familias de 30-50 años que valoran la alimentación saludable" style={INP}/>
               </div>
  
               <div>
-                <div style={{fontSize:10,color:"#555",letterSpacing:1.5,marginBottom:6}}>TONO DE COMUNICACIÓN</div>
+                <div style={{fontSize:10,color:"#888",letterSpacing:1.5,marginBottom:6}}>TONO DE COMUNICACIÓN</div>
                 <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
                   {["auténtico","premium","divertido","inspirador","urgente","educativo"].map(t=>(
-                    <button key={t} onClick={()=>upd("tone",t)} style={{background:(brand.tone||"auténtico")===t?"#7c3aed20":"#0d0d1a",border:`1px solid ${(brand.tone||"auténtico")===t?"#7c3aed":"#1a1a35"}`,borderRadius:7,padding:"7px 13px",color:(brand.tone||"auténtico")===t?"#a78bfa":"#555",cursor:"pointer",fontSize:12,textTransform:"capitalize"}}>
+                    <button key={t} onClick={()=>upd("tone",t)} style={{background:(brand.tone||"auténtico")===t?"#7c3aed20":"#0d0d1a",border:`1px solid ${(brand.tone||"auténtico")===t?"#7c3aed":"#1a1a35"}`,borderRadius:7,padding:"7px 13px",color:(brand.tone||"auténtico")===t?"#a78bfa":"#888",cursor:"pointer",fontSize:12,textTransform:"capitalize"}}>
                       {t}
                     </button>
                   ))}
@@ -793,7 +793,7 @@ FORMATO EXACTO (sin texto antes ni después):
  
               <div style={{background:"#0d0d1a",border:"1px solid #7c3aed20",borderRadius:10,padding:"12px 14px"}}>
                 <div style={{fontSize:11,color:"#7c3aed",fontWeight:700,marginBottom:3}}>✦ Guardado automáticamente</div>
-                <div style={{fontSize:12,color:"#444",lineHeight:1.6}}>MCM aplica este perfil en cada generación para que los posts suenen como tu marca.</div>
+                <div style={{fontSize:12,color:"#aaa",lineHeight:1.6}}>MCM aplica este perfil en cada generación para que los posts suenen como tu marca.</div>
               </div>
  
               {brand.name&&<button onClick={()=>setTab("generator")} style={{background:G,color:"#fff",border:"none",borderRadius:10,padding:"12px",fontWeight:800,cursor:"pointer",fontSize:14}}>Ir al generador →</button>}
