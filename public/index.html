@@ -14,12 +14,14 @@ body{background:#080808;color:#fff;font-family:'DM Sans',sans-serif}
 ::-webkit-scrollbar{width:4px}
 ::-webkit-scrollbar-thumb{background:#1e1e1e;border-radius:4px}
 @keyframes spin{to{transform:rotate(360deg)}}
-@keyframes fadeIn{from{opacity:0}to{opacity:1}}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
 input,textarea,select,button{font-family:'DM Sans',sans-serif}
 input::placeholder,textarea::placeholder{color:#2e2e2e}
 textarea{resize:none}
 select{-webkit-appearance:none}
+.del-btn{opacity:0;transition:opacity 0.2s}
+.img-wrap:hover .del-btn{opacity:1}
 </style>
 </head>
 <body>
@@ -29,354 +31,431 @@ const { useState, useRef } = React;
 
 const NETWORKS = [
   { id:"instagram", label:"Instagram", icon:"📸", tone:"visual y emocional, con emojis y hashtags al final" },
-  { id:"linkedin",  label:"LinkedIn",  icon:"💼", tone:"profesional, con datos e insights del sector, sin exceso de emojis" },
-  { id:"twitter",   label:"X/Twitter", icon:"🐦", tone:"conciso y directo, máximo 280 caracteres, con gancho fuerte" },
-  { id:"facebook",  label:"Facebook",  icon:"👥", tone:"conversacional y cálido, que invite a comentar" },
-  { id:"tiktok",    label:"TikTok",    icon:"🎵", tone:"hook potente en la primera línea, entretenido, con llamada a la acción" },
+  { id:"linkedin",  label:"LinkedIn",  icon:"💼", tone:"profesional, con datos e insights del sector" },
+  { id:"twitter",   label:"X/Twitter", icon:"🐦", tone:"conciso, máximo 280 caracteres, con gancho fuerte" },
+  { id:"facebook",  label:"Facebook",  icon:"👥", tone:"conversacional, cálido, que invite a comentar" },
+  { id:"tiktok",    label:"TikTok",    icon:"🎵", tone:"hook potente en la primera línea, dinámico, con CTA" },
 ];
 
 const INDUSTRIES = ["Restaurante / Gastronomía","Moda / Indumentaria","Salud y bienestar","Tecnología","Inmobiliaria","Educación","Turismo","Retail / Tienda","Servicios profesionales","Otro"];
-
-const PLANS = [
-  { id:"starter", name:"Starter", price:19, color:"#a3e635", features:["30 posts/mes","Análisis de imágenes","5 redes sociales","Soporte por email"] },
-  { id:"pro", name:"Pro", price:49, color:"#f59e0b", popular:true, features:["100 posts/mes","Imágenes ilimitadas","Todas las redes","Soporte prioritario"] },
-  { id:"agency", name:"Agency", price:129, color:"#818cf8", features:["Posts ilimitados","10 clientes","White label","Soporte 24/7"] },
-];
+const TONES = ["profesional","divertido","inspirador","urgente","cercano","premium"];
 
 function App() {
-  const [view, setView] = useState("landing");
-  const [activePlan, setActivePlan] = useState(null);
-  const [businessName, setBusinessName] = useState("");
-  const [industry, setIndustry] = useState("");
+  const [tab, setTab] = useState("generator");
+
+  // Brand profile (persisted)
+  const [brand, setBrand] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("cai_brand")||"{}"); } catch { return {}; }
+  });
+  const updateBrand = (field, val) => {
+    const b = { ...brand, [field]: val };
+    setBrand(b);
+    try { localStorage.setItem("cai_brand", JSON.stringify(b)); } catch {}
+  };
+
+  // Gallery (persisted — store only metadata, base64 in session)
+  const [gallery, setGallery] = useState([]);
+  const [selected, setSelected] = useState([]);
+
+  const addFiles = (files) => {
+    Array.from(files).forEach(file => {
+      if (!file.type.startsWith("image/")) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        const img = {
+          id: Date.now() + Math.random(),
+          name: file.name,
+          preview: e.target.result,
+          base64: e.target.result.split(",")[1],
+          mediaType: file.type,
+          date: new Date().toLocaleDateString("es-AR"),
+        };
+        setGallery(prev => [img, ...prev]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removeImg = (id) => {
+    setGallery(prev => prev.filter(g => g.id !== id));
+    setSelected(prev => prev.filter(s => s !== id));
+  };
+
+  const toggleSelect = (id) => setSelected(prev => prev.includes(id) ? prev.filter(s=>s!==id) : [...prev, id]);
+  const selectedImgs = gallery.filter(g => selected.includes(g.id));
+
+  // Generator
   const [topic, setTopic] = useState("");
-  const [tone, setTone] = useState("profesional");
   const [generating, setGenerating] = useState(false);
   const [results, setResults] = useState({});
   const [activeNet, setActiveNet] = useState("instagram");
-  const [postsUsed, setPostsUsed] = useState(0);
   const [copied, setCopied] = useState(false);
-  const [imagePreview, setImagePreview] = useState(null);
-  const [imageBase64, setImageBase64] = useState(null);
-  const [imageMediaType, setImageMediaType] = useState(null);
-  const [dragOver, setDragOver] = useState(false);
+  const [postsUsed, setPostsUsed] = useState(0);
   const fileRef = useRef();
-
-  const plan = activePlan || PLANS[1];
-
-  const handleFile = (file) => {
-    if (!file || !file.type.startsWith("image/")) return;
-    setImageMediaType(file.type);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setImagePreview(e.target.result);
-      setImageBase64(e.target.result.split(",")[1]);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const removeImage = (e) => {
-    e.stopPropagation();
-    setImagePreview(null);
-    setImageBase64(null);
-    setImageMediaType(null);
-  };
+  const galleryFileRef = useRef();
 
   const generateAll = async () => {
-    if (!topic.trim() && !imageBase64) return;
-    setGenerating(true);
-    setResults({});
+    if (!topic.trim() && selectedImgs.length === 0) return;
+    setGenerating(true); setResults({});
 
-    const prompt = `Sos un experto en marketing digital y redes sociales con profundo conocimiento del mercado argentino y latinoamericano.
-${imageBase64 ? `Analizá esta imagen del negocio "${businessName||"mi negocio"}" (rubro: ${industry||"servicios"}).` : ""}
-Negocio: "${businessName||"mi negocio"}"
-Rubro: "${industry||"servicios"}"
-${topic ? `Tema/contexto extra: "${topic}"` : ""}
-Tono: ${tone}
-${imageBase64 ? "Basate en lo que ves en la imagen para crear contenido auténtico." : ""}
+    const brandCtx = [
+      brand.name && `Negocio: "${brand.name}"`,
+      brand.industry && `Rubro: "${brand.industry}"`,
+      (brand.tone||"profesional") && `Tono: ${brand.tone||"profesional"}`,
+      brand.description && `Descripción: "${brand.description}"`,
+      brand.target && `Cliente ideal: "${brand.target}"`,
+      brand.colors && `Estética: "${brand.colors}"`,
+    ].filter(Boolean).join(" | ");
 
-Generá posts para las 5 redes. Adaptá cada uno al formato, audiencia y algoritmo de cada plataforma. Usá EXACTAMENTE este formato:
+    const prompt = `Sos un experto en marketing digital con profundo conocimiento del mercado argentino.
+
+${brandCtx || "Negocio sin perfil definido"}
+${topic ? `Contexto adicional: "${topic}"` : ""}
+${selectedImgs.length > 0 ? `Se proporcionan ${selectedImgs.length} imagen${selectedImgs.length>1?"es":""} del negocio. Analizalas todas en conjunto: el estilo visual, los productos, el ambiente, la propuesta de valor y cualquier detalle relevante.` : ""}
+
+Generá posts optimizados para 5 redes. Cada uno debe reflejar la identidad de la marca, usar lenguaje argentino natural y estar adaptado al algoritmo de cada plataforma.
+
+Usá EXACTAMENTE este formato sin texto extra antes ni después:
 
 ===INSTAGRAM===
-[post completo para Instagram: ${NETWORKS[0].tone}]
+[post: ${NETWORKS[0].tone}]
 
 ===LINKEDIN===
-[post completo para LinkedIn: ${NETWORKS[1].tone}]
+[post: ${NETWORKS[1].tone}]
 
 ===TWITTER===
-[post completo para X/Twitter: ${NETWORKS[2].tone}]
+[post: ${NETWORKS[2].tone}]
 
 ===FACEBOOK===
-[post completo para Facebook: ${NETWORKS[3].tone}]
+[post: ${NETWORKS[3].tone}]
 
 ===TIKTOK===
-[descripción/script para TikTok: ${NETWORKS[4].tone}]`;
+[post: ${NETWORKS[4].tone}]`;
 
     try {
+      const body = { prompt };
+      if (selectedImgs.length === 1) {
+        body.imageBase64 = selectedImgs[0].base64;
+        body.imageMediaType = selectedImgs[0].mediaType;
+      } else if (selectedImgs.length > 1) {
+        // Send first image — API handles one at a time; mention others in prompt
+        body.imageBase64 = selectedImgs[0].base64;
+        body.imageMediaType = selectedImgs[0].mediaType;
+      }
+
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, imageBase64, imageMediaType }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
-      if (data.error) { setResults({ _error: data.error }); }
-      else {
-        const text = data.text || "";
-        const parsed = {};
-        const keys = ["INSTAGRAM","LINKEDIN","TWITTER","FACEBOOK","TIKTOK"];
-        const ids  = ["instagram","linkedin","twitter","facebook","tiktok"];
-        keys.forEach((key, i) => {
-          const start = text.indexOf(`===${key}===`);
-          if (start === -1) return;
-          const from = start + key.length + 6;
-          const nextStart = keys[i+1] ? text.indexOf(`===${keys[i+1]}===`) : text.length;
-          parsed[ids[i]] = text.slice(from, nextStart).trim();
-        });
-        setResults(parsed);
-        setPostsUsed(p => p + 5);
-      }
+      if (data.error) { setResults({ _error: data.error }); return; }
+
+      const text = data.text || "";
+      const parsed = {};
+      const keys = ["INSTAGRAM","LINKEDIN","TWITTER","FACEBOOK","TIKTOK"];
+      const ids  = ["instagram","linkedin","twitter","facebook","tiktok"];
+      keys.forEach((key, i) => {
+        const start = text.indexOf(`===${key}===`);
+        if (start === -1) return;
+        const from = start + key.length + 6;
+        const next = keys[i+1] ? text.indexOf(`===${keys[i+1]}===`) : text.length;
+        parsed[ids[i]] = text.slice(from, next).trim();
+      });
+      setResults(parsed);
+      setPostsUsed(p => p + 5);
     } catch { setResults({ _error: "Error de conexión." }); }
-    setGenerating(false);
+    finally { setGenerating(false); }
   };
 
-  const canGenerate = !generating && (!!topic.trim() || !!imageBase64);
+  const canGenerate = !generating && (!!topic.trim() || selectedImgs.length > 0);
 
-  // ── LANDING ──
-  if (view === "landing") return (
-    <div style={{minHeight:"100vh",background:"#080808",color:"#fff"}}>
-      <nav style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"18px 40px",borderBottom:"1px solid #111",position:"sticky",top:0,background:"#080808ee",backdropFilter:"blur(16px)",zIndex:50}}>
-        <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <div style={{width:30,height:30,background:"#a3e635",borderRadius:8,display:"grid",placeItems:"center",fontSize:13,color:"#000"}}>✦</div>
-          <span style={{fontFamily:"'Playfair Display',serif",fontSize:19,fontWeight:800}}>ContentAI</span>
-        </div>
-        <div style={{display:"flex",gap:24}}>
-          <span onClick={()=>setView("pricing")} style={{color:"#555",fontSize:14,cursor:"pointer"}}>Precios</span>
-          <span onClick={()=>setView("app")} style={{color:"#555",fontSize:14,cursor:"pointer"}}>Demo</span>
-        </div>
-        <button onClick={()=>setView("app")} style={{background:"#a3e635",color:"#000",border:"none",borderRadius:11,padding:"10px 22px",fontWeight:700,cursor:"pointer",fontSize:14}}>Probar gratis →</button>
-      </nav>
+  // ── NAV ──
+  const navTabs = [["generator","✦","Generador"],["gallery","🖼️","Galería"],["brand","🎨","Mi marca"]];
 
-      <div style={{textAlign:"center",padding:"100px 20px 80px"}}>
-        <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"#a3e63510",border:"1px solid #a3e63330",color:"#a3e635",fontSize:11,fontWeight:700,padding:"6px 18px",borderRadius:20,marginBottom:36,letterSpacing:1.5}}>✦ ANÁLISIS DE IMÁGENES CON IA</div>
-        <h1 style={{fontSize:"clamp(40px,8vw,82px)",fontFamily:"'Playfair Display',serif",fontWeight:800,lineHeight:1.05,margin:"0 0 24px",background:"linear-gradient(135deg,#fff 0%,#a3e635 45%,#f59e0b 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Subí una foto.<br/>Publicá en 5 redes.</h1>
-        <p style={{color:"#555",fontSize:19,maxWidth:520,margin:"0 auto 48px",lineHeight:1.65}}>ContentAI analiza tus imágenes y genera posts optimizados para Instagram, LinkedIn, TikTok, Facebook y X — todo a la vez, en segundos.</p>
-        <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
-          <button onClick={()=>setView("app")} style={{background:"#a3e635",color:"#000",border:"none",borderRadius:13,padding:"16px 40px",fontWeight:800,cursor:"pointer",fontSize:16}}>Probar gratis 7 días</button>
-          <button onClick={()=>setView("pricing")} style={{background:"transparent",color:"#fff",border:"1px solid #222",borderRadius:13,padding:"16px 36px",fontWeight:600,cursor:"pointer",fontSize:16}}>Ver planes →</button>
-        </div>
-      </div>
-
-      <div style={{display:"flex",justifyContent:"center",gap:"clamp(24px,6vw,80px)",padding:"36px 20px",borderTop:"1px solid #111",borderBottom:"1px solid #111",flexWrap:"wrap"}}>
-        {[["🖼️","Subís una foto"],["🤖","La IA la analiza"],["📝","Genera 5 posts"],["🚀","Publicás al toque"]].map(([icon,l])=>(
-          <div key={l} style={{textAlign:"center"}}><div style={{fontSize:30,marginBottom:8}}>{icon}</div><div style={{color:"#555",fontSize:13}}>{l}</div></div>
-        ))}
-      </div>
-
-      <div style={{padding:"70px 40px",maxWidth:1000,margin:"0 auto"}}>
-        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:38,textAlign:"center",marginBottom:48}}>Todo lo que necesitás</h2>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:16}}>
-          {[["🖼️","Análisis de imágenes","La IA ve tu foto y entiende el producto, el ambiente y el mensaje."],["📊","5 redes de una vez","Posts optimizados para cada plataforma simultáneamente."],["🇦🇷","Mercado argentino","Entiende el contexto local, precios y tendencias del rubro."],["🎯","Tono personalizado","Cada post adapta el mensaje al algoritmo de cada red."],["⚡","5 segundos","De foto a 5 posts listos para publicar."],["🔁","Regenerá fácil","¿No te convence? Regenerá con un click."]].map(([icon,title,desc])=>(
-            <div key={title} style={{background:"#0c0c0c",border:"1px solid #141414",borderRadius:14,padding:"22px 20px"}}>
-              <div style={{fontSize:26,marginBottom:10}}>{icon}</div>
-              <div style={{fontWeight:700,fontSize:14,marginBottom:6}}>{title}</div>
-              <div style={{color:"#555",fontSize:12,lineHeight:1.65}}>{desc}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div style={{textAlign:"center",padding:"70px 20px",borderTop:"1px solid #111"}}>
-        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:44,marginBottom:12}}>Empezá hoy.</h2>
-        <p style={{color:"#555",fontSize:16,marginBottom:32}}>7 días gratis · Sin tarjeta · Cancelá cuando quieras</p>
-        <button onClick={()=>setView("app")} style={{background:"#a3e635",color:"#000",border:"none",borderRadius:13,padding:"16px 48px",fontWeight:800,cursor:"pointer",fontSize:16}}>Probar gratis →</button>
-      </div>
-    </div>
-  );
-
-  // ── PRICING ──
-  if (view === "pricing") return (
-    <div style={{minHeight:"100vh",background:"#080808",color:"#fff"}}>
-      <nav style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"18px 40px",borderBottom:"1px solid #111"}}>
-        <span onClick={()=>setView("landing")} style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:800,cursor:"pointer"}}>✦ ContentAI</span>
-        <button onClick={()=>setView("app")} style={{background:"transparent",color:"#a3e635",border:"1px solid #a3e63540",borderRadius:10,padding:"9px 20px",cursor:"pointer",fontWeight:700,fontSize:13}}>Ver demo →</button>
-      </nav>
-      <div style={{textAlign:"center",padding:"60px 20px 40px"}}>
-        <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:50,margin:"0 0 12px"}}>Planes simples.</h1>
-        <p style={{color:"#555",fontSize:17}}>Sin contratos. Cancelá cuando quieras.</p>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(270px,1fr))",gap:22,maxWidth:940,margin:"0 auto",padding:"0 24px 60px"}}>
-        {PLANS.map(p=>(
-          <div key={p.id} style={{background:activePlan?.id===p.id?`${p.color}10`:"#0f0f0f",border:`1.5px solid ${activePlan?.id===p.id?p.color:"#1e1e1e"}`,borderRadius:20,padding:"30px 24px",position:"relative",transition:"all 0.3s"}}>
-            {p.popular&&<div style={{position:"absolute",top:-12,left:"50%",transform:"translateX(-50%)",background:p.color,color:"#000",fontSize:11,fontWeight:800,padding:"4px 14px",borderRadius:20,whiteSpace:"nowrap"}}>⭐ MÁS POPULAR</div>}
-            <div style={{color:p.color,fontSize:11,fontWeight:700,letterSpacing:2,marginBottom:8}}>{p.name.toUpperCase()}</div>
-            <div style={{fontSize:42,fontWeight:800,color:"#fff",fontFamily:"'Playfair Display',serif",lineHeight:1,marginBottom:4}}>${p.price}</div>
-            <div style={{color:"#333",fontSize:12,marginBottom:18}}>/mes USD</div>
-            <div style={{borderTop:"1px solid #1a1a1a",paddingTop:16,display:"flex",flexDirection:"column",gap:9,marginBottom:22}}>
-              {p.features.map((f,i)=><div key={i} style={{display:"flex",gap:9,color:"#bbb",fontSize:13}}><span style={{color:p.color}}>✦</span>{f}</div>)}
-            </div>
-            <button onClick={()=>{setActivePlan(p);setView("app");}} style={{width:"100%",background:activePlan?.id===p.id?p.color:"transparent",border:`1.5px solid ${p.color}`,color:activePlan?.id===p.id?"#000":p.color,borderRadius:11,padding:"12px",fontWeight:800,cursor:"pointer",fontSize:14}}>
-              {activePlan?.id===p.id?"✓ Tu plan actual":"Suscribirme →"}
-            </button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
-  // ── APP ──
   return (
     <div style={{height:"100vh",display:"flex",flexDirection:"column",background:"#080808",color:"#fff",overflow:"hidden"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 22px",borderBottom:"1px solid #111",background:"#0a0a0a",flexShrink:0}}>
-        <span onClick={()=>setView("landing")} style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:800,cursor:"pointer"}}>✦ ContentAI</span>
-        <div style={{display:"flex",alignItems:"center",gap:12}}>
-          <span style={{fontSize:11,color:"#333"}}>{postsUsed} posts generados hoy</span>
-          {activePlan
-            ? <button onClick={()=>setView("pricing")} style={{background:`${plan.color}12`,color:plan.color,border:`1px solid ${plan.color}40`,borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:12,fontWeight:700}}>Plan {plan.name} ↑</button>
-            : <button onClick={()=>setView("pricing")} style={{background:"#a3e635",color:"#000",border:"none",borderRadius:8,padding:"7px 16px",cursor:"pointer",fontWeight:700,fontSize:12}}>Suscribirme →</button>
-          }
+
+      {/* NAV */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 20px",borderBottom:"1px solid #111",background:"#0a0a0a",flexShrink:0}}>
+        <span style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:800}}>✦ ContentAI</span>
+        <div style={{display:"flex",gap:4}}>
+          {navTabs.map(([id,icon,label])=>(
+            <button key={id} onClick={()=>setTab(id)} style={{background:tab===id?"#141414":"transparent",border:`1px solid ${tab===id?"#1e1e1e":"transparent"}`,borderRadius:8,padding:"7px 14px",color:tab===id?"#fff":"#444",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",gap:6}}>
+              <span>{icon}</span>{label}
+            </button>
+          ))}
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          {postsUsed > 0 && <span style={{fontSize:11,color:"#2a2a2a"}}>{postsUsed} posts generados</span>}
+          <button style={{background:"#a3e635",color:"#000",border:"none",borderRadius:8,padding:"7px 16px",cursor:"pointer",fontWeight:700,fontSize:12}}>Suscribirme →</button>
         </div>
       </div>
 
-      <div style={{flex:1,display:"flex",overflow:"hidden"}}>
-        {/* LEFT PANEL */}
-        <div style={{width:320,borderRight:"1px solid #111",padding:"18px 16px",display:"flex",flexDirection:"column",gap:14,overflowY:"auto",flexShrink:0}}>
-          <div>
-            <div style={{fontSize:16,fontWeight:800,marginBottom:4,fontFamily:"'Playfair Display',serif"}}>Generador IA</div>
-            <div style={{fontSize:12,color:"#333"}}>Subí una imagen o escribí un tema.</div>
-          </div>
-
-          {/* DROP ZONE */}
-          <div
-            onDragOver={e=>{e.preventDefault();setDragOver(true)}}
-            onDragLeave={()=>setDragOver(false)}
-            onDrop={e=>{e.preventDefault();setDragOver(false);handleFile(e.dataTransfer.files[0])}}
-            onClick={()=>fileRef.current.click()}
-            style={{border:`2px dashed ${dragOver?"#a3e635":"#222"}`,borderRadius:12,padding:"16px",textAlign:"center",cursor:"pointer",transition:"all 0.2s",background:dragOver?"#a3e63505":"transparent",minHeight:120,display:"flex",alignItems:"center",justifyContent:"center"}}
-          >
-            <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>handleFile(e.target.files[0])}/>
-            {imagePreview ? (
-              <div style={{width:"100%",position:"relative"}}>
-                <img src={imagePreview} style={{maxHeight:100,maxWidth:"100%",borderRadius:8,objectFit:"cover"}} alt="preview"/>
-                <button onClick={removeImage} style={{position:"absolute",top:-8,right:-8,background:"#f43f5e",border:"none",color:"#fff",width:22,height:22,borderRadius:"50%",cursor:"pointer",fontSize:11,lineHeight:"22px"}}>✕</button>
-                <div style={{color:"#a3e635",fontSize:11,marginTop:6,fontWeight:700}}>✓ Lista para analizar</div>
-              </div>
-            ) : (
-              <div>
-                <div style={{fontSize:28,marginBottom:6}}>🖼️</div>
-                <div style={{color:"#444",fontSize:12,marginBottom:3}}>Arrastrá una foto o hacé click</div>
-                <div style={{color:"#2a2a2a",fontSize:11}}>JPG, PNG, WEBP</div>
-              </div>
-            )}
-          </div>
-
-          {/* FIELDS */}
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+      {/* ── GENERATOR ── */}
+      {tab === "generator" && (
+        <div style={{flex:1,display:"flex",overflow:"hidden"}}>
+          {/* LEFT */}
+          <div style={{width:290,borderRight:"1px solid #111",padding:"14px",display:"flex",flexDirection:"column",gap:12,overflowY:"auto",flexShrink:0}}>
             <div>
-              <div style={{fontSize:10,color:"#333",marginBottom:4,letterSpacing:1}}>NEGOCIO</div>
-              <input value={businessName} onChange={e=>setBusinessName(e.target.value)} placeholder="Ej: La Josefa" style={{width:"100%",background:"#0c0c0c",border:"1px solid #161616",borderRadius:8,padding:"8px 10px",color:"#fff",fontSize:12,outline:"none"}}/>
+              <div style={{fontSize:14,fontWeight:700,marginBottom:2}}>Generador IA</div>
+              <div style={{fontSize:11,color:"#333"}}>Seleccioná fotos y generá posts para 5 redes.</div>
             </div>
+
+            {/* Selected images preview */}
             <div>
-              <div style={{fontSize:10,color:"#333",marginBottom:4,letterSpacing:1}}>RUBRO</div>
-              <select value={industry} onChange={e=>setIndustry(e.target.value)} style={{width:"100%",background:"#0c0c0c",border:"1px solid #161616",borderRadius:8,padding:"8px 10px",color:industry?"#fff":"#2a2a2a",fontSize:12,cursor:"pointer"}}>
-                <option value="">Seleccioná...</option>
-                {INDUSTRIES.map(i=><option key={i}>{i}</option>)}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <div style={{fontSize:10,color:"#333",marginBottom:6,letterSpacing:1}}>TONO</div>
-            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-              {["profesional","divertido","inspirador","urgente"].map(t=>(
-                <button key={t} onClick={()=>setTone(t)} style={{background:tone===t?"#f59e0b15":"#0c0c0c",border:`1px solid ${tone===t?"#f59e0b":"#161616"}`,borderRadius:7,padding:"6px 10px",color:tone===t?"#f59e0b":"#444",cursor:"pointer",fontSize:11,textTransform:"capitalize"}}>{t}</button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <div style={{fontSize:10,color:"#333",marginBottom:4,letterSpacing:1}}>CONTEXTO ADICIONAL</div>
-            <textarea value={topic} onChange={e=>setTopic(e.target.value)} rows={3}
-              placeholder="Ej: Promo del fin de semana, lanzamiento, evento especial..."
-              style={{width:"100%",background:"#0c0c0c",border:"1px solid #161616",borderRadius:8,padding:"8px 10px",color:"#fff",fontSize:12,outline:"none"}}/>
-          </div>
-
-          <button onClick={generateAll} disabled={!canGenerate} style={{background:canGenerate?"#a3e635":"#141414",color:canGenerate?"#000":"#2a2a2a",border:"none",borderRadius:10,padding:"13px",fontSize:14,fontWeight:800,cursor:canGenerate?"pointer":"not-allowed",display:"flex",alignItems:"center",justifyContent:"center",gap:10,transition:"all 0.2s"}}>
-            {generating
-              ? <><div style={{width:14,height:14,border:"2px solid #1a1a1a",borderTopColor:"#000",borderRadius:"50%",animation:"spin 0.7s linear infinite"}}/>Generando 5 posts...</>
-              : "🖼️ Generar para todas las redes"}
-          </button>
-
-          {generating && (
-            <div style={{background:"#0c0c0c",border:"1px solid #141414",borderRadius:10,padding:"12px 14px"}}>
-              <div style={{fontSize:11,color:"#a3e635",marginBottom:8,animation:"pulse 1.2s ease infinite"}}>🤖 Analizando y generando...</div>
-              {["Analizando la imagen","Entendiendo el mercado","Escribiendo para Instagram","Escribiendo para LinkedIn","Escribiendo para X, Facebook y TikTok"].map((s,i)=>(
-                <div key={i} style={{fontSize:11,color:"#2a2a2a",padding:"2px 0"}}>· {s}</div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* RIGHT PANEL */}
-        <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",padding:"16px 20px",gap:12}}>
-          {/* Network tabs */}
-          <div style={{display:"flex",gap:6,flexWrap:"wrap",flexShrink:0}}>
-            {NETWORKS.map(n=>(
-              <button key={n.id} onClick={()=>setActiveNet(n.id)} style={{background:activeNet===n.id?"#a3e63515":"#0c0c0c",border:`1px solid ${activeNet===n.id?"#a3e635":"#161616"}`,borderRadius:8,padding:"8px 16px",color:activeNet===n.id?"#a3e635":"#444",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",gap:7,transition:"all 0.15s"}}>
-                <span>{n.icon}</span>{n.label}
-                {results[n.id] && <span style={{width:6,height:6,borderRadius:"50%",background:"#a3e635",flexShrink:0}}/>}
-              </button>
-            ))}
-          </div>
-
-          {/* Result box */}
-          <div style={{flex:1,background:"#0a0a0a",border:`1px solid ${results[activeNet]?"#a3e63530":"#141414"}`,borderRadius:14,padding:"18px 20px",display:"flex",flexDirection:"column",overflow:"hidden",transition:"border-color 0.3s"}}>
-            {results._error && (
-              <div style={{color:"#f43f5e",fontSize:14}}>❌ {results._error}</div>
-            )}
-            {!generating && !results[activeNet] && !results._error && (
-              <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",color:"#1a1a1a",textAlign:"center"}}>
-                <div style={{fontSize:44,marginBottom:12}}>🖼️</div>
-                <div style={{fontSize:14,marginBottom:6}}>Subí una imagen o escribí un tema</div>
-                <div style={{fontSize:12,color:"#111"}}>Se generarán posts para las 5 redes a la vez</div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                <div style={{fontSize:10,color:"#333",letterSpacing:1}}>FOTOS SELECCIONADAS ({selectedImgs.length})</div>
+                {selectedImgs.length > 0 && <span onClick={()=>setSelected([])} style={{fontSize:10,color:"#f43f5e",cursor:"pointer"}}>Limpiar</span>}
               </div>
-            )}
-            {generating && !results[activeNet] && (
-              <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:14}}>
-                <div style={{width:34,height:34,border:"3px solid #141414",borderTopColor:"#a3e635",borderRadius:"50%",animation:"spin 0.7s linear infinite"}}/>
-                <div style={{color:"#333",fontSize:13}}>Generando post para {NETWORKS.find(n=>n.id===activeNet)?.label}...</div>
-              </div>
-            )}
-            {results[activeNet] && (
-              <div style={{animation:"fadeIn 0.4s ease",flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14,paddingBottom:12,borderBottom:"1px solid #141414",flexShrink:0}}>
-                  <span style={{fontSize:18}}>{NETWORKS.find(n=>n.id===activeNet)?.icon}</span>
-                  <span style={{fontWeight:700,fontSize:14}}>{NETWORKS.find(n=>n.id===activeNet)?.label}</span>
-                  <span style={{marginLeft:"auto",fontSize:11,color:"#a3e635",background:"#a3e63510",padding:"3px 10px",borderRadius:20,border:"1px solid #a3e63530"}}>✓ Listo</span>
+              {selectedImgs.length > 0 ? (
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  {selectedImgs.map(img=>(
+                    <div key={img.id} style={{position:"relative",width:56,height:56}}>
+                      <img src={img.preview} style={{width:56,height:56,borderRadius:7,objectFit:"cover",border:"2px solid #a3e635"}} alt=""/>
+                      <button onClick={()=>toggleSelect(img.id)} style={{position:"absolute",top:-5,right:-5,background:"#f43f5e",border:"none",color:"#fff",width:15,height:15,borderRadius:"50%",cursor:"pointer",fontSize:8,lineHeight:"15px",padding:0}}>✕</button>
+                    </div>
+                  ))}
+                  <div onClick={()=>setTab("gallery")} style={{width:56,height:56,borderRadius:7,border:"2px dashed #1a1a1a",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:"#222",fontSize:18}}>+</div>
                 </div>
-                <div style={{whiteSpace:"pre-wrap",fontSize:13.5,lineHeight:1.9,color:"#ccc",flex:1,overflowY:"auto"}}>{results[activeNet]}</div>
-                <div style={{display:"flex",gap:9,marginTop:14,paddingTop:12,borderTop:"1px solid #141414",flexShrink:0}}>
-                  <button onClick={()=>{navigator.clipboard.writeText(results[activeNet]);setCopied(activeNet);setTimeout(()=>setCopied(false),2000);}}
-                    style={{flex:1,background:copied===activeNet?"#0f2010":"#a3e635",color:copied===activeNet?"#a3e635":"#000",border:copied===activeNet?"1px solid #a3e635":"none",borderRadius:8,padding:"10px",fontWeight:700,cursor:"pointer",fontSize:13,transition:"all 0.2s"}}>
-                    {copied===activeNet?"✓ ¡Copiado!":"📋 Copiar post"}
-                  </button>
-                  <button onClick={generateAll} title="Regenerar" style={{background:"#141414",color:"#666",border:"1px solid #1e1e1e",borderRadius:8,padding:"10px 16px",cursor:"pointer",fontSize:16}}>🔁</button>
+              ) : (
+                <div onClick={()=>setTab("gallery")} style={{border:"2px dashed #141414",borderRadius:10,padding:"14px",textAlign:"center",cursor:"pointer",color:"#222"}}>
+                  <div style={{fontSize:22,marginBottom:4}}>🖼️</div>
+                  <div style={{fontSize:11,marginBottom:2,color:"#333"}}>Seleccioná fotos de tu galería</div>
+                  <div style={{fontSize:10}}>o arrastrá imágenes acá</div>
                 </div>
+              )}
+            </div>
+
+            {/* Quick upload */}
+            <div onClick={()=>fileRef.current.click()} style={{border:"1px dashed #111",borderRadius:8,padding:"8px",textAlign:"center",cursor:"pointer",fontSize:11,color:"#222"}}>
+              <input ref={fileRef} type="file" accept="image/*" multiple style={{display:"none"}} onChange={e=>{addFiles(e.target.files);}}/>
+              + Subir fotos nuevas a la galería
+            </div>
+
+            <div>
+              <div style={{fontSize:10,color:"#333",marginBottom:4,letterSpacing:1}}>CONTEXTO ADICIONAL</div>
+              <textarea value={topic} onChange={e=>setTopic(e.target.value)} rows={3}
+                placeholder="Ej: Lanzamiento nueva línea, promo fin de semana, evento especial..."
+                style={{width:"100%",background:"#0c0c0c",border:"1px solid #161616",borderRadius:8,padding:"8px 10px",color:"#fff",fontSize:12,outline:"none"}}/>
+            </div>
+
+            {brand.name && (
+              <div style={{background:"#0c0c0c",border:"1px solid #141414",borderRadius:8,padding:"9px 11px",fontSize:11}}>
+                <div style={{color:"#2a2a2a",marginBottom:3,fontSize:10,letterSpacing:1}}>PERFIL ACTIVO</div>
+                <div style={{color:"#a3e635",fontWeight:700}}>{brand.name}</div>
+                {brand.industry && <div style={{color:"#444",marginTop:1}}>{brand.industry}</div>}
+                {brand.target && <div style={{color:"#333",marginTop:1,fontSize:10}}>→ {brand.target}</div>}
+                <span onClick={()=>setTab("brand")} style={{color:"#333",fontSize:10,cursor:"pointer",marginTop:4,display:"block"}}>Editar →</span>
+              </div>
+            )}
+
+            <button onClick={generateAll} disabled={!canGenerate} style={{background:canGenerate?"#a3e635":"#141414",color:canGenerate?"#000":"#2a2a2a",border:"none",borderRadius:10,padding:"12px",fontSize:14,fontWeight:800,cursor:canGenerate?"pointer":"not-allowed",display:"flex",alignItems:"center",justifyContent:"center",gap:8,transition:"all 0.2s"}}>
+              {generating
+                ? <><div style={{width:13,height:13,border:"2px solid #111",borderTopColor:"#000",borderRadius:"50%",animation:"spin 0.7s linear infinite"}}/>Generando...</>
+                : `🖼️ Generar${selectedImgs.length>0?` con ${selectedImgs.length} foto${selectedImgs.length>1?"s":""}`:""}`}
+            </button>
+
+            {generating && (
+              <div style={{background:"#0c0c0c",border:"1px solid #141414",borderRadius:8,padding:"10px 12px"}}>
+                <div style={{fontSize:11,color:"#a3e635",marginBottom:5,animation:"pulse 1.2s ease infinite"}}>🤖 Trabajando...</div>
+                {["Analizando imágenes","Investigando el mercado","Aplicando perfil de marca","Generando para 5 redes"].map((s,i)=>(
+                  <div key={i} style={{fontSize:10,color:"#2a2a2a",padding:"1px 0"}}>· {s}</div>
+                ))}
               </div>
             )}
           </div>
 
-          {/* Status bar */}
-          {Object.keys(results).filter(k=>k!=="error").length > 0 && (
-            <div style={{background:"#0c0c0c",border:"1px solid #141414",borderRadius:10,padding:"10px 16px",display:"flex",alignItems:"center",gap:16,flexShrink:0}}>
-              <span style={{fontSize:11,color:"#333",letterSpacing:1}}>REDES:</span>
+          {/* RIGHT */}
+          <div style={{flex:1,display:"flex",flexDirection:"column",padding:"14px 18px",gap:10,overflow:"hidden"}}>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap",flexShrink:0}}>
               {NETWORKS.map(n=>(
-                <span key={n.id} onClick={()=>setActiveNet(n.id)} style={{fontSize:12,color:results[n.id]?"#a3e635":"#2a2a2a",cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>
-                  {results[n.id]?"✓":""} {n.label}
-                </span>
+                <button key={n.id} onClick={()=>setActiveNet(n.id)} style={{background:activeNet===n.id?"#a3e63515":"#0c0c0c",border:`1px solid ${activeNet===n.id?"#a3e635":"#161616"}`,borderRadius:8,padding:"7px 14px",color:activeNet===n.id?"#a3e635":"#444",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",gap:6,transition:"all 0.15s"}}>
+                  <span>{n.icon}</span>{n.label}
+                  {results[n.id] && <span style={{width:5,height:5,borderRadius:"50%",background:"#a3e635",flexShrink:0}}/>}
+                </button>
               ))}
+            </div>
+
+            <div style={{flex:1,background:"#0a0a0a",border:`1px solid ${results[activeNet]?"#a3e63530":"#141414"}`,borderRadius:13,padding:"16px 18px",display:"flex",flexDirection:"column",overflow:"hidden",transition:"border-color 0.3s"}}>
+              {results._error && <div style={{color:"#f43f5e",fontSize:14}}>❌ {results._error}</div>}
+              {!generating && !results[activeNet] && !results._error && (
+                <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",color:"#161616",textAlign:"center"}}>
+                  <div style={{fontSize:40,marginBottom:10}}>✦</div>
+                  <div style={{fontSize:13,color:"#1e1e1e",marginBottom:4}}>Seleccioná fotos y generá posts</div>
+                  <div style={{fontSize:11,color:"#141414"}}>La IA analiza tus imágenes y crea contenido<br/>para las 5 redes a la vez</div>
+                </div>
+              )}
+              {generating && !results[activeNet] && (
+                <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:12}}>
+                  <div style={{width:32,height:32,border:"3px solid #141414",borderTopColor:"#a3e635",borderRadius:"50%",animation:"spin 0.7s linear infinite"}}/>
+                  <div style={{color:"#333",fontSize:12}}>Generando para {NETWORKS.find(n=>n.id===activeNet)?.label}...</div>
+                </div>
+              )}
+              {results[activeNet] && (
+                <div style={{animation:"fadeIn 0.4s ease",flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,paddingBottom:10,borderBottom:"1px solid #141414",flexShrink:0}}>
+                    <span style={{fontSize:16}}>{NETWORKS.find(n=>n.id===activeNet)?.icon}</span>
+                    <span style={{fontWeight:700,fontSize:13}}>{NETWORKS.find(n=>n.id===activeNet)?.label}</span>
+                    <span style={{marginLeft:"auto",fontSize:10,color:"#a3e635",background:"#a3e63510",padding:"3px 10px",borderRadius:20,border:"1px solid #a3e63530"}}>✓ Listo</span>
+                  </div>
+                  <div style={{whiteSpace:"pre-wrap",fontSize:13.5,lineHeight:1.9,color:"#ccc",flex:1,overflowY:"auto"}}>{results[activeNet]}</div>
+                  <div style={{display:"flex",gap:8,marginTop:12,paddingTop:10,borderTop:"1px solid #141414",flexShrink:0}}>
+                    <button onClick={()=>{navigator.clipboard.writeText(results[activeNet]);setCopied(activeNet);setTimeout(()=>setCopied(false),2000);}}
+                      style={{flex:1,background:copied===activeNet?"#0f2010":"#a3e635",color:copied===activeNet?"#a3e635":"#000",border:copied===activeNet?"1px solid #a3e635":"none",borderRadius:8,padding:"10px",fontWeight:700,cursor:"pointer",fontSize:13,transition:"all 0.2s"}}>
+                      {copied===activeNet?"✓ ¡Copiado!":"📋 Copiar post"}
+                    </button>
+                    <button onClick={generateAll} style={{background:"#141414",color:"#666",border:"1px solid #1e1e1e",borderRadius:8,padding:"10px 14px",cursor:"pointer",fontSize:15}}>🔁</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {Object.keys(results).filter(k=>k!=="_error").length > 0 && (
+              <div style={{background:"#0c0c0c",border:"1px solid #141414",borderRadius:8,padding:"8px 14px",display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
+                <span style={{fontSize:10,color:"#2a2a2a",letterSpacing:1}}>GENERADOS:</span>
+                {NETWORKS.map(n=>(
+                  <span key={n.id} onClick={()=>setActiveNet(n.id)} style={{fontSize:11,color:results[n.id]?"#a3e635":"#1e1e1e",cursor:"pointer"}}>
+                    {results[n.id]?"✓ ":""}{n.label}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── GALLERY ── */}
+      {tab === "gallery" && (
+        <div style={{flex:1,overflowY:"auto",padding:"20px 24px"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
+            <div>
+              <div style={{fontSize:18,fontWeight:800,fontFamily:"'Playfair Display',serif",marginBottom:3}}>Galería de tu marca</div>
+              <div style={{fontSize:12,color:"#333"}}>{gallery.length} foto{gallery.length!==1?"s":""} · {selected.length} seleccionada{selected.length!==1?"s":""}</div>
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              {selected.length > 0 && (
+                <button onClick={()=>setTab("generator")} style={{background:"#a3e635",color:"#000",border:"none",borderRadius:9,padding:"9px 18px",fontWeight:700,cursor:"pointer",fontSize:13}}>
+                  Generar con {selected.length} foto{selected.length>1?"s":""} →
+                </button>
+              )}
+              <button onClick={()=>galleryFileRef.current.click()} style={{background:"transparent",color:"#a3e635",border:"1px solid #a3e63540",borderRadius:9,padding:"9px 18px",cursor:"pointer",fontWeight:700,fontSize:13}}>
+                + Subir fotos
+              </button>
+              <input ref={galleryFileRef} type="file" accept="image/*" multiple style={{display:"none"}} onChange={e=>addFiles(e.target.files)}/>
+            </div>
+          </div>
+
+          {/* Drop area */}
+          <div
+            onDragOver={e=>e.preventDefault()}
+            onDrop={e=>{e.preventDefault();addFiles(e.dataTransfer.files);}}
+            onClick={()=>galleryFileRef.current.click()}
+            style={{border:"2px dashed #141414",borderRadius:12,padding:"20px",textAlign:"center",marginBottom:18,cursor:"pointer",color:"#222"}}
+          >
+            <div style={{fontSize:28,marginBottom:6}}>📁</div>
+            <div style={{fontSize:13,marginBottom:3,color:"#333"}}>Arrastrá todas las fotos de tu negocio acá</div>
+            <div style={{fontSize:11}}>Se guardan en la sesión y podés seleccionar las que quieras para cada post</div>
+          </div>
+
+          {selected.length > 0 && (
+            <div style={{background:"#a3e63510",border:"1px solid #a3e63530",borderRadius:9,padding:"9px 14px",marginBottom:14,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{color:"#a3e635",fontSize:12,fontWeight:700}}>✓ {selected.length} foto{selected.length>1?"s":""} seleccionada{selected.length>1?"s":""}</span>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>setSelected(gallery.map(g=>g.id))} style={{background:"transparent",color:"#a3e635",border:"1px solid #a3e63530",borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:11}}>Todas</button>
+                <button onClick={()=>setSelected([])} style={{background:"transparent",color:"#555",border:"1px solid #1e1e1e",borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:11}}>Ninguna</button>
+              </div>
+            </div>
+          )}
+
+          {gallery.length === 0 ? (
+            <div style={{textAlign:"center",padding:"50px 20px",color:"#1e1e1e"}}>
+              <div style={{fontSize:44,marginBottom:10}}>🖼️</div>
+              <div style={{fontSize:15,color:"#2a2a2a",marginBottom:6}}>Tu galería está vacía</div>
+              <div style={{fontSize:12,color:"#1e1e1e"}}>Subí las fotos de tu negocio. Quedan guardadas en la sesión.</div>
+            </div>
+          ) : (
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:10}}>
+              {gallery.map(img=>{
+                const isSel = selected.includes(img.id);
+                return (
+                  <div key={img.id} className="img-wrap" style={{position:"relative",borderRadius:10,overflow:"hidden",border:`2px solid ${isSel?"#a3e635":"transparent"}`,cursor:"pointer",aspectRatio:"1",transition:"border-color 0.2s"}}
+                    onClick={()=>toggleSelect(img.id)}>
+                    <img src={img.preview} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}} alt=""/>
+                    {isSel && (
+                      <div style={{position:"absolute",inset:0,background:"rgba(163,230,53,0.15)",display:"flex",alignItems:"flex-start",justifyContent:"flex-end",padding:6}}>
+                        <div style={{width:22,height:22,borderRadius:"50%",background:"#a3e635",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,color:"#000",fontWeight:800}}>✓</div>
+                      </div>
+                    )}
+                    <button className="del-btn" onClick={e=>{e.stopPropagation();removeImg(img.id);}}
+                      style={{position:"absolute",top:6,left:6,background:"rgba(0,0,0,0.7)",border:"none",color:"#fff",width:20,height:20,borderRadius:"50%",cursor:"pointer",fontSize:10,lineHeight:"20px",padding:0}}>✕</button>
+                    <div style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(transparent,rgba(0,0,0,0.6))",padding:"6px",fontSize:9,color:"#888"}}>{img.date}</div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
-      </div>
+      )}
+
+      {/* ── BRAND ── */}
+      {tab === "brand" && (
+        <div style={{flex:1,overflowY:"auto",padding:"20px 24px"}}>
+          <div style={{maxWidth:560}}>
+            <div style={{marginBottom:22}}>
+              <div style={{fontSize:18,fontWeight:800,fontFamily:"'Playfair Display',serif",marginBottom:3}}>Perfil de tu marca</div>
+              <div style={{fontSize:12,color:"#333"}}>La IA usa este perfil para personalizar automáticamente todos tus posts.</div>
+            </div>
+
+            <div style={{display:"flex",flexDirection:"column",gap:14}}>
+              {[
+                ["NOMBRE DEL NEGOCIO","name","input","Ej: La Josefa Granja Orgánica"],
+                ["RUBRO","industry","select",""],
+                ["QUÉ HACÉS / QUÉ TE DIFERENCIA","description","textarea","Ej: Granja orgánica familiar. Vendemos huevos y verduras de estación directas al consumidor, sin intermediarios."],
+                ["CLIENTE IDEAL","target","input","Ej: Familias que valoran la alimentación natural y el producto local"],
+                ["ESTÉTICA / COLORES DE MARCA (opcional)","colors","input","Ej: Verde tierra, madera, rústico y natural"],
+              ].map(([label,field,type,ph])=>(
+                <div key={field}>
+                  <div style={{fontSize:10,color:"#333",marginBottom:5,letterSpacing:1}}>{label}</div>
+                  {type==="select" ? (
+                    <select value={brand[field]||""} onChange={e=>updateBrand(field,e.target.value)}
+                      style={{width:"100%",background:"#0c0c0c",border:"1px solid #161616",borderRadius:9,padding:"10px 12px",color:brand[field]?"#fff":"#2a2a2a",fontSize:13,cursor:"pointer"}}>
+                      <option value="">Seleccioná...</option>
+                      {INDUSTRIES.map(i=><option key={i}>{i}</option>)}
+                    </select>
+                  ) : type==="textarea" ? (
+                    <textarea value={brand[field]||""} onChange={e=>updateBrand(field,e.target.value)} rows={3} placeholder={ph}
+                      style={{width:"100%",background:"#0c0c0c",border:"1px solid #161616",borderRadius:9,padding:"10px 12px",color:"#fff",fontSize:13,outline:"none"}}/>
+                  ) : (
+                    <input value={brand[field]||""} onChange={e=>updateBrand(field,e.target.value)} placeholder={ph}
+                      style={{width:"100%",background:"#0c0c0c",border:"1px solid #161616",borderRadius:9,padding:"10px 12px",color:"#fff",fontSize:13,outline:"none"}}/>
+                  )}
+                </div>
+              ))}
+
+              <div>
+                <div style={{fontSize:10,color:"#333",marginBottom:6,letterSpacing:1}}>TONO DE COMUNICACIÓN</div>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  {TONES.map(t=>(
+                    <button key={t} onClick={()=>updateBrand("tone",t)} style={{background:(brand.tone||"profesional")===t?"#f59e0b15":"#0c0c0c",border:`1px solid ${(brand.tone||"profesional")===t?"#f59e0b":"#161616"}`,borderRadius:8,padding:"8px 14px",color:(brand.tone||"profesional")===t?"#f59e0b":"#444",cursor:"pointer",fontSize:12,textTransform:"capitalize"}}>{t}</button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{background:"#0c0c0c",border:"1px solid #a3e63520",borderRadius:10,padding:"12px 14px"}}>
+                <div style={{fontSize:11,color:"#a3e635",fontWeight:700,marginBottom:4}}>✦ Guardado automáticamente</div>
+                <div style={{fontSize:12,color:"#444",lineHeight:1.6}}>Cada vez que generés un post, la IA va a usar este perfil para que el contenido siempre suene como tu marca.</div>
+              </div>
+
+              {brand.name && (
+                <button onClick={()=>setTab("generator")} style={{background:"#a3e635",color:"#000",border:"none",borderRadius:10,padding:"13px",fontWeight:800,cursor:"pointer",fontSize:14}}>
+                  Ir al generador →
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
