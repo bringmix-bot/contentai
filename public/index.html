@@ -1,322 +1,630 @@
+Index · HTML
+Copiar
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>ContentAI — Generador de contenido con IA</title>
+<title>MCM — My Community Manager</title>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet"/>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#080808;color:#fff;font-family:'DM Sans',sans-serif}
+body{background:#070710;color:#fff;font-family:'DM Sans',sans-serif}
 ::-webkit-scrollbar{width:4px}
-::-webkit-scrollbar-thumb{background:#1e1e1e;border-radius:4px}
+::-webkit-scrollbar-thumb{background:#333;border-radius:4px}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
 input,textarea,select,button{font-family:'DM Sans',sans-serif}
-input::placeholder,textarea::placeholder{color:#2e2e2e}
+input::placeholder,textarea::placeholder{color:#3a3a4a}
 textarea{resize:none}
 select{-webkit-appearance:none}
+.hover-scale:hover{transform:scale(1.02);transition:transform 0.2s}
 .del-btn{opacity:0;transition:opacity 0.2s}
-.img-wrap:hover .del-btn{opacity:1}
+.media-wrap:hover .del-btn{opacity:1!important}
+.net-btn:hover{border-color:#7c6fff!important;color:#7c6fff!important}
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useRef } = React;
-
+const { useState, useRef, useCallback } = React;
+ 
+// ── BRAND COLORS ──
+const C = {
+  primary: "#7c6fff",
+  accent:  "#a78bfa",
+  green:   "#34d399",
+  dark:    "#070710",
+  card:    "#0e0e1a",
+  border:  "#1a1a2e",
+  border2: "#252540",
+  text:    "#fff",
+  muted:   "#888",
+  dim:     "#444",
+};
+ 
 const NETWORKS = [
-  { id:"instagram", label:"Instagram", icon:"📸", tone:"visual y emocional, con emojis y hashtags al final" },
-  { id:"linkedin",  label:"LinkedIn",  icon:"💼", tone:"profesional, con datos e insights del sector" },
-  { id:"twitter",   label:"X/Twitter", icon:"🐦", tone:"conciso, máximo 280 caracteres, con gancho fuerte" },
-  { id:"facebook",  label:"Facebook",  icon:"👥", tone:"conversacional, cálido, que invite a comentar" },
-  { id:"tiktok",    label:"TikTok",    icon:"🎵", tone:"hook potente en la primera línea, dinámico, con CTA" },
+  { id:"instagram", label:"Instagram", icon:"📸", color:"#E1306C", tone:"visual y emocional, con emojis estratégicos y hashtags al final (máx 30)" },
+  { id:"linkedin",  label:"LinkedIn",  icon:"💼", color:"#0A66C2", tone:"profesional, con dato o insight del sector en la primera línea" },
+  { id:"twitter",   label:"X/Twitter", icon:"🐦", color:"#1DA1F2", tone:"conciso e impactante, máximo 280 caracteres, con gancho en la primera frase" },
+  { id:"facebook",  label:"Facebook",  icon:"👥", color:"#1877F2", tone:"conversacional y cálido, con pregunta al final que invite a comentar" },
+  { id:"tiktok",    label:"TikTok",    icon:"🎵", color:"#010101", tone:"hook viral en la primera línea, dinámico, informal, CTA al final" },
 ];
-
-const INDUSTRIES = ["Restaurante / Gastronomía","Moda / Indumentaria","Salud y bienestar","Tecnología","Inmobiliaria","Educación","Turismo","Retail / Tienda","Servicios profesionales","Otro"];
-const TONES = ["profesional","divertido","inspirador","urgente","cercano","premium"];
-
-function App() {
-  const [tab, setTab] = useState("generator");
-
-  // Brand profile (persisted)
-  const [brand, setBrand] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("cai_brand")||"{}"); } catch { return {}; }
+ 
+const INDUSTRIES = ["Restaurante / Gastronomía","Moda / Indumentaria","Salud y bienestar","Tecnología","Inmobiliaria","Educación","Turismo","Retail / Tienda","Servicios profesionales","Construcción","Automotriz","Entretenimiento","Otro"];
+const TONES = ["profesional","divertido","inspirador","urgente","cercano","premium","educativo"];
+ 
+const INP = { width:"100%", background:C.card, border:`1px solid ${C.border2}`, borderRadius:9, padding:"10px 13px", color:"#fff", fontSize:13, outline:"none" };
+const LBL = { fontSize:10, color:C.muted, marginBottom:6, letterSpacing:1.5, display:"block", textTransform:"uppercase" };
+ 
+// ── POST IMAGE GENERATOR ──
+const generatePostImage = (postText, networkName, networkColor, businessName, imagePreview) => {
+  return new Promise(resolve => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1080; canvas.height = 1080;
+    const ctx = canvas.getContext("2d");
+ 
+    const drawContent = () => {
+      // Background
+      if (imagePreview) {
+        const img = new Image();
+        img.onload = () => {
+          // Draw image as background
+          const scale = Math.max(1080/img.width, 1080/img.height);
+          const w = img.width * scale, h = img.height * scale;
+          const x = (1080-w)/2, y = (1080-h)/2;
+          ctx.drawImage(img, x, y, w, h);
+          // Dark overlay
+          ctx.fillStyle = "rgba(7,7,16,0.72)";
+          ctx.fillRect(0, 0, 1080, 1080);
+          addText();
+        };
+        img.src = imagePreview;
+      } else {
+        // Gradient background
+        const grad = ctx.createLinearGradient(0, 0, 1080, 1080);
+        grad.addColorStop(0, "#070710");
+        grad.addColorStop(0.5, "#0e0e2a");
+        grad.addColorStop(1, "#07101a");
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 1080, 1080);
+        // Decorative circle
+        ctx.beginPath();
+        ctx.arc(900, 180, 300, 0, Math.PI*2);
+        ctx.fillStyle = networkColor + "15";
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(180, 900, 200, 0, Math.PI*2);
+        ctx.fillStyle = "#7c6fff10";
+        ctx.fill();
+        addText();
+      }
+    };
+ 
+    const addText = () => {
+      const pad = 80;
+      const maxW = 1080 - pad*2;
+ 
+      // Top bar
+      ctx.fillStyle = networkColor;
+      ctx.fillRect(pad, pad, 6, 60);
+ 
+      // Network label
+      ctx.font = "500 26px 'DM Sans', sans-serif";
+      ctx.fillStyle = networkColor;
+      ctx.fillText(networkName.toUpperCase(), pad+22, pad+40);
+ 
+      // Business name
+      if (businessName) {
+        ctx.font = "400 22px 'DM Sans', sans-serif";
+        ctx.fillStyle = "rgba(255,255,255,0.6)";
+        ctx.fillText(businessName, pad+22, pad+70);
+      }
+ 
+      // Main post text
+      ctx.font = "500 38px 'DM Sans', sans-serif";
+      ctx.fillStyle = "#ffffff";
+      const lines = [];
+      const words = postText.replace(/[#@]/g, '').split(' ');
+      let line = '';
+      words.forEach(word => {
+        const test = line + (line?' ':'') + word;
+        if (ctx.measureText(test).width > maxW) { if(line) lines.push(line); line = word; }
+        else line = test;
+      });
+      if (line) lines.push(line);
+ 
+      // Limit to first ~8 lines for visual
+      const displayLines = lines.slice(0, 8);
+      if (lines.length > 8) displayLines[7] = displayLines[7] + '...';
+ 
+      const lineH = 52;
+      const totalH = displayLines.length * lineH;
+      const startY = (1080 - totalH) / 2;
+ 
+      displayLines.forEach((l, i) => {
+        ctx.fillText(l, pad, startY + i * lineH);
+      });
+ 
+      // Bottom branding
+      ctx.fillStyle = "rgba(124,111,255,0.8)";
+      ctx.fillRect(0, 1020, 1080, 60);
+      ctx.font = "600 24px 'DM Sans', sans-serif";
+      ctx.fillStyle = "#fff";
+      ctx.fillText("MCM · My Community Manager", pad, 1056);
+ 
+      resolve(canvas.toDataURL("image/png"));
+    };
+ 
+    drawContent();
   });
-  const updateBrand = (field, val) => {
-    const b = { ...brand, [field]: val };
-    setBrand(b);
-    try { localStorage.setItem("cai_brand", JSON.stringify(b)); } catch {}
+};
+ 
+function App() {
+  const [view, setView] = useState("landing");
+  const [tab, setTab] = useState("generator");
+ 
+  const [brand, setBrand] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("mcm_brand")||"{}"); } catch { return {}; }
+  });
+  const updateBrand = (f, v) => {
+    const b = {...brand,[f]:v}; setBrand(b);
+    try { localStorage.setItem("mcm_brand", JSON.stringify(b)); } catch {}
   };
-
-  // Gallery (persisted — store only metadata, base64 in session)
+ 
   const [gallery, setGallery] = useState([]);
   const [selected, setSelected] = useState([]);
-
+ 
   const addFiles = (files) => {
     Array.from(files).forEach(file => {
-      if (!file.type.startsWith("image/")) return;
+      const isImg = file.type.startsWith("image/");
+      const isVid = file.type.startsWith("video/");
+      if (!isImg && !isVid) return;
       const reader = new FileReader();
       reader.onload = e => {
-        const img = {
-          id: Date.now() + Math.random(),
-          name: file.name,
-          preview: e.target.result,
-          base64: e.target.result.split(",")[1],
-          mediaType: file.type,
+        setGallery(prev => [{
+          id: Date.now()+Math.random(), name:file.name,
+          preview: isImg ? e.target.result : null,
+          base64: isImg ? e.target.result.split(",")[1] : null,
+          mediaType: file.type, isVideo: isVid,
+          videoSrc: isVid ? URL.createObjectURL(file) : null,
           date: new Date().toLocaleDateString("es-AR"),
-        };
-        setGallery(prev => [img, ...prev]);
+        }, ...prev]);
       };
-      reader.readAsDataURL(file);
+      if (isImg) reader.readAsDataURL(file);
+      else reader.readAsArrayBuffer(file);
     });
   };
-
-  const removeImg = (id) => {
-    setGallery(prev => prev.filter(g => g.id !== id));
-    setSelected(prev => prev.filter(s => s !== id));
-  };
-
-  const toggleSelect = (id) => setSelected(prev => prev.includes(id) ? prev.filter(s=>s!==id) : [...prev, id]);
-  const selectedImgs = gallery.filter(g => selected.includes(g.id));
-
-  // Generator
+ 
+  const removeItem = (id) => { setGallery(p=>p.filter(g=>g.id!==id)); setSelected(p=>p.filter(s=>s!==id)); };
+  const toggleSel = (id) => setSelected(p=>p.includes(id)?p.filter(s=>s!==id):[...p,id]);
+  const selItems = gallery.filter(g=>selected.includes(g.id));
+ 
   const [topic, setTopic] = useState("");
   const [generating, setGenerating] = useState(false);
   const [results, setResults] = useState({});
   const [activeNet, setActiveNet] = useState("instagram");
   const [copied, setCopied] = useState(false);
-  const [postsUsed, setPostsUsed] = useState(0);
+  const [postsCount, setPostsCount] = useState(0);
+  const [generatingImg, setGeneratingImg] = useState(false);
+  const [postImages, setPostImages] = useState({});
   const fileRef = useRef();
   const galleryFileRef = useRef();
-
+ 
   const generateAll = async () => {
-    if (!topic.trim() && selectedImgs.length === 0) return;
-    setGenerating(true); setResults({});
-
+    if (!topic.trim() && selItems.length === 0) return;
+    setGenerating(true); setResults({}); setPostImages({});
+ 
     const brandCtx = [
       brand.name && `Negocio: "${brand.name}"`,
       brand.industry && `Rubro: "${brand.industry}"`,
-      (brand.tone||"profesional") && `Tono: ${brand.tone||"profesional"}`,
+      `Tono: ${brand.tone||"profesional"}`,
       brand.description && `Descripción: "${brand.description}"`,
       brand.target && `Cliente ideal: "${brand.target}"`,
-      brand.colors && `Estética: "${brand.colors}"`,
+      brand.colors && `Estética visual: "${brand.colors}"`,
     ].filter(Boolean).join(" | ");
-
-    const prompt = `Sos un experto en marketing digital con profundo conocimiento del mercado argentino.
-
-${brandCtx || "Negocio sin perfil definido"}
-${topic ? `Contexto adicional: "${topic}"` : ""}
-${selectedImgs.length > 0 ? `Se proporcionan ${selectedImgs.length} imagen${selectedImgs.length>1?"es":""} del negocio. Analizalas todas en conjunto: el estilo visual, los productos, el ambiente, la propuesta de valor y cualquier detalle relevante.` : ""}
-
-Generá posts optimizados para 5 redes. Cada uno debe reflejar la identidad de la marca, usar lenguaje argentino natural y estar adaptado al algoritmo de cada plataforma.
-
-Usá EXACTAMENTE este formato sin texto extra antes ni después:
-
+ 
+    const mediaDesc = selItems.map((item,i) => item.isVideo ? `Video ${i+1}: ${item.name}` : `Imagen ${i+1}: ${item.name}`).join(", ");
+ 
+    const prompt = `Sos el mejor community manager de Argentina, con experiencia en estrategia digital, copywriting y conocimiento profundo del mercado latinoamericano.
+ 
+PERFIL DEL CLIENTE:
+${brandCtx || "Cliente sin perfil configurado aún"}
+ 
+${topic ? `BRIEF DE ESTE POST: "${topic}"` : ""}
+${selItems.length > 0 ? `MATERIAL APORTADO: ${mediaDesc}${selItems.some(s=>!s.isVideo) ? " (analizá las imágenes para entender el producto, ambiente y propuesta de valor)" : " (videos del negocio)"}` : ""}
+ 
+TU TAREA:
+1. Analizá el material visual y el perfil del cliente
+2. Investigá mentalmente qué le importa al consumidor final de este rubro
+3. Creá posts que generen engagement real — no genéricos, sino específicos y auténticos
+4. Cada post debe sonar como si lo escribiera un humano que conoce la marca
+ 
+FORMATO OBLIGATORIO (no agregues texto antes ni después):
+ 
 ===INSTAGRAM===
-[post: ${NETWORKS[0].tone}]
-
+[post completo: ${NETWORKS[0].tone}]
+ 
 ===LINKEDIN===
-[post: ${NETWORKS[1].tone}]
-
+[post completo: ${NETWORKS[1].tone}]
+ 
 ===TWITTER===
-[post: ${NETWORKS[2].tone}]
-
+[post completo: ${NETWORKS[2].tone}]
+ 
 ===FACEBOOK===
-[post: ${NETWORKS[3].tone}]
-
+[post completo: ${NETWORKS[3].tone}]
+ 
 ===TIKTOK===
-[post: ${NETWORKS[4].tone}]`;
-
+[post completo: ${NETWORKS[4].tone}]`;
+ 
     try {
+      const firstImg = selItems.find(s => !s.isVideo && s.base64);
       const body = { prompt };
-      if (selectedImgs.length === 1) {
-        body.imageBase64 = selectedImgs[0].base64;
-        body.imageMediaType = selectedImgs[0].mediaType;
-      } else if (selectedImgs.length > 1) {
-        // Send first image — API handles one at a time; mention others in prompt
-        body.imageBase64 = selectedImgs[0].base64;
-        body.imageMediaType = selectedImgs[0].mediaType;
-      }
-
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      if (firstImg) { body.imageBase64 = firstImg.base64; body.imageMediaType = firstImg.mediaType; }
+ 
+      const res = await fetch("/api/generate", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body) });
       const data = await res.json();
-      if (data.error) { setResults({ _error: data.error }); return; }
-
-      const text = data.text || "";
-      const parsed = {};
-      const keys = ["INSTAGRAM","LINKEDIN","TWITTER","FACEBOOK","TIKTOK"];
-      const ids  = ["instagram","linkedin","twitter","facebook","tiktok"];
-      keys.forEach((key, i) => {
-        const start = text.indexOf(`===${key}===`);
-        if (start === -1) return;
-        const from = start + key.length + 6;
-        const next = keys[i+1] ? text.indexOf(`===${keys[i+1]}===`) : text.length;
-        parsed[ids[i]] = text.slice(from, next).trim();
-      });
-      setResults(parsed);
-      setPostsUsed(p => p + 5);
-    } catch { setResults({ _error: "Error de conexión." }); }
+ 
+      if (data.error) { setResults({ _error: data.error }); }
+      else {
+        const text = data.text || "";
+        const parsed = {};
+        const keys=["INSTAGRAM","LINKEDIN","TWITTER","FACEBOOK","TIKTOK"];
+        const ids=["instagram","linkedin","twitter","facebook","tiktok"];
+        keys.forEach((key,i) => {
+          const s = text.indexOf(`===${key}===`);
+          if (s === -1) return;
+          const f = s + key.length + 6;
+          const n = keys[i+1] ? text.indexOf(`===${keys[i+1]}===`) : text.length;
+          parsed[ids[i]] = text.slice(f, n).trim();
+        });
+        setResults(parsed);
+        setPostsCount(p => p + 5);
+ 
+        // Auto-generate images for all networks
+        setGeneratingImg(true);
+        const imgResults = {};
+        const firstImgPreview = selItems.find(s=>!s.isVideo)?.preview || null;
+        for (let i = 0; i < NETWORKS.length; i++) {
+          const net = NETWORKS[i];
+          if (parsed[net.id]) {
+            imgResults[net.id] = await generatePostImage(parsed[net.id], net.label, net.color, brand.name||"", firstImgPreview);
+          }
+        }
+        setPostImages(imgResults);
+        setGeneratingImg(false);
+      }
+    } catch(e) { setResults({ _error: "Error de conexión: " + e.message }); }
     finally { setGenerating(false); }
   };
-
-  const canGenerate = !generating && (!!topic.trim() || selectedImgs.length > 0);
-
-  // ── NAV ──
-  const navTabs = [["generator","✦","Generador"],["gallery","🖼️","Galería"],["brand","🎨","Mi marca"]];
-
+ 
+  const downloadText = (netId) => {
+    const net = NETWORKS.find(n=>n.id===netId);
+    const blob = new Blob([results[netId]], { type:"text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `MCM_${net.label}_post.txt`; a.click();
+    URL.revokeObjectURL(url);
+  };
+ 
+  const downloadImage = (netId) => {
+    const net = NETWORKS.find(n=>n.id===netId);
+    const a = document.createElement("a");
+    a.href = postImages[netId]; a.download = `MCM_${net.label}_imagen.png`; a.click();
+  };
+ 
+  const canGenerate = !generating && (!!topic.trim() || selItems.length > 0);
+ 
+  // ── LANDING ──
+  if (view === "landing") return (
+    <div style={{minHeight:"100vh", background:C.dark, color:"#fff"}}>
+      <nav style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"20px 48px",borderBottom:`1px solid ${C.border}`,position:"sticky",top:0,background:"#070710ee",backdropFilter:"blur(20px)",zIndex:50}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{width:36,height:36,background:C.primary,borderRadius:10,display:"grid",placeItems:"center",fontSize:16,color:"#fff",fontWeight:800}}>M</div>
+          <div>
+            <span style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:800}}>MCM</span>
+            <span style={{fontSize:12,color:C.muted,marginLeft:8}}>My Community Manager</span>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:32}}>
+          {["Funciones","Precios","Demo"].map(l=>(
+            <span key={l} onClick={()=>{ if(l==="Demo")setView("app"); if(l==="Precios")setView("pricing"); }}
+              style={{color:C.muted,fontSize:14,cursor:"pointer"}}
+              onMouseEnter={e=>e.target.style.color="#fff"} onMouseLeave={e=>e.target.style.color=C.muted}>{l}</span>
+          ))}
+        </div>
+        <button onClick={()=>setView("app")} style={{background:C.primary,color:"#fff",border:"none",borderRadius:12,padding:"11px 28px",fontWeight:700,cursor:"pointer",fontSize:14}}>
+          Empezar gratis →
+        </button>
+      </nav>
+ 
+      <div style={{textAlign:"center",padding:"110px 20px 90px"}}>
+        <div style={{display:"inline-flex",alignItems:"center",gap:8,background:`${C.primary}18`,border:`1px solid ${C.primary}35`,color:C.accent,fontSize:11,fontWeight:700,padding:"6px 20px",borderRadius:20,marginBottom:40,letterSpacing:2}}>
+          ✦ TU COMMUNITY MANAGER CON IA · 24/7
+        </div>
+        <h1 style={{fontSize:"clamp(42px,8vw,86px)",fontFamily:"'Playfair Display',serif",fontWeight:800,lineHeight:1.03,margin:"0 0 28px",background:`linear-gradient(135deg,#fff 0%,${C.accent} 50%,${C.green} 100%)`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>
+          Tu marca en todas<br/>las redes. Sin esfuerzo.
+        </h1>
+        <p style={{color:"#777",fontSize:19,maxWidth:560,margin:"0 auto 56px",lineHeight:1.7}}>
+          Subís tus fotos y videos. MCM los analiza, investiga tu mercado y genera posts listos para publicar con imagen incluida — para Instagram, LinkedIn, TikTok, Facebook y X.
+        </p>
+        <div style={{display:"flex",gap:14,justifyContent:"center",flexWrap:"wrap"}}>
+          <button onClick={()=>setView("app")} style={{background:C.primary,color:"#fff",border:"none",borderRadius:14,padding:"17px 44px",fontWeight:800,cursor:"pointer",fontSize:17}}>
+            Probar gratis 7 días
+          </button>
+          <button onClick={()=>setView("pricing")} style={{background:"transparent",color:"#fff",border:`1px solid ${C.border2}`,borderRadius:14,padding:"17px 40px",fontWeight:600,cursor:"pointer",fontSize:17}}>
+            Ver planes →
+          </button>
+        </div>
+      </div>
+ 
+      <div style={{display:"flex",justifyContent:"center",gap:"clamp(24px,6vw,80px)",padding:"44px 20px",borderTop:`1px solid ${C.border}`,borderBottom:`1px solid ${C.border}`,flexWrap:"wrap"}}>
+        {[["📁","Subís tu contenido"],["🤖","MCM lo analiza"],["📝","Genera 5 posts"],["🖼️","Con imagen lista"],["⬇️","Descargás y publicás"]].map(([icon,l])=>(
+          <div key={l} style={{textAlign:"center"}}>
+            <div style={{fontSize:28,marginBottom:8}}>{icon}</div>
+            <div style={{color:C.muted,fontSize:12}}>{l}</div>
+          </div>
+        ))}
+      </div>
+ 
+      <div style={{padding:"80px 48px",maxWidth:1080,margin:"0 auto"}}>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:42,textAlign:"center",marginBottom:60}}>Todo lo que hace un CM. Automatizado.</h2>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",gap:18}}>
+          {[
+            ["🖼️","Analiza tus imágenes","MCM entiende tu producto, tu local y lo que transmite tu marca con solo ver una foto."],
+            ["🎬","Acepta videos","Subís un video y MCM extrae el contexto para crear contenido coherente con tu material."],
+            ["🧠","Investiga tu mercado","La IA conoce las tendencias, el lenguaje y las necesidades del consumidor de tu rubro."],
+            ["📊","5 redes a la vez","Posts optimizados para cada plataforma simultáneamente. Cada uno con su formato ideal."],
+            ["🖼️","Imagen lista para subir","Genera una imagen con el texto del post encima, lista para publicar sin editar nada."],
+            ["⬇️","Descarga todo","Descargás el texto y la imagen de cada red con un click. Listo para publicar."],
+          ].map(([icon,title,desc])=>(
+            <div key={title} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,padding:"26px 24px",transition:"border-color 0.3s"}}
+              onMouseEnter={e=>e.currentTarget.style.borderColor=C.border2}
+              onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>
+              <div style={{fontSize:28,marginBottom:12}}>{icon}</div>
+              <div style={{fontWeight:700,fontSize:15,marginBottom:8}}>{title}</div>
+              <div style={{color:"#666",fontSize:13,lineHeight:1.7}}>{desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+ 
+      <div style={{textAlign:"center",padding:"80px 20px",borderTop:`1px solid ${C.border}`}}>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:50,marginBottom:14}}>Tu CM trabaja 24/7.</h2>
+        <p style={{color:"#666",fontSize:17,marginBottom:40}}>7 días gratis · Sin tarjeta · Cancelá cuando quieras</p>
+        <button onClick={()=>setView("app")} style={{background:C.primary,color:"#fff",border:"none",borderRadius:14,padding:"18px 56px",fontWeight:800,cursor:"pointer",fontSize:18}}>
+          Empezar gratis →
+        </button>
+      </div>
+      <div style={{textAlign:"center",padding:"24px",borderTop:`1px solid #0f0f1a`,color:"#333",fontSize:12}}>
+        © 2025 MCM · My Community Manager · Hecho con IA en Argentina 🇦🇷
+      </div>
+    </div>
+  );
+ 
+  // ── PRICING ──
+  if (view === "pricing") return (
+    <div style={{minHeight:"100vh",background:C.dark,color:"#fff"}}>
+      <nav style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"20px 48px",borderBottom:`1px solid ${C.border}`}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer"}} onClick={()=>setView("landing")}>
+          <div style={{width:32,height:32,background:C.primary,borderRadius:9,display:"grid",placeItems:"center",color:"#fff",fontWeight:800}}>M</div>
+          <span style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:800}}>MCM</span>
+        </div>
+        <button onClick={()=>setView("app")} style={{background:"transparent",color:C.accent,border:`1px solid ${C.primary}40`,borderRadius:11,padding:"10px 22px",cursor:"pointer",fontWeight:700,fontSize:13}}>Ver demo →</button>
+      </nav>
+      <div style={{textAlign:"center",padding:"70px 20px 50px"}}>
+        <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:54,margin:"0 0 14px"}}>Planes simples.</h1>
+        <p style={{color:"#666",fontSize:18}}>Sin contratos. Cancelá cuando quieras.</p>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:22,maxWidth:980,margin:"0 auto",padding:"0 24px 80px"}}>
+        {[
+          { name:"Starter", price:29, color:C.green, features:["30 posts/mes","Análisis de imágenes","5 redes sociales","Imagen del post generada","Descarga texto + imagen"] },
+          { name:"Pro", price:59, color:C.primary, popular:true, features:["100 posts/mes","Imágenes + videos","Todas las redes","Perfil de marca guardado","Soporte prioritario"] },
+          { name:"Agency", price:149, color:"#f59e0b", features:["Posts ilimitados","10 clientes","White label","API access","Soporte 24/7"] },
+        ].map(p=>(
+          <div key={p.name} style={{background:C.card,border:`1.5px solid ${p.popular?p.color:C.border}`,borderRadius:20,padding:"32px 26px",position:"relative"}}>
+            {p.popular&&<div style={{position:"absolute",top:-13,left:"50%",transform:"translateX(-50%)",background:p.color,color:"#fff",fontSize:11,fontWeight:800,padding:"4px 18px",borderRadius:20,whiteSpace:"nowrap"}}>⭐ MÁS POPULAR</div>}
+            <div style={{color:p.color,fontSize:11,fontWeight:700,letterSpacing:2,marginBottom:10}}>{p.name.toUpperCase()}</div>
+            <div style={{fontSize:44,fontWeight:800,fontFamily:"'Playfair Display',serif",lineHeight:1,marginBottom:4}}>${p.price}</div>
+            <div style={{color:"#555",fontSize:13,marginBottom:22}}>/mes USD</div>
+            <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:24,borderTop:`1px solid ${C.border}`,paddingTop:18}}>
+              {p.features.map((f,i)=><div key={i} style={{display:"flex",gap:10,color:"#ccc",fontSize:13}}><span style={{color:p.color}}>✦</span>{f}</div>)}
+            </div>
+            <button onClick={()=>setView("app")} style={{width:"100%",background:p.popular?p.color:"transparent",border:`1.5px solid ${p.color}`,color:p.popular?"#fff":p.color,borderRadius:12,padding:"13px",fontWeight:800,cursor:"pointer",fontSize:14}}>
+              Empezar →
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+ 
+  // ── APP ──
+  const navTabs = [["generator","✦","Generador"],["gallery","📁","Mi contenido"],["brand","🎨","Mi marca"]];
+ 
   return (
-    <div style={{height:"100vh",display:"flex",flexDirection:"column",background:"#080808",color:"#fff",overflow:"hidden"}}>
-
-      {/* NAV */}
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 20px",borderBottom:"1px solid #111",background:"#0a0a0a",flexShrink:0}}>
-        <span style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:800}}>✦ ContentAI</span>
-        <div style={{display:"flex",gap:4}}>
+    <div style={{height:"100vh",display:"flex",flexDirection:"column",background:C.dark,overflow:"hidden"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 20px",borderBottom:`1px solid ${C.border}`,background:"#08080f",flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"center",gap:9,cursor:"pointer"}} onClick={()=>setView("landing")}>
+          <div style={{width:28,height:28,background:C.primary,borderRadius:8,display:"grid",placeItems:"center",color:"#fff",fontWeight:800,fontSize:13}}>M</div>
+          <span style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:800}}>MCM</span>
+          <span style={{fontSize:10,color:"#444",marginLeft:2}}>My Community Manager</span>
+        </div>
+        <div style={{display:"flex",gap:3}}>
           {navTabs.map(([id,icon,label])=>(
-            <button key={id} onClick={()=>setTab(id)} style={{background:tab===id?"#141414":"transparent",border:`1px solid ${tab===id?"#1e1e1e":"transparent"}`,borderRadius:8,padding:"7px 14px",color:tab===id?"#fff":"#444",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",gap:6}}>
+            <button key={id} onClick={()=>setTab(id)} style={{background:tab===id?C.card:"transparent",border:`1px solid ${tab===id?C.border2:"transparent"}`,borderRadius:8,padding:"7px 16px",color:tab===id?"#fff":"#555",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",gap:6,transition:"all 0.2s"}}>
               <span>{icon}</span>{label}
             </button>
           ))}
         </div>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          {postsUsed > 0 && <span style={{fontSize:11,color:"#2a2a2a"}}>{postsUsed} posts generados</span>}
-          <button style={{background:"#a3e635",color:"#000",border:"none",borderRadius:8,padding:"7px 16px",cursor:"pointer",fontWeight:700,fontSize:12}}>Suscribirme →</button>
+          {postsCount>0&&<span style={{fontSize:11,color:"#333"}}>{postsCount} posts generados</span>}
+          <button onClick={()=>setView("pricing")} style={{background:C.primary,color:"#fff",border:"none",borderRadius:8,padding:"7px 18px",cursor:"pointer",fontWeight:700,fontSize:12}}>Suscribirme →</button>
         </div>
       </div>
-
-      {/* ── GENERATOR ── */}
-      {tab === "generator" && (
+ 
+      {/* GENERATOR */}
+      {tab==="generator"&&(
         <div style={{flex:1,display:"flex",overflow:"hidden"}}>
-          {/* LEFT */}
-          <div style={{width:290,borderRight:"1px solid #111",padding:"14px",display:"flex",flexDirection:"column",gap:12,overflowY:"auto",flexShrink:0}}>
+          <div style={{width:290,borderRight:`1px solid ${C.border}`,padding:"16px",display:"flex",flexDirection:"column",gap:14,overflowY:"auto",flexShrink:0}}>
             <div>
-              <div style={{fontSize:14,fontWeight:700,marginBottom:2}}>Generador IA</div>
-              <div style={{fontSize:11,color:"#333"}}>Seleccioná fotos y generá posts para 5 redes.</div>
+              <div style={{fontSize:15,fontWeight:700,marginBottom:3}}>Generador</div>
+              <div style={{fontSize:11,color:"#555"}}>Seleccioná tu contenido y generá posts para 5 redes.</div>
             </div>
-
-            {/* Selected images preview */}
+ 
             <div>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                <div style={{fontSize:10,color:"#333",letterSpacing:1}}>FOTOS SELECCIONADAS ({selectedImgs.length})</div>
-                {selectedImgs.length > 0 && <span onClick={()=>setSelected([])} style={{fontSize:10,color:"#f43f5e",cursor:"pointer"}}>Limpiar</span>}
-              </div>
-              {selectedImgs.length > 0 ? (
-                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                  {selectedImgs.map(img=>(
-                    <div key={img.id} style={{position:"relative",width:56,height:56}}>
-                      <img src={img.preview} style={{width:56,height:56,borderRadius:7,objectFit:"cover",border:"2px solid #a3e635"}} alt=""/>
-                      <button onClick={()=>toggleSelect(img.id)} style={{position:"absolute",top:-5,right:-5,background:"#f43f5e",border:"none",color:"#fff",width:15,height:15,borderRadius:"50%",cursor:"pointer",fontSize:8,lineHeight:"15px",padding:0}}>✕</button>
+              <span style={LBL}>CONTENIDO SELECCIONADO ({selItems.length})</span>
+              {selItems.length>0?(
+                <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
+                  {selItems.map(item=>(
+                    <div key={item.id} style={{position:"relative",width:56,height:56}}>
+                      {item.isVideo
+                        ? <div style={{width:56,height:56,borderRadius:7,background:"#1a1a2e",border:`2px solid ${C.primary}`,display:"grid",placeItems:"center",fontSize:18}}>🎬</div>
+                        : <img src={item.preview} style={{width:56,height:56,borderRadius:7,objectFit:"cover",border:`2px solid ${C.primary}`}} alt=""/>
+                      }
+                      <button onClick={()=>toggleSel(item.id)} style={{position:"absolute",top:-5,right:-5,background:"#f43f5e",border:"none",color:"#fff",width:16,height:16,borderRadius:"50%",cursor:"pointer",fontSize:8,lineHeight:"16px",padding:0}}>✕</button>
                     </div>
                   ))}
-                  <div onClick={()=>setTab("gallery")} style={{width:56,height:56,borderRadius:7,border:"2px dashed #1a1a1a",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:"#222",fontSize:18}}>+</div>
+                  <div onClick={()=>setTab("gallery")} style={{width:56,height:56,borderRadius:7,border:`2px dashed ${C.border2}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:"#444",fontSize:20}}>+</div>
+                  <button onClick={()=>setSelected([])} style={{fontSize:10,color:"#f43f5e",background:"none",border:"none",cursor:"pointer",alignSelf:"center"}}>Limpiar</button>
                 </div>
-              ) : (
-                <div onClick={()=>setTab("gallery")} style={{border:"2px dashed #141414",borderRadius:10,padding:"14px",textAlign:"center",cursor:"pointer",color:"#222"}}>
-                  <div style={{fontSize:22,marginBottom:4}}>🖼️</div>
-                  <div style={{fontSize:11,marginBottom:2,color:"#333"}}>Seleccioná fotos de tu galería</div>
-                  <div style={{fontSize:10}}>o arrastrá imágenes acá</div>
+              ):(
+                <div onClick={()=>setTab("gallery")} style={{border:`2px dashed ${C.border}`,borderRadius:10,padding:"14px",textAlign:"center",cursor:"pointer",marginBottom:8,transition:"border-color 0.2s"}}
+                  onMouseEnter={e=>e.currentTarget.style.borderColor=C.border2} onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>
+                  <div style={{fontSize:24,marginBottom:4}}>📁</div>
+                  <div style={{fontSize:12,color:"#666",marginBottom:2}}>Seleccioná de tu contenido</div>
+                  <div style={{fontSize:10,color:"#444"}}>o arrastrá archivos acá</div>
                 </div>
               )}
+              <div onClick={()=>fileRef.current.click()} style={{border:`1px dashed ${C.border}`,borderRadius:8,padding:"7px",textAlign:"center",cursor:"pointer",fontSize:11,color:"#444"}}>
+                <input ref={fileRef} type="file" accept="image/*,video/*" multiple style={{display:"none"}} onChange={e=>addFiles(e.target.files)}/>
+                + Subir imágenes o videos
+              </div>
             </div>
-
-            {/* Quick upload */}
-            <div onClick={()=>fileRef.current.click()} style={{border:"1px dashed #111",borderRadius:8,padding:"8px",textAlign:"center",cursor:"pointer",fontSize:11,color:"#222"}}>
-              <input ref={fileRef} type="file" accept="image/*" multiple style={{display:"none"}} onChange={e=>{addFiles(e.target.files);}}/>
-              + Subir fotos nuevas a la galería
-            </div>
-
+ 
             <div>
-              <div style={{fontSize:10,color:"#333",marginBottom:4,letterSpacing:1}}>CONTEXTO ADICIONAL</div>
+              <span style={LBL}>BRIEF DEL POST</span>
               <textarea value={topic} onChange={e=>setTopic(e.target.value)} rows={3}
-                placeholder="Ej: Lanzamiento nueva línea, promo fin de semana, evento especial..."
-                style={{width:"100%",background:"#0c0c0c",border:"1px solid #161616",borderRadius:8,padding:"8px 10px",color:"#fff",fontSize:12,outline:"none"}}/>
+                placeholder="Ej: Lanzamiento nueva colección, promo del fin de semana, evento especial..."
+                style={{...INP}}/>
             </div>
-
-            {brand.name && (
-              <div style={{background:"#0c0c0c",border:"1px solid #141414",borderRadius:8,padding:"9px 11px",fontSize:11}}>
-                <div style={{color:"#2a2a2a",marginBottom:3,fontSize:10,letterSpacing:1}}>PERFIL ACTIVO</div>
-                <div style={{color:"#a3e635",fontWeight:700}}>{brand.name}</div>
-                {brand.industry && <div style={{color:"#444",marginTop:1}}>{brand.industry}</div>}
-                {brand.target && <div style={{color:"#333",marginTop:1,fontSize:10}}>→ {brand.target}</div>}
-                <span onClick={()=>setTab("brand")} style={{color:"#333",fontSize:10,cursor:"pointer",marginTop:4,display:"block"}}>Editar →</span>
+ 
+            {brand.name&&(
+              <div style={{background:C.card,border:`1px solid ${C.border2}`,borderRadius:9,padding:"10px 12px"}}>
+                <div style={{fontSize:10,color:"#444",marginBottom:4,letterSpacing:1}}>PERFIL ACTIVO</div>
+                <div style={{color:C.accent,fontWeight:700,fontSize:13}}>{brand.name}</div>
+                {brand.industry&&<div style={{color:"#666",marginTop:2,fontSize:12}}>{brand.industry}</div>}
+                {brand.target&&<div style={{color:"#444",marginTop:2,fontSize:11}}>→ {brand.target}</div>}
+                <span onClick={()=>setTab("brand")} style={{color:"#444",fontSize:10,cursor:"pointer",marginTop:5,display:"block"}}>Editar →</span>
               </div>
             )}
-
-            <button onClick={generateAll} disabled={!canGenerate} style={{background:canGenerate?"#a3e635":"#141414",color:canGenerate?"#000":"#2a2a2a",border:"none",borderRadius:10,padding:"12px",fontSize:14,fontWeight:800,cursor:canGenerate?"pointer":"not-allowed",display:"flex",alignItems:"center",justifyContent:"center",gap:8,transition:"all 0.2s"}}>
+ 
+            <button onClick={generateAll} disabled={!canGenerate} style={{background:canGenerate?C.primary:"#111",color:canGenerate?"#fff":"#333",border:"none",borderRadius:10,padding:"13px",fontSize:14,fontWeight:800,cursor:canGenerate?"pointer":"not-allowed",display:"flex",alignItems:"center",justifyContent:"center",gap:8,transition:"all 0.2s"}}>
               {generating
-                ? <><div style={{width:13,height:13,border:"2px solid #111",borderTopColor:"#000",borderRadius:"50%",animation:"spin 0.7s linear infinite"}}/>Generando...</>
-                : `🖼️ Generar${selectedImgs.length>0?` con ${selectedImgs.length} foto${selectedImgs.length>1?"s":""}`:""}`}
+                ? <><div style={{width:13,height:13,border:"2px solid #ffffff40",borderTopColor:"#fff",borderRadius:"50%",animation:"spin 0.7s linear infinite"}}/>Generando...</>
+                : `✦ Generar${selItems.length>0?` con ${selItems.length} archivo${selItems.length>1?"s":""}`:""}`}
             </button>
-
-            {generating && (
-              <div style={{background:"#0c0c0c",border:"1px solid #141414",borderRadius:8,padding:"10px 12px"}}>
-                <div style={{fontSize:11,color:"#a3e635",marginBottom:5,animation:"pulse 1.2s ease infinite"}}>🤖 Trabajando...</div>
-                {["Analizando imágenes","Investigando el mercado","Aplicando perfil de marca","Generando para 5 redes"].map((s,i)=>(
-                  <div key={i} style={{fontSize:10,color:"#2a2a2a",padding:"1px 0"}}>· {s}</div>
+ 
+            {(generating||generatingImg)&&(
+              <div style={{background:C.card,border:`1px solid ${C.border2}`,borderRadius:9,padding:"10px 13px"}}>
+                <div style={{fontSize:11,color:C.accent,marginBottom:6,animation:"pulse 1.2s ease infinite"}}>🤖 MCM está trabajando...</div>
+                {[
+                  generating&&"Analizando tu contenido",
+                  generating&&"Investigando el mercado",
+                  generating&&"Escribiendo para 5 redes",
+                  generatingImg&&"Generando imágenes de posts",
+                ].filter(Boolean).map((s,i)=>(
+                  <div key={i} style={{fontSize:10,color:"#333",padding:"2px 0"}}>· {s}</div>
                 ))}
               </div>
             )}
           </div>
-
+ 
           {/* RIGHT */}
           <div style={{flex:1,display:"flex",flexDirection:"column",padding:"14px 18px",gap:10,overflow:"hidden"}}>
             <div style={{display:"flex",gap:6,flexWrap:"wrap",flexShrink:0}}>
               {NETWORKS.map(n=>(
-                <button key={n.id} onClick={()=>setActiveNet(n.id)} style={{background:activeNet===n.id?"#a3e63515":"#0c0c0c",border:`1px solid ${activeNet===n.id?"#a3e635":"#161616"}`,borderRadius:8,padding:"7px 14px",color:activeNet===n.id?"#a3e635":"#444",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",gap:6,transition:"all 0.15s"}}>
+                <button key={n.id} className="net-btn" onClick={()=>setActiveNet(n.id)} style={{background:activeNet===n.id?`${C.primary}18`:C.card,border:`1px solid ${activeNet===n.id?C.primary:C.border}`,borderRadius:8,padding:"8px 14px",color:activeNet===n.id?C.accent:"#555",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",gap:6,transition:"all 0.15s"}}>
                   <span>{n.icon}</span>{n.label}
-                  {results[n.id] && <span style={{width:5,height:5,borderRadius:"50%",background:"#a3e635",flexShrink:0}}/>}
+                  {results[n.id]&&<span style={{width:5,height:5,borderRadius:"50%",background:C.green,flexShrink:0}}/>}
                 </button>
               ))}
             </div>
-
-            <div style={{flex:1,background:"#0a0a0a",border:`1px solid ${results[activeNet]?"#a3e63530":"#141414"}`,borderRadius:13,padding:"16px 18px",display:"flex",flexDirection:"column",overflow:"hidden",transition:"border-color 0.3s"}}>
-              {results._error && <div style={{color:"#f43f5e",fontSize:14}}>❌ {results._error}</div>}
-              {!generating && !results[activeNet] && !results._error && (
-                <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",color:"#161616",textAlign:"center"}}>
-                  <div style={{fontSize:40,marginBottom:10}}>✦</div>
-                  <div style={{fontSize:13,color:"#1e1e1e",marginBottom:4}}>Seleccioná fotos y generá posts</div>
-                  <div style={{fontSize:11,color:"#141414"}}>La IA analiza tus imágenes y crea contenido<br/>para las 5 redes a la vez</div>
-                </div>
-              )}
-              {generating && !results[activeNet] && (
-                <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:12}}>
-                  <div style={{width:32,height:32,border:"3px solid #141414",borderTopColor:"#a3e635",borderRadius:"50%",animation:"spin 0.7s linear infinite"}}/>
-                  <div style={{color:"#333",fontSize:12}}>Generando para {NETWORKS.find(n=>n.id===activeNet)?.label}...</div>
-                </div>
-              )}
-              {results[activeNet] && (
-                <div style={{animation:"fadeIn 0.4s ease",flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,paddingBottom:10,borderBottom:"1px solid #141414",flexShrink:0}}>
-                    <span style={{fontSize:16}}>{NETWORKS.find(n=>n.id===activeNet)?.icon}</span>
-                    <span style={{fontWeight:700,fontSize:13}}>{NETWORKS.find(n=>n.id===activeNet)?.label}</span>
-                    <span style={{marginLeft:"auto",fontSize:10,color:"#a3e635",background:"#a3e63510",padding:"3px 10px",borderRadius:20,border:"1px solid #a3e63530"}}>✓ Listo</span>
+ 
+            <div style={{flex:1,display:"flex",gap:14,overflow:"hidden"}}>
+              {/* Text result */}
+              <div style={{flex:1,background:"#08080f",border:`1px solid ${results[activeNet]?C.primary+"30":C.border}`,borderRadius:13,padding:"16px 18px",display:"flex",flexDirection:"column",overflow:"hidden",transition:"border-color 0.3s"}}>
+                {results._error&&<div style={{color:"#f43f5e",fontSize:14}}>❌ {results._error}</div>}
+                {!generating&&!results[activeNet]&&!results._error&&(
+                  <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",textAlign:"center"}}>
+                    <div style={{fontSize:40,marginBottom:12,opacity:0.15}}>✦</div>
+                    <div style={{fontSize:14,color:"#222",marginBottom:6}}>Seleccioná contenido y generá</div>
+                    <div style={{fontSize:11,color:"#1a1a1a"}}>MCM analiza tus archivos y crea posts<br/>para las 5 redes simultáneamente</div>
                   </div>
-                  <div style={{whiteSpace:"pre-wrap",fontSize:13.5,lineHeight:1.9,color:"#ccc",flex:1,overflowY:"auto"}}>{results[activeNet]}</div>
-                  <div style={{display:"flex",gap:8,marginTop:12,paddingTop:10,borderTop:"1px solid #141414",flexShrink:0}}>
-                    <button onClick={()=>{navigator.clipboard.writeText(results[activeNet]);setCopied(activeNet);setTimeout(()=>setCopied(false),2000);}}
-                      style={{flex:1,background:copied===activeNet?"#0f2010":"#a3e635",color:copied===activeNet?"#a3e635":"#000",border:copied===activeNet?"1px solid #a3e635":"none",borderRadius:8,padding:"10px",fontWeight:700,cursor:"pointer",fontSize:13,transition:"all 0.2s"}}>
-                      {copied===activeNet?"✓ ¡Copiado!":"📋 Copiar post"}
-                    </button>
-                    <button onClick={generateAll} style={{background:"#141414",color:"#666",border:"1px solid #1e1e1e",borderRadius:8,padding:"10px 14px",cursor:"pointer",fontSize:15}}>🔁</button>
+                )}
+                {generating&&!results[activeNet]&&(
+                  <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:12}}>
+                    <div style={{width:32,height:32,border:`3px solid ${C.border2}`,borderTopColor:C.primary,borderRadius:"50%",animation:"spin 0.7s linear infinite"}}/>
+                    <div style={{color:"#333",fontSize:12}}>Generando para {NETWORKS.find(n=>n.id===activeNet)?.label}...</div>
                   </div>
+                )}
+                {results[activeNet]&&(
+                  <div style={{animation:"fadeIn 0.4s ease",flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,paddingBottom:10,borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
+                      <span style={{fontSize:16}}>{NETWORKS.find(n=>n.id===activeNet)?.icon}</span>
+                      <span style={{fontWeight:700,fontSize:13}}>{NETWORKS.find(n=>n.id===activeNet)?.label}</span>
+                      <span style={{marginLeft:"auto",fontSize:10,color:C.green,background:`${C.green}10`,padding:"3px 10px",borderRadius:20,border:`1px solid ${C.green}25`}}>✓ Listo</span>
+                    </div>
+                    <div style={{whiteSpace:"pre-wrap",fontSize:13.5,lineHeight:1.9,color:"#ddd",flex:1,overflowY:"auto"}}>{results[activeNet]}</div>
+                    <div style={{display:"flex",gap:7,marginTop:12,paddingTop:10,borderTop:`1px solid ${C.border}`,flexShrink:0,flexWrap:"wrap"}}>
+                      <button onClick={()=>{navigator.clipboard.writeText(results[activeNet]);setCopied(activeNet);setTimeout(()=>setCopied(false),2000);}}
+                        style={{flex:1,background:copied===activeNet?`${C.green}20`:C.primary,color:copied===activeNet?C.green:"#fff",border:copied===activeNet?`1px solid ${C.green}`:"none",borderRadius:8,padding:"9px",fontWeight:700,cursor:"pointer",fontSize:12,transition:"all 0.2s",minWidth:100}}>
+                        {copied===activeNet?"✓ Copiado":"📋 Copiar texto"}
+                      </button>
+                      <button onClick={()=>downloadText(activeNet)} style={{background:C.card,color:"#888",border:`1px solid ${C.border2}`,borderRadius:8,padding:"9px 12px",cursor:"pointer",fontSize:12}}>
+                        ⬇ .txt
+                      </button>
+                      <button onClick={generateAll} style={{background:C.card,color:"#555",border:`1px solid ${C.border}`,borderRadius:8,padding:"9px 12px",cursor:"pointer",fontSize:13}}>🔁</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+ 
+              {/* Image result */}
+              {(results[activeNet]||generatingImg)&&(
+                <div style={{width:220,background:"#08080f",border:`1px solid ${C.border}`,borderRadius:13,padding:"14px",display:"flex",flexDirection:"column",gap:10,flexShrink:0}}>
+                  <div style={{fontSize:10,color:C.muted,letterSpacing:1}}>IMAGEN DEL POST</div>
+                  {generatingImg&&!postImages[activeNet]?(
+                    <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8}}>
+                      <div style={{width:24,height:24,border:`2px solid ${C.border2}`,borderTopColor:C.primary,borderRadius:"50%",animation:"spin 0.7s linear infinite"}}/>
+                      <div style={{fontSize:10,color:"#333",textAlign:"center"}}>Generando imagen...</div>
+                    </div>
+                  ):postImages[activeNet]?(
+                    <>
+                      <img src={postImages[activeNet]} style={{width:"100%",borderRadius:8,aspectRatio:"1",objectFit:"cover"}} alt="post"/>
+                      <button onClick={()=>downloadImage(activeNet)} style={{background:C.primary,color:"#fff",border:"none",borderRadius:8,padding:"10px",fontWeight:700,cursor:"pointer",fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                        ⬇ Descargar imagen
+                      </button>
+                      <div style={{fontSize:10,color:"#333",textAlign:"center"}}>1080×1080px · Lista para publicar</div>
+                    </>
+                  ):null}
                 </div>
               )}
             </div>
-
-            {Object.keys(results).filter(k=>k!=="_error").length > 0 && (
-              <div style={{background:"#0c0c0c",border:"1px solid #141414",borderRadius:8,padding:"8px 14px",display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
-                <span style={{fontSize:10,color:"#2a2a2a",letterSpacing:1}}>GENERADOS:</span>
+ 
+            {Object.keys(results).filter(k=>k!=="_error").length>0&&(
+              <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 14px",display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
+                <span style={{fontSize:10,color:"#333",letterSpacing:1}}>REDES:</span>
                 {NETWORKS.map(n=>(
-                  <span key={n.id} onClick={()=>setActiveNet(n.id)} style={{fontSize:11,color:results[n.id]?"#a3e635":"#1e1e1e",cursor:"pointer"}}>
-                    {results[n.id]?"✓ ":""}{n.label}
+                  <span key={n.id} onClick={()=>setActiveNet(n.id)} style={{fontSize:11,color:results[n.id]?C.green:"#222",cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>
+                    {results[n.id]&&postImages[n.id]?"🖼️ ":results[n.id]?"✓ ":""}{n.label}
                   </span>
                 ))}
               </div>
@@ -324,72 +632,72 @@ Usá EXACTAMENTE este formato sin texto extra antes ni después:
           </div>
         </div>
       )}
-
-      {/* ── GALLERY ── */}
-      {tab === "gallery" && (
+ 
+      {/* GALLERY */}
+      {tab==="gallery"&&(
         <div style={{flex:1,overflowY:"auto",padding:"20px 24px"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
             <div>
-              <div style={{fontSize:18,fontWeight:800,fontFamily:"'Playfair Display',serif",marginBottom:3}}>Galería de tu marca</div>
-              <div style={{fontSize:12,color:"#333"}}>{gallery.length} foto{gallery.length!==1?"s":""} · {selected.length} seleccionada{selected.length!==1?"s":""}</div>
+              <div style={{fontSize:17,fontWeight:800,fontFamily:"'Playfair Display',serif",marginBottom:3}}>Mi contenido</div>
+              <div style={{fontSize:12,color:"#555"}}>{gallery.length} archivo{gallery.length!==1?"s":""} · {selected.length} seleccionado{selected.length!==1?"s":""}</div>
             </div>
             <div style={{display:"flex",gap:8}}>
-              {selected.length > 0 && (
-                <button onClick={()=>setTab("generator")} style={{background:"#a3e635",color:"#000",border:"none",borderRadius:9,padding:"9px 18px",fontWeight:700,cursor:"pointer",fontSize:13}}>
-                  Generar con {selected.length} foto{selected.length>1?"s":""} →
+              {selected.length>0&&(
+                <button onClick={()=>setTab("generator")} style={{background:C.primary,color:"#fff",border:"none",borderRadius:9,padding:"9px 18px",fontWeight:700,cursor:"pointer",fontSize:13}}>
+                  Generar con {selected.length} archivo{selected.length>1?"s":""} →
                 </button>
               )}
-              <button onClick={()=>galleryFileRef.current.click()} style={{background:"transparent",color:"#a3e635",border:"1px solid #a3e63540",borderRadius:9,padding:"9px 18px",cursor:"pointer",fontWeight:700,fontSize:13}}>
-                + Subir fotos
+              <button onClick={()=>galleryFileRef.current.click()} style={{background:"transparent",color:C.accent,border:`1px solid ${C.primary}40`,borderRadius:9,padding:"9px 18px",cursor:"pointer",fontWeight:700,fontSize:13}}>
+                + Subir archivos
               </button>
-              <input ref={galleryFileRef} type="file" accept="image/*" multiple style={{display:"none"}} onChange={e=>addFiles(e.target.files)}/>
+              <input ref={galleryFileRef} type="file" accept="image/*,video/*" multiple style={{display:"none"}} onChange={e=>addFiles(e.target.files)}/>
             </div>
           </div>
-
-          {/* Drop area */}
-          <div
-            onDragOver={e=>e.preventDefault()}
-            onDrop={e=>{e.preventDefault();addFiles(e.dataTransfer.files);}}
-            onClick={()=>galleryFileRef.current.click()}
-            style={{border:"2px dashed #141414",borderRadius:12,padding:"20px",textAlign:"center",marginBottom:18,cursor:"pointer",color:"#222"}}
-          >
-            <div style={{fontSize:28,marginBottom:6}}>📁</div>
-            <div style={{fontSize:13,marginBottom:3,color:"#333"}}>Arrastrá todas las fotos de tu negocio acá</div>
-            <div style={{fontSize:11}}>Se guardan en la sesión y podés seleccionar las que quieras para cada post</div>
+ 
+          <div onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();addFiles(e.dataTransfer.files);}} onClick={()=>galleryFileRef.current.click()}
+            style={{border:`2px dashed ${C.border}`,borderRadius:12,padding:"24px",textAlign:"center",marginBottom:18,cursor:"pointer",transition:"all 0.2s"}}
+            onMouseEnter={e=>e.currentTarget.style.borderColor=C.border2} onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>
+            <div style={{fontSize:32,marginBottom:8}}>📁</div>
+            <div style={{fontSize:13,marginBottom:3,color:"#888"}}>Arrastrá imágenes y videos de tu empresa acá</div>
+            <div style={{fontSize:11,color:"#333"}}>JPG, PNG, WEBP, MP4, MOV · Múltiples archivos a la vez</div>
           </div>
-
-          {selected.length > 0 && (
-            <div style={{background:"#a3e63510",border:"1px solid #a3e63530",borderRadius:9,padding:"9px 14px",marginBottom:14,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <span style={{color:"#a3e635",fontSize:12,fontWeight:700}}>✓ {selected.length} foto{selected.length>1?"s":""} seleccionada{selected.length>1?"s":""}</span>
+ 
+          {selected.length>0&&(
+            <div style={{background:`${C.primary}10`,border:`1px solid ${C.primary}25`,borderRadius:9,padding:"9px 14px",marginBottom:14,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{color:C.accent,fontSize:12,fontWeight:700}}>✓ {selected.length} archivo{selected.length>1?"s":""} seleccionado{selected.length>1?"s":""}</span>
               <div style={{display:"flex",gap:8}}>
-                <button onClick={()=>setSelected(gallery.map(g=>g.id))} style={{background:"transparent",color:"#a3e635",border:"1px solid #a3e63530",borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:11}}>Todas</button>
-                <button onClick={()=>setSelected([])} style={{background:"transparent",color:"#555",border:"1px solid #1e1e1e",borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:11}}>Ninguna</button>
+                <button onClick={()=>setSelected(gallery.map(g=>g.id))} style={{background:"transparent",color:C.accent,border:`1px solid ${C.primary}30`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:11}}>Todos</button>
+                <button onClick={()=>setSelected([])} style={{background:"transparent",color:"#555",border:`1px solid ${C.border2}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:11}}>Ninguno</button>
               </div>
             </div>
           )}
-
-          {gallery.length === 0 ? (
-            <div style={{textAlign:"center",padding:"50px 20px",color:"#1e1e1e"}}>
-              <div style={{fontSize:44,marginBottom:10}}>🖼️</div>
-              <div style={{fontSize:15,color:"#2a2a2a",marginBottom:6}}>Tu galería está vacía</div>
-              <div style={{fontSize:12,color:"#1e1e1e"}}>Subí las fotos de tu negocio. Quedan guardadas en la sesión.</div>
+ 
+          {gallery.length===0?(
+            <div style={{textAlign:"center",padding:"50px 20px"}}>
+              <div style={{fontSize:44,marginBottom:10,opacity:0.2}}>📁</div>
+              <div style={{fontSize:15,color:"#333",marginBottom:6}}>Tu carpeta de contenido está vacía</div>
+              <div style={{fontSize:12,color:"#222"}}>Subí las fotos y videos de tu empresa para usarlos en los posts.</div>
             </div>
-          ) : (
+          ):(
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:10}}>
-              {gallery.map(img=>{
-                const isSel = selected.includes(img.id);
+              {gallery.map(item=>{
+                const isSel=selected.includes(item.id);
                 return (
-                  <div key={img.id} className="img-wrap" style={{position:"relative",borderRadius:10,overflow:"hidden",border:`2px solid ${isSel?"#a3e635":"transparent"}`,cursor:"pointer",aspectRatio:"1",transition:"border-color 0.2s"}}
-                    onClick={()=>toggleSelect(img.id)}>
-                    <img src={img.preview} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}} alt=""/>
-                    {isSel && (
-                      <div style={{position:"absolute",inset:0,background:"rgba(163,230,53,0.15)",display:"flex",alignItems:"flex-start",justifyContent:"flex-end",padding:6}}>
-                        <div style={{width:22,height:22,borderRadius:"50%",background:"#a3e635",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,color:"#000",fontWeight:800}}>✓</div>
-                      </div>
-                    )}
-                    <button className="del-btn" onClick={e=>{e.stopPropagation();removeImg(img.id);}}
-                      style={{position:"absolute",top:6,left:6,background:"rgba(0,0,0,0.7)",border:"none",color:"#fff",width:20,height:20,borderRadius:"50%",cursor:"pointer",fontSize:10,lineHeight:"20px",padding:0}}>✕</button>
-                    <div style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(transparent,rgba(0,0,0,0.6))",padding:"6px",fontSize:9,color:"#888"}}>{img.date}</div>
+                  <div key={item.id} className="media-wrap" style={{position:"relative",borderRadius:10,overflow:"hidden",border:`2px solid ${isSel?C.primary:"transparent"}`,cursor:"pointer",aspectRatio:"1",transition:"border-color 0.2s",background:C.card}}
+                    onClick={()=>toggleSel(item.id)}>
+                    {item.isVideo
+                      ? <div style={{width:"100%",height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:6}}>
+                          <div style={{fontSize:32}}>🎬</div>
+                          <div style={{fontSize:10,color:"#555",textAlign:"center",padding:"0 8px"}}>{item.name.slice(0,20)}</div>
+                        </div>
+                      : <img src={item.preview} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}} alt=""/>
+                    }
+                    {isSel&&<div style={{position:"absolute",inset:0,background:`${C.primary}20`,display:"flex",alignItems:"flex-start",justifyContent:"flex-end",padding:7}}>
+                      <div style={{width:22,height:22,borderRadius:"50%",background:C.primary,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,color:"#fff",fontWeight:800}}>✓</div>
+                    </div>}
+                    <button className="del-btn" onClick={e=>{e.stopPropagation();removeItem(item.id);}}
+                      style={{position:"absolute",top:7,left:7,background:"rgba(0,0,0,0.75)",border:"none",color:"#fff",width:20,height:20,borderRadius:"50%",cursor:"pointer",fontSize:10,lineHeight:"20px",padding:0,opacity:0}}>✕</button>
+                    <div style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(transparent,rgba(0,0,0,0.7))",padding:"6px",fontSize:9,color:"#888"}}>{item.date}</div>
                   </div>
                 );
               })}
@@ -397,58 +705,54 @@ Usá EXACTAMENTE este formato sin texto extra antes ni después:
           )}
         </div>
       )}
-
-      {/* ── BRAND ── */}
-      {tab === "brand" && (
+ 
+      {/* BRAND */}
+      {tab==="brand"&&(
         <div style={{flex:1,overflowY:"auto",padding:"20px 24px"}}>
-          <div style={{maxWidth:560}}>
+          <div style={{maxWidth:540}}>
             <div style={{marginBottom:22}}>
-              <div style={{fontSize:18,fontWeight:800,fontFamily:"'Playfair Display',serif",marginBottom:3}}>Perfil de tu marca</div>
-              <div style={{fontSize:12,color:"#333"}}>La IA usa este perfil para personalizar automáticamente todos tus posts.</div>
+              <div style={{fontSize:17,fontWeight:800,fontFamily:"'Playfair Display',serif",marginBottom:3}}>Perfil de mi marca</div>
+              <div style={{fontSize:12,color:"#555"}}>MCM usa este perfil para personalizar todos los posts automáticamente.</div>
             </div>
-
             <div style={{display:"flex",flexDirection:"column",gap:14}}>
               {[
-                ["NOMBRE DEL NEGOCIO","name","input","Ej: La Josefa Granja Orgánica"],
+                ["NOMBRE DE LA EMPRESA","name","input","Ej: La Josefa Granja Orgánica"],
                 ["RUBRO","industry","select",""],
-                ["QUÉ HACÉS / QUÉ TE DIFERENCIA","description","textarea","Ej: Granja orgánica familiar. Vendemos huevos y verduras de estación directas al consumidor, sin intermediarios."],
-                ["CLIENTE IDEAL","target","input","Ej: Familias que valoran la alimentación natural y el producto local"],
-                ["ESTÉTICA / COLORES DE MARCA (opcional)","colors","input","Ej: Verde tierra, madera, rústico y natural"],
-              ].map(([label,field,type,ph])=>(
+                ["QUÉ HACÉS / QUÉ TE DIFERENCIA","description","textarea","Ej: Granja orgánica familiar con 20 años de historia. Vendemos directo al consumidor."],
+                ["CLIENTE IDEAL","target","input","Ej: Familias de 30-50 años que valoran la alimentación natural"],
+                ["ESTÉTICA / ESTILO DE MARCA","colors","input","Ej: Natural, verde tierra, artesanal, cálido"],
+      ].map(([label,field,type,ph])=>(
                 <div key={field}>
-                  <div style={{fontSize:10,color:"#333",marginBottom:5,letterSpacing:1}}>{label}</div>
-                  {type==="select" ? (
-                    <select value={brand[field]||""} onChange={e=>updateBrand(field,e.target.value)}
-                      style={{width:"100%",background:"#0c0c0c",border:"1px solid #161616",borderRadius:9,padding:"10px 12px",color:brand[field]?"#fff":"#2a2a2a",fontSize:13,cursor:"pointer"}}>
-                      <option value="">Seleccioná...</option>
+                  <span style={LBL}>{label}</span>
+                  {type==="select"?(
+                    <select value={brand[field]||""} onChange={e=>updateBrand(field,e.target.value)} style={{...INP,color:brand[field]?"#fff":"#3a3a4a",cursor:"pointer"}}>
+                      <option value="">Seleccioná tu rubro...</option>
                       {INDUSTRIES.map(i=><option key={i}>{i}</option>)}
                     </select>
-                  ) : type==="textarea" ? (
-                    <textarea value={brand[field]||""} onChange={e=>updateBrand(field,e.target.value)} rows={3} placeholder={ph}
-                      style={{width:"100%",background:"#0c0c0c",border:"1px solid #161616",borderRadius:9,padding:"10px 12px",color:"#fff",fontSize:13,outline:"none"}}/>
-                  ) : (
-                    <input value={brand[field]||""} onChange={e=>updateBrand(field,e.target.value)} placeholder={ph}
-                      style={{width:"100%",background:"#0c0c0c",border:"1px solid #161616",borderRadius:9,padding:"10px 12px",color:"#fff",fontSize:13,outline:"none"}}/>
+                  ):type==="textarea"?(
+                    <textarea value={brand[field]||""} onChange={e=>updateBrand(field,e.target.value)} rows={3} placeholder={ph} style={{...INP}}/>
+                  ):(
+                    <input value={brand[field]||""} onChange={e=>updateBrand(field,e.target.value)} placeholder={ph} style={{...INP}}/>
                   )}
                 </div>
               ))}
-
+ 
               <div>
-                <div style={{fontSize:10,color:"#333",marginBottom:6,letterSpacing:1}}>TONO DE COMUNICACIÓN</div>
+                <span style={LBL}>TONO DE COMUNICACIÓN</span>
                 <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                   {TONES.map(t=>(
-                    <button key={t} onClick={()=>updateBrand("tone",t)} style={{background:(brand.tone||"profesional")===t?"#f59e0b15":"#0c0c0c",border:`1px solid ${(brand.tone||"profesional")===t?"#f59e0b":"#161616"}`,borderRadius:8,padding:"8px 14px",color:(brand.tone||"profesional")===t?"#f59e0b":"#444",cursor:"pointer",fontSize:12,textTransform:"capitalize"}}>{t}</button>
+                    <button key={t} onClick={()=>updateBrand("tone",t)} style={{background:(brand.tone||"profesional")===t?`${C.primary}20`:C.card,border:`1px solid ${(brand.tone||"profesional")===t?C.primary:C.border2}`,borderRadius:8,padding:"8px 14px",color:(brand.tone||"profesional")===t?C.accent:"#555",cursor:"pointer",fontSize:12,textTransform:"capitalize",transition:"all 0.2s"}}>{t}</button>
                   ))}
                 </div>
               </div>
-
-              <div style={{background:"#0c0c0c",border:"1px solid #a3e63520",borderRadius:10,padding:"12px 14px"}}>
-                <div style={{fontSize:11,color:"#a3e635",fontWeight:700,marginBottom:4}}>✦ Guardado automáticamente</div>
-                <div style={{fontSize:12,color:"#444",lineHeight:1.6}}>Cada vez que generés un post, la IA va a usar este perfil para que el contenido siempre suene como tu marca.</div>
+ 
+              <div style={{background:C.card,border:`1px solid ${C.primary}20`,borderRadius:10,padding:"13px 15px"}}>
+                <div style={{fontSize:11,color:C.accent,fontWeight:700,marginBottom:4}}>✦ Guardado automáticamente</div>
+                <div style={{fontSize:12,color:"#555",lineHeight:1.7}}>MCM usa este perfil en cada generación para que el contenido siempre suene como tu empresa.</div>
               </div>
-
-              {brand.name && (
-                <button onClick={()=>setTab("generator")} style={{background:"#a3e635",color:"#000",border:"none",borderRadius:10,padding:"13px",fontWeight:800,cursor:"pointer",fontSize:14}}>
+ 
+              {brand.name&&(
+                <button onClick={()=>setTab("generator")} style={{background:C.primary,color:"#fff",border:"none",borderRadius:10,padding:"13px",fontWeight:800,cursor:"pointer",fontSize:14}}>
                   Ir al generador →
                 </button>
               )}
@@ -459,7 +763,7 @@ Usá EXACTAMENTE este formato sin texto extra antes ni después:
     </div>
   );
 }
-
+ 
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 </script>
 </body>
