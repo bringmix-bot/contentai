@@ -326,12 +326,7 @@ ${NETWORKS[4].tone}`;
   if (view === "landing") return (
     <div style={{minHeight:"100vh",background:"#05050a",color:"#fff",overflow:"hidden"}}>
  
-      {/* Ambient blobs */}
-      <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:0,overflow:"hidden"}}>
-        <div style={{position:"absolute",top:"-20%",right:"-10%",width:700,height:700,background:"radial-gradient(circle,#7c3aed25 0%,transparent 70%)",animation:"float 8s ease-in-out infinite"}}/>
-        <div style={{position:"absolute",bottom:"-10%",left:"-10%",width:600,height:600,background:"radial-gradient(circle,#ec489918 0%,transparent 70%)",animation:"float 10s ease-in-out infinite 2s"}}/>
-        <div style={{position:"absolute",top:"40%",left:"30%",width:400,height:400,background:"radial-gradient(circle,#06b6d415 0%,transparent 70%)",animation:"float 12s ease-in-out infinite 4s"}}/>
-      </div>
+ 
  
       {/* NAV */}
       <nav style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"20px 48px",position:"sticky",top:0,background:"rgba(5,5,10,0.85)",backdropFilter:"blur(24px)",zIndex:100,borderBottom:"1px solid #ffffff08"}}>
@@ -355,54 +350,43 @@ ${NETWORKS[4].tone}`;
       </nav>
  
       {/* HERO */}
-      <div style={{position:"relative",zIndex:1,textAlign:"center",padding:"130px 20px 100px",animation:"fadeUp 0.8s ease"}}>
-        <div style={{display:"inline-flex",alignItems:"center",gap:10,background:"linear-gradient(135deg,#7c3aed20,#ec489920)",border:"1px solid #7c3aed40",color:"#c4b5fd",fontSize:12,fontWeight:700,padding:"8px 22px",borderRadius:50,marginBottom:44,letterSpacing:1.5,backdropFilter:"blur(10px)"}}>
-          <span style={{width:6,height:6,borderRadius:"50%",background:"#a78bfa",display:"inline-block",animation:"pulse 2s ease infinite"}}/>
-          IA ENTRENADA PARA GENERAR VENTAS
+      <div style={{position:"relative",zIndex:1,textAlign:"center",padding:"100px 20px 80px"}}>
+        
+        {/* Avatar row - social proof */}
+        <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:-8,marginBottom:24}}>
+          {["🧑🏻","👩🏽","👨🏾","👩🏻","🧑🏽"].map((e,i)=>(
+            <div key={i} style={{width:36,height:36,borderRadius:"50%",background:`hsl(${260+i*20},60%,40%)`,border:"2px solid #05050a",display:"grid",placeItems:"center",fontSize:18,marginLeft:i===0?0:-10,zIndex:5-i}}>
+              {e}
+            </div>
+          ))}
+          <span style={{fontSize:13,color:"#666",marginLeft:14}}>+2.400 marcas ya usan MCM</span>
         </div>
  
-        <h1 style={{fontFamily:"'Syne',sans-serif",fontSize:"clamp(46px,8vw,92px)",fontWeight:800,lineHeight:1.0,margin:"0 0 30px",letterSpacing:-2}}>
-          <span style={{background:GRAD,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Tu contenido.</span>
-          <br/>
-          <span style={{color:"#fff"}}>Todas las redes.</span>
-          <br/>
-          <span style={{color:"#333",fontSize:"clamp(36px,6vw,72px)"}}>Sin el drama.</span>
+        <h1 style={{fontSize:"clamp(40px,6vw,72px)",fontWeight:800,lineHeight:1.1,margin:"0 0 20px",letterSpacing:-1.5,color:"#fff"}}>
+          Tu community manager.<br/>
+          <span style={{background:GRAD,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Con IA. Sin costo de agencia.</span>
         </h1>
  
-        <p style={{color:"#888",fontSize:20,maxWidth:580,margin:"0 auto 60px",lineHeight:1.7,fontWeight:400}}>
-          Subís tus fotos y videos. MCM los analiza con IA, investiga tu mercado y genera posts de nivel agencia listos para descargar y publicar.
+        <p style={{color:"#777",fontSize:18,maxWidth:500,margin:"0 auto 40px",lineHeight:1.7}}>
+          Subís tus fotos y videos, MCM genera posts listos para publicar en Instagram, LinkedIn, TikTok, Facebook y X.
         </p>
  
-        <div style={{display:"flex",gap:16,justifyContent:"center",flexWrap:"wrap",marginBottom:80}}>
-          <button className="btn-primary" onClick={()=>setView("app")}>Probar gratis 7 días ✦</button>
-          <button className="btn-outline" onClick={()=>setView("pricing")}>Ver planes →</button>
+        <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap",marginBottom:60}}>
+          <button className="btn-primary" onClick={()=>setView("app")} style={{padding:"14px 32px",fontSize:15,borderRadius:12}}>Empezar gratis →</button>
+          <button className="btn-outline" onClick={()=>setView("app")} style={{padding:"14px 28px",fontSize:15,borderRadius:12}}>Ver demo</button>
         </div>
  
-        {/* Social proof numbers */}
-        <div style={{display:"inline-flex",gap:48,background:"rgba(255,255,255,0.03)",border:"1px solid #ffffff08",borderRadius:20,padding:"24px 48px",backdropFilter:"blur(10px)",flexWrap:"wrap",justifyContent:"center"}}>
-          {[["5","Redes en 1 click"],["10s","Por set de posts"],["🔥","Posts que convierten"],["24/7","Tu CM trabaja"]].map(([n,l])=>(
-            <div key={l} style={{textAlign:"center"}}>
-              <div style={{fontFamily:"'Syne',sans-serif",fontSize:32,fontWeight:800,background:GRAD,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>{n}</div>
-              <div style={{color:"#555",fontSize:13,marginTop:4}}>{l}</div>
+        {/* Network pills */}
+        <div style={{display:"flex",justifyContent:"center",gap:10,flexWrap:"wrap"}}>
+          {[["📸","Instagram"],["💼","LinkedIn"],["🎵","TikTok"],["👥","Facebook"],["🐦","X/Twitter"]].map(([icon,name])=>(
+            <div key={name} style={{display:"flex",alignItems:"center",gap:7,background:"rgba(255,255,255,0.04)",border:"1px solid #ffffff10",borderRadius:50,padding:"8px 18px",fontSize:13,color:"#888"}}>
+              <span>{icon}</span>{name}
             </div>
           ))}
         </div>
       </div>
  
-      {/* MARQUEE */}
-      <div style={{overflow:"hidden",padding:"20px 0",borderTop:"1px solid #ffffff05",borderBottom:"1px solid #ffffff05",marginBottom:0}}>
-        <div style={{display:"flex",animation:"marquee 20s linear infinite",whiteSpace:"nowrap"}}>
-          {[...Array(2)].map((_,j)=>(
-            <span key={j} style={{display:"flex",gap:0}}>
-              {["Instagram","LinkedIn","TikTok","Facebook","X/Twitter","Instagram","LinkedIn","TikTok","Facebook","X/Twitter"].map((r,i)=>(
-                <span key={i} style={{padding:"0 32px",color:"#ffffff15",fontSize:14,fontWeight:600,letterSpacing:2}}>
-                  {["📸","💼","🎵","👥","🐦"][i%5]} {r.toUpperCase()}
-                </span>
-              ))}
-            </span>
-          ))}
-        </div>
-      </div>
+ 
  
       {/* HOW IT WORKS */}
       <div style={{position:"relative",zIndex:1,padding:"100px 48px",maxWidth:1100,margin:"0 auto"}}>
@@ -850,4 +834,3 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 </script>
 </body>
 </html>
- 
