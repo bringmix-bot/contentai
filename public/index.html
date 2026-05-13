@@ -224,6 +224,15 @@ function App() {
   const [copied, setCopied] = useState(false);
   const [postCount, setPostCount] = useState(0);
   const [selDesign, setSelDesign] = useState({});
+  const [showEditor, setShowEditor] = useState(false);
+  const [editorCfg, setEditorCfg] = useState({
+    textColor:"#ffffff",
+    fontSize:42,
+    fontWeight:"700",
+    textPos:"bottom",
+    bgImageIdx:0,
+    customText:"",
+  });
   const [genImg, setGenImg] = useState(false);
   const [postImgs, setPostImgs] = useState({});
   const fileRef = useRef();
@@ -444,6 +453,164 @@ FORMATO EXACTO:
   return (
     <div style={{height:"100vh",display:"flex",flexDirection:"column",background:"#05050a",overflow:"hidden"}}>
  
+      {/* EDITOR MODAL */}
+      {showEditor && postImgs[activeNet] && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.9)",zIndex:3000,display:"flex",alignItems:"center",justifyContent:"center",padding:20,backdropFilter:"blur(16px)"}}>
+          <div style={{background:"#0d0d1f",border:"1px solid #1e1e30",borderRadius:18,padding:24,width:"100%",maxWidth:900,maxHeight:"90vh",overflowY:"auto",display:"flex",gap:20,flexWrap:"wrap"}}>
+            
+            {/* Preview */}
+            <div style={{flex:"0 0 340px"}}>
+              <div style={{fontSize:11,color:"#888",letterSpacing:1,marginBottom:8,textTransform:"uppercase"}}>Preview</div>
+              <div style={{position:"relative",borderRadius:10,overflow:"hidden",aspectRatio:"1",background:"#05050a"}}>
+                <img src={postImgs[activeNet][selDesign[activeNet]||"d1"]} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}} alt="preview"/>
+                {/* Text overlay preview */}
+                <div style={{
+                  position:"absolute",
+                  left:0,right:0,
+                  top:editorCfg.textPos==="top"?"5%":editorCfg.textPos==="center"?"35%":"auto",
+                  bottom:editorCfg.textPos==="bottom"?"5%":"auto",
+                  padding:"0 5%",
+                  textAlign:editorCfg.textAlign||"left",
+                }}>
+                  <div style={{
+                    fontSize:`${Math.round(editorCfg.fontSize*0.3)}px`,
+                    fontWeight:editorCfg.fontWeight,
+                    color:editorCfg.textColor,
+                    lineHeight:1.3,
+                    textShadow:"0 2px 8px rgba(0,0,0,0.8)",
+                    whiteSpace:"pre-wrap",
+                    wordBreak:"break-word",
+                  }}>
+                    {editorCfg.customText || (results[activeNet]||"").replace(/#\S+/g,"").trim().split("
+").filter(l=>l.trim()).slice(0,2).join("
+")}
+                  </div>
+                </div>
+              </div>
+              <div style={{fontSize:9,color:"#444",textAlign:"center",marginTop:6}}>Preview (1080×1080px al descargar)</div>
+            </div>
+ 
+            {/* Controls */}
+            <div style={{flex:1,minWidth:260,display:"flex",flexDirection:"column",gap:14}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div style={{fontSize:15,fontWeight:700,color:"#fff"}}>Editor de diseño</div>
+                <button onClick={()=>setShowEditor(false)} style={{background:"#1e1e30",border:"none",color:"#888",width:28,height:28,borderRadius:7,cursor:"pointer",fontSize:14}}>✕</button>
+              </div>
+ 
+              {/* Design selector */}
+              <div>
+                <div style={{fontSize:10,color:"#888",letterSpacing:1.5,marginBottom:6,textTransform:"uppercase"}}>Plantilla base</div>
+                <div style={{display:"flex",gap:6}}>
+                  {[{key:"d1",label:"Minimalista"},{key:"d2",label:"Bold"},{key:"d3",label:"Editorial"}].map(({key,label})=>(
+                    <button key={key} onClick={()=>setSelDesign(p=>({...p,[activeNet]:key}))}
+                      style={{flex:1,background:(selDesign[activeNet]||"d1")===key?"#7c3aed20":"#0d0d1f",border:`1px solid ${(selDesign[activeNet]||"d1")===key?"#7c3aed":"#1e1e30"}`,borderRadius:7,padding:"7px",color:(selDesign[activeNet]||"d1")===key?"#c4b5fd":"#888",cursor:"pointer",fontSize:11,fontWeight:(selDesign[activeNet]||"d1")===key?700:400}}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+ 
+              {/* Text content */}
+              <div>
+                <div style={{fontSize:10,color:"#888",letterSpacing:1.5,marginBottom:6,textTransform:"uppercase"}}>Texto del post (editá si querés)</div>
+                <textarea value={editorCfg.customText||(results[activeNet]||"").replace(/#\S+/g,"").trim().split("
+").filter(l=>l.trim()).slice(0,2).join("
+")}
+                  onChange={e=>setEditorCfg(p=>({...p,customText:e.target.value}))} rows={3}
+                  style={{width:"100%",background:"#05050a",border:"1px solid #1e1e30",borderRadius:8,padding:"9px 11px",color:"#fff",fontSize:12,outline:"none",resize:"none"}}/>
+              </div>
+ 
+              {/* Text color */}
+              <div>
+                <div style={{fontSize:10,color:"#888",letterSpacing:1.5,marginBottom:8,textTransform:"uppercase"}}>Color del texto</div>
+                <div style={{display:"flex",gap:7,flexWrap:"wrap",alignItems:"center"}}>
+                  {["#ffffff","#000000","#f59e0b","#34d399","#7c3aed","#ec4899","#06b6d4","#f43f5e"].map(col=>(
+                    <div key={col} onClick={()=>setEditorCfg(p=>({...p,textColor:col}))}
+                      style={{width:26,height:26,borderRadius:"50%",background:col,cursor:"pointer",border:`3px solid ${editorCfg.textColor===col?"#fff":"transparent"}`,transition:"border 0.15s"}}/>
+                  ))}
+                  <input type="color" value={editorCfg.textColor} onChange={e=>setEditorCfg(p=>({...p,textColor:e.target.value}))}
+                    style={{width:32,height:32,borderRadius:8,border:"1px solid #1e1e30",background:"transparent",cursor:"pointer",padding:2}}/>
+                </div>
+              </div>
+ 
+              {/* Font size */}
+              <div>
+                <div style={{fontSize:10,color:"#888",letterSpacing:1.5,marginBottom:6,textTransform:"uppercase"}}>Tamaño de letra: {editorCfg.fontSize}px</div>
+                <input type="range" min="24" max="72" value={editorCfg.fontSize}
+                  onChange={e=>setEditorCfg(p=>({...p,fontSize:parseInt(e.target.value)}))}
+                  style={{width:"100%",accentColor:"#7c3aed"}}/>
+                <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:"#444",marginTop:2}}><span>Pequeño</span><span>Grande</span></div>
+              </div>
+ 
+              {/* Font weight */}
+              <div>
+                <div style={{fontSize:10,color:"#888",letterSpacing:1.5,marginBottom:6,textTransform:"uppercase"}}>Peso de la tipografía</div>
+                <div style={{display:"flex",gap:6}}>
+                  {[["400","Normal"],["600","Semi"],["700","Bold"],["800","Extra Bold"]].map(([w,l])=>(
+                    <button key={w} onClick={()=>setEditorCfg(p=>({...p,fontWeight:w}))}
+                      style={{flex:1,background:editorCfg.fontWeight===w?"#7c3aed20":"#0d0d1f",border:`1px solid ${editorCfg.fontWeight===w?"#7c3aed":"#1e1e30"}`,borderRadius:7,padding:"6px 4px",color:editorCfg.fontWeight===w?"#c4b5fd":"#888",cursor:"pointer",fontSize:10,fontWeight:w}}>
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+ 
+              {/* Text position */}
+              <div>
+                <div style={{fontSize:10,color:"#888",letterSpacing:1.5,marginBottom:6,textTransform:"uppercase"}}>Posición del texto</div>
+                <div style={{display:"flex",gap:6}}>
+                  {[["top","Arriba"],["center","Centro"],["bottom","Abajo"]].map(([pos,label])=>(
+                    <button key={pos} onClick={()=>setEditorCfg(p=>({...p,textPos:pos}))}
+                      style={{flex:1,background:editorCfg.textPos===pos?"#7c3aed20":"#0d0d1f",border:`1px solid ${editorCfg.textPos===pos?"#7c3aed":"#1e1e30"}`,borderRadius:7,padding:"7px",color:editorCfg.textPos===pos?"#c4b5fd":"#888",cursor:"pointer",fontSize:11}}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+ 
+              {/* Background image picker */}
+              {selItems.length > 0 && (
+                <div>
+                  <div style={{fontSize:10,color:"#888",letterSpacing:1.5,marginBottom:6,textTransform:"uppercase"}}>Imagen de fondo</div>
+                  <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                    {selItems.filter(s=>!s.isVideo).map((item,i)=>(
+                      <div key={item.id} onClick={async()=>{
+                        setEditorCfg(p=>({...p,bgImageIdx:i}));
+                        const net = NETWORKS.find(n=>n.id===activeNet);
+                        const txt = editorCfg.customText||(results[activeNet]||"").replace(/#\S+/g,"").trim().split("
+").filter(l=>l.trim()).slice(0,2).join("
+");
+                        const imgs = await generateImages(results[activeNet],net.label,net.color,brand.name||"",item.preview);
+                        setPostImgs(p=>({...p,[activeNet]:imgs}));
+                      }}
+                        style={{cursor:"pointer",borderRadius:6,overflow:"hidden",border:`2px solid ${editorCfg.bgImageIdx===i?"#7c3aed":"transparent"}`,width:48,height:48}}>
+                        <img src={item.preview} style={{width:"100%",height:"100%",objectFit:"cover"}} alt=""/>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+ 
+              {/* Actions */}
+              <div style={{display:"flex",gap:8,marginTop:4}}>
+                <button onClick={async()=>{
+                  const net=NETWORKS.find(n=>n.id===activeNet);
+                  const fp=selItems[editorCfg.bgImageIdx]?.preview||selItems.find(s=>!s.isVideo)?.preview||null;
+                  const imgs=await generateImages(results[activeNet],net.label,net.color,brand.name||"",fp);
+                  setPostImgs(p=>({...p,[activeNet]:imgs}));
+                }} style={{flex:1,background:"#0d0d1f",color:"#a78bfa",border:"1px solid #7c3aed40",borderRadius:8,padding:"10px",fontWeight:700,cursor:"pointer",fontSize:12}}>
+                  🔄 Actualizar preview
+                </button>
+                <button onClick={()=>{dlImg(activeNet,selDesign[activeNet]||"d1");setShowEditor(false);}}
+                  style={{flex:1,background:G,color:"#fff",border:"none",borderRadius:8,padding:"10px",fontWeight:700,cursor:"pointer",fontSize:12}}>
+                  ⬇ Descargar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+ 
       {/* NAV */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 16px",borderBottom:"1px solid #0d0d1f",background:"#07070e",flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",gap:7,cursor:"pointer"}} onClick={()=>setView("landing")}>
@@ -597,9 +764,9 @@ FORMATO EXACTO:
                 )}
               </div>
  
-              {/* Image result - 3 designs */}
+              {/* Image result - 3 designs + editor */}
               {(results[activeNet]||genImg)&&(
-                <div style={{width:220,background:"#07070e",border:"1px solid #0d0d1f",borderRadius:11,padding:"11px",display:"flex",flexDirection:"column",gap:8,flexShrink:0,overflowY:"auto"}}>
+                <div style={{width:230,background:"#07070e",border:"1px solid #0d0d1f",borderRadius:11,padding:"11px",display:"flex",flexDirection:"column",gap:8,flexShrink:0,overflowY:"auto"}}>
                   <span className="lbl" style={{margin:0}}>Elegí tu diseño</span>
                   {genImg&&!postImgs[activeNet]?(
                     <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:5,minHeight:100}}>
@@ -625,9 +792,13 @@ FORMATO EXACTO:
                           </div>
                         );
                       })}
+                      <button onClick={()=>setShowEditor(true)}
+                        style={{background:"#0d0d1f",color:"#c4b5fd",border:"1px solid #7c3aed40",borderRadius:7,padding:"8px",fontWeight:700,cursor:"pointer",fontSize:11}}>
+                        ✏️ Editar diseño
+                      </button>
                       <button onClick={()=>dlImg(activeNet, selDesign[activeNet]||"d1")}
-                        style={{background:G,color:"#fff",border:"none",borderRadius:7,padding:"9px",fontWeight:700,cursor:"pointer",fontSize:11,marginTop:2}}>
-                        ⬇ Descargar diseño elegido
+                        style={{background:G,color:"#fff",border:"none",borderRadius:7,padding:"8px",fontWeight:700,cursor:"pointer",fontSize:11}}>
+                        ⬇ Descargar
                       </button>
                       <div style={{fontSize:9,color:"#444",textAlign:"center"}}>1080×1080px · Lista para publicar</div>
                     </>
