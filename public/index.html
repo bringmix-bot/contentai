@@ -51,77 +51,115 @@ const INDUSTRIES = [
   "Veterinaria","Música / DJ","Abogacía","Contabilidad",
 ];
  
-// ── DESIGN 1: Minimalista — foto limpia, texto elegante abajo ──
+// ── MARKETING BACKGROUND (cuando no hay foto) ──
+const drawMarketingBg = (ctx, netColor, design) => {
+  if(design === 1) {
+    // Minimalista: gradiente suave con formas geométricas
+    const bg = ctx.createLinearGradient(0,0,1080,1080);
+    bg.addColorStop(0,"#0d0520"); bg.addColorStop(0.5,"#0a0a1f"); bg.addColorStop(1,"#05050a");
+    ctx.fillStyle=bg; ctx.fillRect(0,0,1080,1080);
+    // Círculo grande decorativo
+    ctx.beginPath(); ctx.arc(1080,0,600,0,Math.PI*2);
+    const c1=ctx.createRadialGradient(1080,0,0,1080,0,600);
+    c1.addColorStop(0,netColor+"40"); c1.addColorStop(1,"transparent");
+    ctx.fillStyle=c1; ctx.fill();
+    // Líneas diagonales sutiles
+    ctx.strokeStyle="rgba(255,255,255,0.03)"; ctx.lineWidth=1;
+    for(let i=0;i<20;i++){ ctx.beginPath(); ctx.moveTo(0,i*60); ctx.lineTo(i*60,0); ctx.stroke(); }
+    // Punto de luz inferior izquierda
+    ctx.beginPath(); ctx.arc(0,1080,400,0,Math.PI*2);
+    const c2=ctx.createRadialGradient(0,1080,0,0,1080,400);
+    c2.addColorStop(0,"#7c3aed30"); c2.addColorStop(1,"transparent");
+    ctx.fillStyle=c2; ctx.fill();
+  } else if(design === 2) {
+    // Bold: fondo oscuro con grid y acento de color fuerte
+    ctx.fillStyle="#050508"; ctx.fillRect(0,0,1080,1080);
+    // Grid pattern
+    ctx.strokeStyle="rgba(255,255,255,0.04)"; ctx.lineWidth=1;
+    for(let x=0;x<=1080;x+=60){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,1080); ctx.stroke(); }
+    for(let y=0;y<=1080;y+=60){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(1080,y); ctx.stroke(); }
+    // Splash de color centrado
+    const splash=ctx.createRadialGradient(540,540,0,540,540,500);
+    splash.addColorStop(0,netColor+"35"); splash.addColorStop(0.5,netColor+"15"); splash.addColorStop(1,"transparent");
+    ctx.beginPath(); ctx.arc(540,540,500,0,Math.PI*2); ctx.fillStyle=splash; ctx.fill();
+    // Borde superior e inferior
+    const bar=ctx.createLinearGradient(0,0,1080,0);
+    bar.addColorStop(0,netColor); bar.addColorStop(1,"#7c3aed");
+    ctx.fillStyle=bar; ctx.fillRect(0,0,1080,8); ctx.fillRect(0,1072,1080,8);
+  } else {
+    // Editorial: fondo con textura y panel lateral
+    const bg=ctx.createLinearGradient(0,0,0,1080);
+    bg.addColorStop(0,"#0a0a14"); bg.addColorStop(1,"#05050a");
+    ctx.fillStyle=bg; ctx.fillRect(0,0,1080,1080);
+    // Panel derecho
+    ctx.fillStyle="rgba(255,255,255,0.02)"; ctx.fillRect(560,0,520,1080);
+    // Banda izquierda de color
+    const band=ctx.createLinearGradient(0,0,0,1080);
+    band.addColorStop(0,netColor); band.addColorStop(1,"#7c3aed");
+    ctx.fillStyle=band; ctx.fillRect(0,0,10,1080);
+    // Formas abstractas
+    ctx.beginPath(); ctx.arc(280,540,300,0,Math.PI*2);
+    const blob=ctx.createRadialGradient(280,540,0,280,540,300);
+    blob.addColorStop(0,netColor+"20"); blob.addColorStop(1,"transparent");
+    ctx.fillStyle=blob; ctx.fill();
+  }
+};
+ 
+// ── DESIGN 1: Minimalista ──
 const design1 = (ctx, quote, bizName, netColor) => {
-  const gr = ctx.createLinearGradient(0, 720, 0, 1080);
+  const gr = ctx.createLinearGradient(0, 680, 0, 1080);
   gr.addColorStop(0,"rgba(0,0,0,0)");
-  gr.addColorStop(0.5,"rgba(0,0,0,0.75)");
+  gr.addColorStop(0.4,"rgba(0,0,0,0.72)");
   gr.addColorStop(1,"rgba(0,0,0,0.95)");
-  ctx.fillStyle=gr; ctx.fillRect(0,720,1080,360);
-  // Thin accent line
-  ctx.fillStyle=netColor; ctx.fillRect(60,750,3,60);
-  // Business name
-  if(bizName){ ctx.font="400 18px 'DM Sans',sans-serif"; ctx.fillStyle="rgba(255,255,255,0.55)"; ctx.fillText(bizName.toUpperCase(),74,780); }
-  // Quote
-  ctx.font="600 38px 'DM Sans',sans-serif"; ctx.fillStyle="#ffffff";
+  ctx.fillStyle=gr; ctx.fillRect(0,680,1080,400);
+  ctx.fillStyle=netColor; ctx.fillRect(60,720,3,55);
+  if(bizName){ ctx.font="400 18px 'DM Sans',sans-serif"; ctx.fillStyle="rgba(255,255,255,0.5)"; ctx.fillText(bizName.toUpperCase(),74,748); }
+  ctx.font="600 40px 'DM Sans',sans-serif"; ctx.fillStyle="#ffffff";
   const ws=quote.split(" "); const ls=[]; let cur="";
   ws.forEach(w=>{ const t=cur+(cur?" ":"")+w; if(ctx.measureText(t).width>900){if(cur)ls.push(cur);cur=w;}else cur=t; });
   if(cur)ls.push(cur);
   const shown=ls.slice(0,3); if(ls.length>3)shown[2]+="...";
-  const sy=bizName?820:810;
-  shown.forEach((l,i)=>ctx.fillText(l,74,sy+i*50));
-  // MCM branding subtle
+  const sy=bizName?800:790;
+  shown.forEach((l,i)=>ctx.fillText(l,74,sy+i*52));
   ctx.font="400 15px 'DM Sans',sans-serif"; ctx.fillStyle="rgba(255,255,255,0.25)";
-  ctx.fillText("MCM",60,1065);
+  ctx.fillText("MCM · My Community Manager",60,1066);
 };
  
-// ── DESIGN 2: Bold — frase grande centrada, overlay fuerte ──
+// ── DESIGN 2: Bold ──
 const design2 = (ctx, quote, bizName, netColor) => {
-  // Strong overlay
-  ctx.fillStyle="rgba(0,0,0,0.68)"; ctx.fillRect(0,0,1080,1080);
-  // Gradient border effect top+bottom
-  const top=ctx.createLinearGradient(0,0,1080,0);
-  top.addColorStop(0,netColor); top.addColorStop(1,"#ec4899");
-  ctx.fillStyle=top; ctx.fillRect(0,0,1080,6);
-  ctx.fillStyle=top; ctx.fillRect(0,1074,1080,6);
-  // Center quote
+  ctx.fillStyle="rgba(0,0,0,0.65)"; ctx.fillRect(0,0,1080,1080);
+  const bar=ctx.createLinearGradient(0,0,1080,0);
+  bar.addColorStop(0,netColor); bar.addColorStop(1,"#ec4899");
+  ctx.fillStyle=bar; ctx.fillRect(0,0,1080,6); ctx.fillRect(0,1074,1080,6);
   ctx.textAlign="center";
-  ctx.font="800 52px 'DM Sans',sans-serif"; ctx.fillStyle="#ffffff";
+  ctx.font="800 54px 'DM Sans',sans-serif"; ctx.fillStyle="#ffffff";
   const ws=quote.split(" "); const ls=[]; let cur="";
-  ws.forEach(w=>{ const t=cur+(cur?" ":"")+w; if(ctx.measureText(t).width>900){if(cur)ls.push(cur);cur=w;}else cur=t; });
+  ws.forEach(w=>{ const t=cur+(cur?" ":"")+w; if(ctx.measureText(t).width>920){if(cur)ls.push(cur);cur=w;}else cur=t; });
   if(cur)ls.push(cur);
   const shown=ls.slice(0,4); if(ls.length>4)shown[3]+="...";
-  const totalH=shown.length*62;
-  const sy=(1080-totalH)/2;
-  shown.forEach((l,i)=>ctx.fillText(l,540,sy+i*62));
-  // Business name bottom center
-  if(bizName){ ctx.font="500 20px 'DM Sans',sans-serif"; ctx.fillStyle="rgba(255,255,255,0.5)"; ctx.fillText(bizName,540,1050); }
+  const sy=(1080-shown.length*64)/2;
+  shown.forEach((l,i)=>ctx.fillText(l,540,sy+i*64));
+  if(bizName){ ctx.font="500 20px 'DM Sans',sans-serif"; ctx.fillStyle="rgba(255,255,255,0.45)"; ctx.fillText(bizName,540,1052); }
   ctx.textAlign="left";
 };
  
-// ── DESIGN 3: Editorial — banda lateral de color, texto en columna ──
+// ── DESIGN 3: Editorial ──
 const design3 = (ctx, quote, bizName, netColor) => {
-  // Dark overlay
   ctx.fillStyle="rgba(0,0,0,0.55)"; ctx.fillRect(0,0,1080,1080);
-  // Left color band
   const band=ctx.createLinearGradient(0,0,0,1080);
   band.addColorStop(0,netColor+"ee"); band.addColorStop(1,"#7c3aedee");
-  ctx.fillStyle=band; ctx.fillRect(0,0,8,1080);
-  // Right text area background
-  ctx.fillStyle="rgba(0,0,0,0.72)"; ctx.fillRect(580,0,500,1080);
-  // Network label
-  ctx.font="700 13px 'DM Sans',sans-serif"; ctx.fillStyle=netColor; ctx.letterSpacing="3px";
-  ctx.fillText("● MCM",610,80); ctx.letterSpacing="0px";
-  // Quote in right column
-  ctx.font="700 40px 'DM Sans',sans-serif"; ctx.fillStyle="#ffffff";
-  const maxW=420; const ws=quote.split(" "); const ls=[]; let cur="";
+  ctx.fillStyle=band; ctx.fillRect(0,0,10,1080);
+  ctx.fillStyle="rgba(0,0,0,0.75)"; ctx.fillRect(570,0,510,1080);
+  ctx.font="700 13px 'DM Sans',sans-serif"; ctx.fillStyle=netColor;
+  ctx.fillText("● MCM",610,75);
+  ctx.font="700 38px 'DM Sans',sans-serif"; ctx.fillStyle="#ffffff";
+  const maxW=430; const ws=quote.split(" "); const ls=[]; let cur="";
   ws.forEach(w=>{ const t=cur+(cur?" ":"")+w; if(ctx.measureText(t).width>maxW){if(cur)ls.push(cur);cur=w;}else cur=t; });
   if(cur)ls.push(cur);
   const shown=ls.slice(0,5); if(ls.length>5)shown[4]+="...";
-  const totalH=shown.length*52; const sy=(1080-totalH)/2;
+  const sy=(1080-shown.length*52)/2;
   shown.forEach((l,i)=>ctx.fillText(l,610,sy+i*52));
-  // Business name
-  if(bizName){ ctx.font="500 18px 'DM Sans',sans-serif"; ctx.fillStyle="rgba(255,255,255,0.45)"; ctx.fillText(bizName.toUpperCase(),610,1040); }
+  if(bizName){ ctx.font="500 18px 'DM Sans',sans-serif"; ctx.fillStyle="rgba(255,255,255,0.4)"; ctx.fillText(bizName.toUpperCase(),610,1044); }
 };
  
 const generateImages = (text, netLabel, netColor, bizName, imgPreview) => {
@@ -130,7 +168,7 @@ const generateImages = (text, netLabel, netColor, bizName, imgPreview) => {
     const lines = clean.split("\n").filter(l=>l.trim()).slice(0,3).join(" ");
     const quote = lines.length > 120 ? lines.slice(0,117)+"..." : lines;
  
-    const makeCanvas = (designFn) => {
+    const makeCanvas = (designFn, designNum) => {
       const cv = document.createElement("canvas");
       cv.width=1080; cv.height=1080;
       const ctx=cv.getContext("2d");
@@ -145,19 +183,17 @@ const generateImages = (text, netLabel, netColor, bizName, imgPreview) => {
           };
           img.src=imgPreview;
         } else {
-          const bg=ctx.createLinearGradient(0,0,1080,1080);
-          bg.addColorStop(0,"#0d0520"); bg.addColorStop(1,"#05050a");
-          ctx.fillStyle=bg; ctx.fillRect(0,0,1080,1080);
-          ctx.beginPath(); ctx.arc(900,180,320,0,Math.PI*2); ctx.fillStyle="#7c3aed08"; ctx.fill();
+          // No photo: draw professional marketing background
+          drawMarketingBg(ctx, netColor, designNum);
           draw();
         }
       });
     };
  
     Promise.all([
-      makeCanvas(design1),
-      makeCanvas(design2),
-      makeCanvas(design3),
+      makeCanvas(design1, 1),
+      makeCanvas(design2, 2),
+      makeCanvas(design3, 3),
     ]).then(([d1,d2,d3]) => resolve({d1,d2,d3}));
   });
 };
@@ -765,13 +801,13 @@ FORMATO EXACTO:
               </div>
  
               {/* Image result - 3 designs + editor */}
-              {(results[activeNet]||genImg)&&(
+              {(results[activeNet]||genImg||postImgs[activeNet])&&(
                 <div style={{width:230,background:"#07070e",border:"1px solid #0d0d1f",borderRadius:11,padding:"11px",display:"flex",flexDirection:"column",gap:8,flexShrink:0,overflowY:"auto"}}>
                   <span className="lbl" style={{margin:0}}>Elegí tu diseño</span>
                   {genImg&&!postImgs[activeNet]?(
                     <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:5,minHeight:100}}>
                       <div style={{width:20,height:20,border:"2px solid #1e1e30",borderTopColor:"#7c3aed",borderRadius:"50%",animation:"spin 0.7s linear infinite"}}/>
-                      <div style={{fontSize:10,color:"#555",textAlign:"center"}}>Generando 3 diseños...</div>
+                      <div style={{fontSize:10,color:"#888",textAlign:"center"}}>Generando 3 diseños...</div>
                     </div>
                   ):postImgs[activeNet]?(
                     <>
@@ -803,6 +839,13 @@ FORMATO EXACTO:
                       <div style={{fontSize:9,color:"#444",textAlign:"center"}}>1080×1080px · Lista para publicar</div>
                     </>
                   ):null}
+                  {/* Edit button always visible after generating */}
+                  {results[activeNet]&&!genImg&&(
+                    <button onClick={()=>setShowEditor(true)}
+                      style={{background:"#7c3aed20",color:"#c4b5fd",border:"1px solid #7c3aed50",borderRadius:7,padding:"8px",fontWeight:700,cursor:"pointer",fontSize:11,marginTop:postImgs[activeNet]?0:8}}>
+                      ✏️ Editar diseño
+                    </button>
+                  )}
                 </div>
               )}
             </div>
