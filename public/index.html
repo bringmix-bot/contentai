@@ -322,70 +322,6 @@ ${NETWORKS[4].tone}`;
   const canGen = !generating && (!!topic.trim()||selItems.length>0);
  
   // ══════════════════════════════
-  // ONBOARDING
-  // ══════════════════════════════
-  const OnboardingModal = () => (
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20,backdropFilter:"blur(12px)"}}>
-      <div style={{background:"#0d0d1a",border:"1px solid #1a1a35",borderRadius:24,padding:40,width:"100%",maxWidth:480,animation:"fadeUp 0.4s ease"}}>
-        <div style={{width:44,height:44,background:GRAD,borderRadius:12,display:"grid",placeItems:"center",color:"#fff",fontWeight:800,fontSize:20,fontFamily:"'Syne',sans-serif",marginBottom:24}}>M</div>
-        <h2 style={{fontFamily:"'Syne',sans-serif",fontSize:26,fontWeight:800,marginBottom:8,color:"#fff"}}>Bienvenido a MCM</h2>
-        <p style={{color:"#555",fontSize:14,marginBottom:28,lineHeight:1.6}}>Contanos sobre tu negocio para que la IA personalice cada post a tu rubro y audiencia.</p>
-        
-        <div style={{display:"flex",flexDirection:"column",gap:14}}>
-          <div>
-            <span style={{fontSize:10,color:"#555",letterSpacing:1.5,marginBottom:6,display:"block"}}>NOMBRE DE TU EMPRESA / NEGOCIO</span>
-            <input value={obName} onChange={e=>setObName(e.target.value)} placeholder="Ej: La Josefa Granja Orgánica"
-              style={{width:"100%",background:"#080810",border:"1px solid #1a1a35",borderRadius:10,padding:"12px 14px",color:"#fff",fontSize:14,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/>
-          </div>
-          <div>
-            <span style={{fontSize:10,color:"#555",letterSpacing:1.5,marginBottom:6,display:"block"}}>RUBRO / INDUSTRIA</span>
-            <select value={INDUSTRIES.includes(obIndustry)?obIndustry:"otro"} onChange={e=>{if(e.target.value!=="otro")setObIndustry(e.target.value);else setObIndustry("");}}
-              style={{width:"100%",background:"#080810",border:"1px solid #1a1a35",borderRadius:10,padding:"12px 14px",color:obIndustry?"#fff":"#3a3a4a",fontSize:14,outline:"none",fontFamily:"'DM Sans',sans-serif",cursor:"pointer",appearance:"none",marginBottom:8}}>
-              <option value="">Seleccioná tu rubro...</option>
-              {INDUSTRIES.map(i=><option key={i} value={i}>{i}</option>)}
-              <option value="otro">✏️ Mi rubro no está en la lista</option>
-            </select>
-            {(!INDUSTRIES.includes(obIndustry)||obIndustry==="")&&(
-              <input value={obIndustry} onChange={e=>setObIndustry(e.target.value)}
-                placeholder="Escribí tu rubro (ej: Veterinaria, Fotografía, Arquitectura...)"
-                style={{width:"100%",background:"#080810",border:"1px solid #7c3aed40",borderRadius:10,padding:"12px 14px",color:"#fff",fontSize:14,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/>
-            )}
-          </div>
- 
-          <div style={{background:"#080810",border:"1px solid #1a1a35",borderRadius:10,padding:"12px 14px"}}>
-            <span style={{fontSize:10,color:"#555",letterSpacing:1.5,marginBottom:8,display:"block"}}>¿A QUIÉN LE VENDÉS?</span>
-            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-              {["Consumidor final (B2C)","Otras empresas (B2B)","Ambos"].map(t=>(
-                <button key={t} onClick={()=>updateBrand("target_type",t)}
-                  style={{background:brand.target_type===t?"#7c3aed20":"transparent",border:`1px solid ${brand.target_type===t?"#7c3aed":"#1a1a35"}`,borderRadius:8,padding:"7px 14px",color:brand.target_type===t?"#a78bfa":"#555",cursor:"pointer",fontSize:12,fontFamily:"'DM Sans',sans-serif"}}>
-                  {t}
-                </button>
-              ))}
-            </div>
-          </div>
- 
-          <button
-            onClick={()=>{
-              if(!obName||!obIndustry) return;
-              const b={...brand,name:obName,industry:obIndustry};
-              setBrand(b);
-              try{localStorage.setItem("mcm_brand",JSON.stringify(b));}catch{}
-              setShowOnboarding(false);
-              setTab("generator");
-            }}
-            disabled={!obName||!obIndustry}
-            style={{background:obName&&obIndustry?GRAD:"#1a1a35",color:obName&&obIndustry?"#fff":"#444",border:"none",borderRadius:12,padding:"14px",fontWeight:800,cursor:obName&&obIndustry?"pointer":"not-allowed",fontSize:15,fontFamily:"'DM Sans',sans-serif",marginTop:4,transition:"all 0.2s"}}>
-            Empezar a generar posts →
-          </button>
-          <button onClick={()=>setShowOnboarding(false)} style={{background:"none",border:"none",color:"#333",cursor:"pointer",fontSize:12,fontFamily:"'DM Sans',sans-serif"}}>
-            Saltar por ahora
-          </button>
-        </div>
-      </div>
-    </div>
-  );
- 
-  // ══════════════════════════════
   // LANDING
   // ══════════════════════════════
   if (view === "landing") return (
@@ -605,7 +541,64 @@ ${NETWORKS[4].tone}`;
   const navTabs=[["generator","✦","Generador"],["gallery","📁","Mi contenido"],["brand","🎨","Mi marca"]];
   return (
     <div style={{height:"100vh",display:"flex",flexDirection:"column",background:"#05050a",overflow:"hidden"}}>
-      {showOnboarding && <OnboardingModal/>}
+      {showOnboarding && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.88)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20,backdropFilter:"blur(12px)"}}>
+          <div style={{background:"#0d0d1a",border:"1px solid #1a1a35",borderRadius:24,padding:40,width:"100%",maxWidth:480}}>
+            <div style={{width:44,height:44,background:GRAD,borderRadius:12,display:"grid",placeItems:"center",color:"#fff",fontWeight:800,fontSize:20,marginBottom:24}}>M</div>
+            <div style={{fontSize:24,fontWeight:800,marginBottom:8,color:"#fff"}}>Bienvenido a MCM</div>
+            <p style={{color:"#555",fontSize:14,marginBottom:28,lineHeight:1.6}}>Contanos sobre tu negocio para que la IA personalice cada post.</p>
+            <div style={{display:"flex",flexDirection:"column",gap:14}}>
+              <div>
+                <span style={{fontSize:10,color:"#555",letterSpacing:1.5,marginBottom:6,display:"block"}}>NOMBRE DE TU EMPRESA</span>
+                <input value={obName} onChange={e=>setObName(e.target.value)} placeholder="Ej: La Josefa Granja Orgánica"
+                  style={{width:"100%",background:"#080810",border:"1px solid #1a1a35",borderRadius:10,padding:"12px 14px",color:"#fff",fontSize:14,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/>
+              </div>
+              <div>
+                <span style={{fontSize:10,color:"#555",letterSpacing:1.5,marginBottom:6,display:"block"}}>RUBRO / INDUSTRIA</span>
+                <select value={INDUSTRIES.includes(obIndustry)?obIndustry:(obIndustry?"otro":"")}
+                  onChange={e=>{ if(e.target.value!=="otro") setObIndustry(e.target.value); else setObIndustry(""); }}
+                  style={{width:"100%",background:"#080810",border:"1px solid #1a1a35",borderRadius:10,padding:"12px 14px",color:obIndustry?"#fff":"#3a3a4a",fontSize:14,outline:"none",fontFamily:"'DM Sans',sans-serif",cursor:"pointer",appearance:"none",marginBottom:8}}>
+                  <option value="">Seleccioná tu rubro...</option>
+                  {INDUSTRIES.map(i=><option key={i} value={i}>{i}</option>)}
+                  <option value="otro">✏️ Mi rubro no está en la lista</option>
+                </select>
+                {(!INDUSTRIES.includes(obIndustry))&&(
+                  <input value={obIndustry} onChange={e=>setObIndustry(e.target.value)}
+                    placeholder="Escribí tu rubro (ej: Veterinaria, Fotografía, DJ...)"
+                    style={{width:"100%",background:"#080810",border:"1px solid #7c3aed50",borderRadius:10,padding:"12px 14px",color:"#fff",fontSize:14,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/>
+                )}
+              </div>
+              <div style={{background:"#080810",border:"1px solid #1a1a35",borderRadius:10,padding:"12px 14px"}}>
+                <span style={{fontSize:10,color:"#555",letterSpacing:1.5,marginBottom:8,display:"block"}}>¿A QUIÉN LE VENDÉS?</span>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  {["Consumidor final (B2C)","Otras empresas (B2B)","Ambos"].map(t=>(
+                    <button key={t} onClick={()=>updateBrand("target_type",t)}
+                      style={{background:brand.target_type===t?"#7c3aed20":"transparent",border:`1px solid ${brand.target_type===t?"#7c3aed":"#1a1a35"}`,borderRadius:8,padding:"7px 14px",color:brand.target_type===t?"#a78bfa":"#555",cursor:"pointer",fontSize:12,fontFamily:"'DM Sans',sans-serif"}}>
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <button
+                onClick={()=>{
+                  if(!obName||!obIndustry) return;
+                  const b={...brand,name:obName,industry:obIndustry};
+                  setBrand(b);
+                  try{localStorage.setItem("mcm_brand",JSON.stringify(b));}catch{}
+                  setShowOnboarding(false);
+                  setTab("generator");
+                }}
+                disabled={!obName||!obIndustry}
+                style={{background:obName&&obIndustry?GRAD:"#1a1a35",color:obName&&obIndustry?"#fff":"#444",border:"none",borderRadius:12,padding:"14px",fontWeight:800,cursor:obName&&obIndustry?"pointer":"not-allowed",fontSize:15,fontFamily:"'DM Sans',sans-serif",marginTop:4}}>
+                Empezar a generar posts →
+              </button>
+              <button onClick={()=>setShowOnboarding(false)} style={{background:"none",border:"none",color:"#333",cursor:"pointer",fontSize:12,fontFamily:"'DM Sans',sans-serif"}}>
+                Saltar por ahora
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 20px",borderBottom:"1px solid #0d0d1a",background:"#080810",flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",gap:9,cursor:"pointer"}} onClick={()=>setView("landing")}>
           <div style={{width:28,height:28,background:GRAD,borderRadius:8,display:"grid",placeItems:"center",color:"#fff",fontWeight:800,fontSize:13,fontFamily:"'Syne',sans-serif"}}>M</div>
