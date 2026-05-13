@@ -339,11 +339,17 @@ ${NETWORKS[4].tone}`;
           </div>
           <div>
             <span style={{fontSize:10,color:"#555",letterSpacing:1.5,marginBottom:6,display:"block"}}>RUBRO / INDUSTRIA</span>
-            <select value={obIndustry} onChange={e=>setObIndustry(e.target.value)}
-              style={{width:"100%",background:"#080810",border:"1px solid #1a1a35",borderRadius:10,padding:"12px 14px",color:obIndustry?"#fff":"#3a3a4a",fontSize:14,outline:"none",fontFamily:"'DM Sans',sans-serif",cursor:"pointer",appearance:"none"}}>
+            <select value={INDUSTRIES.includes(obIndustry)?obIndustry:"otro"} onChange={e=>{if(e.target.value!=="otro")setObIndustry(e.target.value);else setObIndustry("");}}
+              style={{width:"100%",background:"#080810",border:"1px solid #1a1a35",borderRadius:10,padding:"12px 14px",color:obIndustry?"#fff":"#3a3a4a",fontSize:14,outline:"none",fontFamily:"'DM Sans',sans-serif",cursor:"pointer",appearance:"none",marginBottom:8}}>
               <option value="">Seleccioná tu rubro...</option>
               {INDUSTRIES.map(i=><option key={i} value={i}>{i}</option>)}
+              <option value="otro">✏️ Mi rubro no está en la lista</option>
             </select>
+            {(!INDUSTRIES.includes(obIndustry)||obIndustry==="")&&(
+              <input value={obIndustry} onChange={e=>setObIndustry(e.target.value)}
+                placeholder="Escribí tu rubro (ej: Veterinaria, Fotografía, Arquitectura...)"
+                style={{width:"100%",background:"#080810",border:"1px solid #7c3aed40",borderRadius:10,padding:"12px 14px",color:"#fff",fontSize:14,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/>
+            )}
           </div>
  
           <div style={{background:"#080810",border:"1px solid #1a1a35",borderRadius:10,padding:"12px 14px"}}>
@@ -668,12 +674,22 @@ ${NETWORKS[4].tone}`;
             {/* Rubro selector — always visible */}
             <div>
               <span style={{fontSize:10,color:"#555",letterSpacing:1.5,marginBottom:6,display:"block"}}>RUBRO DEL NEGOCIO</span>
-              <select value={brand.industry||""} onChange={e=>updateBrand("industry",e.target.value)}
-                style={{width:"100%",background:"#0d0d1a",border:`1px solid ${brand.industry?"#7c3aed40":"#1a1a35"}`,borderRadius:9,padding:"9px 12px",color:brand.industry?"#a78bfa":"#3a3a4a",fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif",cursor:"pointer",appearance:"none"}}>
+              <select
+                value={INDUSTRIES.includes(brand.industry||"")?brand.industry:"otro"}
+                onChange={e=>{ if(e.target.value!=="otro") updateBrand("industry",e.target.value); else updateBrand("industry",""); }}
+                style={{width:"100%",background:"#0d0d1a",border:`1px solid ${brand.industry?"#7c3aed40":"#1a1a35"}`,borderRadius:9,padding:"9px 12px",color:brand.industry?"#a78bfa":"#3a3a4a",fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif",cursor:"pointer",appearance:"none",marginBottom:6}}>
                 <option value="">¿Cuál es tu rubro?</option>
                 {INDUSTRIES.map(i=><option key={i} value={i}>{i}</option>)}
+                <option value="otro">✏️ Mi rubro no está en la lista</option>
               </select>
-              {brand.industry&&<div style={{fontSize:10,color:"#7c3aed",marginTop:4}}>✓ La IA va a generar posts para {brand.industry}</div>}
+              {(!INDUSTRIES.includes(brand.industry||""))&&(
+                <input
+                  value={brand.industry||""}
+                  onChange={e=>updateBrand("industry",e.target.value)}
+                  placeholder="Escribí tu rubro..."
+                  style={{width:"100%",background:"#0d0d1a",border:"1px solid #7c3aed40",borderRadius:9,padding:"8px 12px",color:"#fff",fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif",marginBottom:4}}/>
+              )}
+              {brand.industry&&<div style={{fontSize:10,color:"#7c3aed",marginTop:2}}>✓ Posts optimizados para {brand.industry}</div>}
             </div>
  
             {brand.name&&(
@@ -862,10 +878,21 @@ ${NETWORKS[4].tone}`;
                 <div key={field}>
                   <span style={LBL}>{label}</span>
                   {type==="select"?(
-                    <select value={brand[field]||""} onChange={e=>updateBrand(field,e.target.value)} style={{...INP,color:brand[field]?"#fff":"#3a3a4a",cursor:"pointer"}}>
-                      <option value="">Seleccioná tu industria...</option>
-                      {INDUSTRIES.map(i=><option key={i}>{i}</option>)}
-                    </select>
+                    <div>
+                      <select
+                        value={INDUSTRIES.includes(brand[field]||"")?brand[field]:"otro"}
+                        onChange={e=>{ if(e.target.value!=="otro") updateBrand(field,e.target.value); else updateBrand(field,""); }}
+                        style={{...INP,color:brand[field]?"#fff":"#3a3a4a",cursor:"pointer",appearance:"none",marginBottom:6}}>
+                        <option value="">Seleccioná tu rubro...</option>
+                        {INDUSTRIES.map(i=><option key={i} value={i}>{i}</option>)}
+                        <option value="otro">✏️ Mi rubro no está en la lista</option>
+                      </select>
+                      {(!INDUSTRIES.includes(brand[field]||""))&&(
+                        <input value={brand[field]||""} onChange={e=>updateBrand(field,e.target.value)}
+                          placeholder="Escribí tu rubro (ej: Veterinaria, Fotografía, DJ, Arquitectura...)"
+                          style={{...INP,border:"1px solid #7c3aed40"}}/>
+                      )}
+                    </div>
                   ):type==="textarea"?(
                     <textarea value={brand[field]||""} onChange={e=>updateBrand(field,e.target.value)} rows={3} placeholder={ph} style={{...INP}}/>
                   ):(
