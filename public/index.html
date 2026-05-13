@@ -33,7 +33,7 @@ select option{background:#0d0d1f;color:#fff}
 <script type="text/babel">
 const { useState, useRef } = React;
 const G = "linear-gradient(135deg,#7c3aed,#ec4899)";
-
+ 
 const NETWORKS = [
   {id:"instagram",label:"Instagram",icon:"📸",color:"#E1306C"},
   {id:"linkedin", label:"LinkedIn", icon:"💼",color:"#0A66C2"},
@@ -41,7 +41,7 @@ const NETWORKS = [
   {id:"facebook", label:"Facebook", icon:"👥",color:"#1877F2"},
   {id:"tiktok",   label:"TikTok",   icon:"🎵",color:"#69C9D0"},
 ];
-
+ 
 const INDUSTRIES = [
   "Restaurante / Gastronomía","Moda / Indumentaria","Salud y bienestar",
   "Tecnología","Inmobiliaria","Educación","Turismo","Retail / Tienda",
@@ -49,7 +49,7 @@ const INDUSTRIES = [
   "Fitness / Deporte","Belleza / Estética","Fotografía","Arquitectura",
   "Veterinaria","Música / DJ","Abogacía","Contabilidad",
 ];
-
+ 
 // ─── IMAGE GENERATION ───────────────────────────────────────────
 function wrapText(ctx, text, maxW) {
   const words = text.split(" ");
@@ -63,7 +63,7 @@ function wrapText(ctx, text, maxW) {
   if (line) lines.push(line);
   return lines;
 }
-
+ 
 function drawBackground(ctx, color, style) {
   if (style === 1) {
     // Minimalista: dark gradient + glow
@@ -107,7 +107,7 @@ function drawBackground(ctx, color, style) {
     ctx.fillStyle = g; ctx.fill();
   }
 }
-
+ 
 function renderDesign(ctx, style, quote, bizName, netColor) {
   if (style === 1) {
     // Minimalista: text at bottom, thin accent line
@@ -135,7 +135,7 @@ function renderDesign(ctx, style, quote, bizName, netColor) {
     ctx.font = "400 16px 'DM Sans',sans-serif";
     ctx.fillStyle = "rgba(255,255,255,0.22)";
     ctx.fillText("MCM · My Community Manager", 60, 1062);
-
+ 
   } else if (style === 2) {
     // Bold: overlay + centered text
     ctx.fillStyle = "rgba(0,0,0,0.62)"; ctx.fillRect(0, 0, 1080, 1080);
@@ -153,7 +153,7 @@ function renderDesign(ctx, style, quote, bizName, netColor) {
       ctx.fillText(bizName, 540, 1052);
     }
     ctx.textAlign = "left";
-
+ 
   } else {
     // Editorial: right column text
     ctx.fillStyle = "rgba(0,0,0,0.52)"; ctx.fillRect(0, 0, 1080, 1080);
@@ -179,7 +179,7 @@ function renderDesign(ctx, style, quote, bizName, netColor) {
     ctx.fillStyle = lg; ctx.fillRect(610, 1048, 300, 3);
   }
 }
-
+ 
 function makePostImages(postText, netColor, bizName, imgPreview) {
   const clean = postText
     .replace(/\*\*/g, "")
@@ -189,17 +189,17 @@ function makePostImages(postText, netColor, bizName, imgPreview) {
     .trim();
   const firstLines = clean.split("\n").filter(l => l.trim().length > 3).slice(0, 3).join(" ").trim();
   const quote = firstLines.length > 130 ? firstLines.slice(0, 127) + "..." : firstLines;
-
+ 
   const makeOne = (style) => new Promise(resolve => {
     const cv = document.createElement("canvas");
     cv.width = 1080; cv.height = 1080;
     const ctx = cv.getContext("2d");
-
+ 
     const finish = () => {
       renderDesign(ctx, style, quote, bizName, netColor);
       resolve(cv.toDataURL("image/png"));
     };
-
+ 
     if (imgPreview) {
       const img = new Image();
       img.onload = () => {
@@ -213,11 +213,11 @@ function makePostImages(postText, netColor, bizName, imgPreview) {
       finish();
     }
   });
-
+ 
   return Promise.all([makeOne(1), makeOne(2), makeOne(3)])
     .then(([d1, d2, d3]) => ({ d1, d2, d3 }));
 }
-
+ 
 // ─── INDUSTRY PICKER ───────────────────────────────────────────
 function IndustryPicker({ value, onChange }) {
   const isCustom = value && !INDUSTRIES.includes(value);
@@ -243,25 +243,25 @@ function IndustryPicker({ value, onChange }) {
     </div>
   );
 }
-
+ 
 // ─── EDITOR MODAL ───────────────────────────────────────────────
 function EditorModal({ postText, netColor, bizName, selImgs, onClose }) {
   const [style, setStyle] = useState(1);
   const [imgIdx, setImgIdx] = useState(0);
   const [preview, setPreview] = useState(null);
   const [generating, setGenerating] = useState(false);
-
+ 
   const imgPreview = selImgs.filter(s => !s.isVideo)[imgIdx]?.preview || null;
-
+ 
   const regenerate = async () => {
     setGenerating(true);
     const imgs = await makePostImages(postText, netColor, bizName, imgPreview);
     setPreview(imgs[`d${style}`]);
     setGenerating(false);
   };
-
+ 
   React.useEffect(() => { regenerate(); }, [style, imgIdx]);
-
+ 
   const download = () => {
     if (!preview) return;
     const a = document.createElement("a");
@@ -269,13 +269,13 @@ function EditorModal({ postText, netColor, bizName, selImgs, onClose }) {
     a.download = `MCM_post_${["","minimalista","bold","editorial"][style]}.png`;
     a.click();
   };
-
+ 
   const styleNames = ["", "Minimalista", "Bold", "Editorial"];
-
+ 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 3000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, backdropFilter: "blur(16px)" }}>
       <div style={{ background: "#0d0d1f", border: "1px solid #1e1e30", borderRadius: 18, padding: 22, width: "100%", maxWidth: 860, maxHeight: "92vh", overflowY: "auto", display: "flex", gap: 20, flexWrap: "wrap" }}>
-
+ 
         {/* Preview */}
         <div style={{ flex: "0 0 320px" }}>
           <span className="lbl">Preview — {styleNames[style]}</span>
@@ -291,14 +291,14 @@ function EditorModal({ postText, netColor, bizName, selImgs, onClose }) {
           </div>
           <div style={{ fontSize: 9, color: "#444", textAlign: "center", marginTop: 6 }}>1080×1080px</div>
         </div>
-
+ 
         {/* Controls */}
         <div style={{ flex: 1, minWidth: 240, display: "flex", flexDirection: "column", gap: 14 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>Editor de diseño</div>
             <button onClick={onClose} style={{ background: "#1e1e30", border: "none", color: "#aaa", width: 28, height: 28, borderRadius: 7, cursor: "pointer", fontSize: 14 }}>✕</button>
           </div>
-
+ 
           {/* Style */}
           <div>
             <span className="lbl">Plantilla de diseño</span>
@@ -311,7 +311,7 @@ function EditorModal({ postText, netColor, bizName, selImgs, onClose }) {
               ))}
             </div>
           </div>
-
+ 
           {/* Background image */}
           {selImgs.filter(s => !s.isVideo).length > 0 && (
             <div>
@@ -331,7 +331,7 @@ function EditorModal({ postText, netColor, bizName, selImgs, onClose }) {
               <div style={{ fontSize: 10, color: "#555", marginTop: 4 }}>🎨 = fondo de marketing sin foto</div>
             </div>
           )}
-
+ 
           {/* Actions */}
           <div style={{ display: "flex", gap: 8, marginTop: "auto" }}>
             <button onClick={download} style={{ flex: 1, background: G, color: "#fff", border: "none", borderRadius: 9, padding: "11px", fontWeight: 800, cursor: "pointer", fontSize: 13 }}>
@@ -343,16 +343,16 @@ function EditorModal({ postText, netColor, bizName, selImgs, onClose }) {
     </div>
   );
 }
-
+ 
 // ─── MAIN APP ────────────────────────────────────────────────────
 function App() {
   const [view, setView] = useState("landing");
   const [tab, setTab] = useState("generator");
-
+ 
   const [brand, setBrand] = useState(() => { try { return JSON.parse(localStorage.getItem("mcm_brand") || "{}"); } catch { return {}; } });
   const saveBrand = b => { setBrand(b); try { localStorage.setItem("mcm_brand", JSON.stringify(b)); } catch {} };
   const upd = (f, v) => saveBrand({ ...brand, [f]: v });
-
+ 
   const [gallery, setGallery] = useState([]);
   const [selected, setSelected] = useState([]);
   const addFiles = files => {
@@ -367,7 +367,7 @@ function App() {
   const removeItem = id => { setGallery(p => p.filter(g => g.id !== id)); setSelected(p => p.filter(s => s !== id)); };
   const toggleSel = id => setSelected(p => p.includes(id) ? p.filter(s => s !== id) : [...p, id]);
   const selItems = gallery.filter(g => selected.includes(g.id));
-
+ 
   const [topic, setTopic] = useState("");
   const [generating, setGenerating] = useState(false);
   const [results, setResults] = useState({});
@@ -380,11 +380,11 @@ function App() {
   const [showEditor, setShowEditor] = useState(false);
   const fileRef = useRef();
   const galRef = useRef();
-
+ 
   const generate = async () => {
     if (!topic.trim() && selItems.length === 0) return;
     setGenerating(true); setResults({}); setPostImgs({});
-
+ 
     const bCtx = [
       brand.name && `EMPRESA: "${brand.name}"`,
       brand.industry && `RUBRO: "${brand.industry}" — usá el lenguaje, tendencias y necesidades de este sector en Argentina`,
@@ -392,47 +392,47 @@ function App() {
       brand.description && `PROPUESTA DE VALOR: "${brand.description}"`,
       brand.tone && `TONO: "${brand.tone}"`,
     ].filter(Boolean).join("\n");
-
+ 
     const mediaList = selItems.map((s, i) => s.isVideo ? `Video ${i + 1}: ${s.name}` : `Imagen ${i + 1}: ${s.name}`).join(", ");
-
+ 
     const prompt = `Sos un copywriter senior con 10 años en agencias top de Argentina. Sabés exactamente qué genera engagement y cómo escribir copy que convierte.
-
+ 
 BRIEF:
 ${bCtx || "Cliente sin perfil definido"}
 ${topic ? `OBJETIVO: "${topic}"` : ""}
 ${selItems.length > 0 ? `MATERIAL VISUAL: ${mediaList}\n${selItems.some(s => !s.isVideo) ? "Analizá cada imagen en detalle: producto, ambiente, emoción, diferencial. Usá esos detalles específicos." : ""}` : ""}
-
+ 
 INSTRUCCIONES:
 - GANCHO irresistible en la primera línea de cada post
 - Lenguaje argentino natural (vos, che, etc.)
 - Específico para esta marca, nunca genérico
 - Adaptado al algoritmo de cada red
-
+ 
 FORMATO EXACTO (sin texto antes ni después):
-
+ 
 ===INSTAGRAM===
 [Gancho. Cuerpo con párrafos cortos. CTA. Hashtags al final.]
-
+ 
 ===LINKEDIN===
 [Dato impactante al inicio. Historia. Reflexión. CTA con pregunta. Máx 5 hashtags.]
-
+ 
 ===TWITTER===
 [Máximo 280 caracteres. Directo y con gancho fuerte.]
-
+ 
 ===FACEBOOK===
 [Situación identificable. Historia. Propuesta. CTA para comentar.]
-
+ 
 ===TIKTOK===
 [Hook viral. Script con acciones. CTA. Caption con hashtags.]`;
-
+ 
     try {
       const firstImg = selItems.find(s => !s.isVideo && s.base64);
       const body = { prompt };
       if (firstImg) { body.imageBase64 = firstImg.base64; body.imageMediaType = firstImg.mediaType; }
-
+ 
       const res = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await res.json();
-
+ 
       if (data.error) { setResults({ _err: data.error }); }
       else {
         const text = data.text || "";
@@ -445,7 +445,7 @@ FORMATO EXACTO (sin texto antes ni después):
           parsed[ids[i]] = text.slice(f, n).trim();
         });
         setResults(parsed); setPostCount(p => p + 5);
-
+ 
         // Generate images for all networks
         setGenImg(true);
         const imgs = {};
@@ -460,24 +460,24 @@ FORMATO EXACTO (sin texto antes ni después):
     } catch (e) { setResults({ _err: "Error: " + e.message }); }
     finally { setGenerating(false); }
   };
-
+ 
   const dlText = id => {
     const n = NETWORKS.find(x => x.id === id);
     const b = new Blob([results[id]], { type: "text/plain" });
     const u = URL.createObjectURL(b); const a = document.createElement("a");
     a.href = u; a.download = `MCM_${n.label}.txt`; a.click(); URL.revokeObjectURL(u);
   };
-
+ 
   const dlImg = id => {
     const d = selDesign[id] || "d1";
     const n = NETWORKS.find(x => x.id === id);
     const a = document.createElement("a");
     a.href = postImgs[id][d]; a.download = `MCM_${n.label}.png`; a.click();
   };
-
+ 
   const canGen = !generating && (!!topic.trim() || selItems.length > 0);
   const activeNetwork = NETWORKS.find(n => n.id === activeNet);
-
+ 
   // ── LANDING ──────────────────────────────────────────────────
   if (view === "landing") return (
     <div style={{ minHeight: "100vh", background: "#05050a" }}>
@@ -495,7 +495,7 @@ FORMATO EXACTO (sin texto antes ni después):
         </div>
         <button onClick={() => setView("app")} style={{ background: G, color: "#fff", border: "none", borderRadius: 10, padding: "9px 22px", fontWeight: 700, cursor: "pointer", fontSize: 13 }}>Empezar gratis →</button>
       </nav>
-
+ 
       <div style={{ textAlign: "center", padding: "80px 20px 60px" }}>
         <div style={{ display: "flex", justifyContent: "center", alignItems: "center", marginBottom: 18 }}>
           {["🧑🏻", "👩🏽", "👨🏾", "👩🏻", "🧑🏽"].map((e, i) => (
@@ -522,7 +522,7 @@ FORMATO EXACTO (sin texto antes ni después):
           ))}
         </div>
       </div>
-
+ 
       <div style={{ padding: "50px 36px 80px", maxWidth: 960, margin: "0 auto" }}>
         <h2 style={{ fontSize: "clamp(24px,3.5vw,40px)", fontWeight: 800, textAlign: "center", marginBottom: 10, color: "#fff" }}>Cómo funciona</h2>
         <p style={{ textAlign: "center", color: "#777", marginBottom: 40, fontSize: 15 }}>De tus archivos a posts publicables en 30 segundos.</p>
@@ -537,7 +537,7 @@ FORMATO EXACTO (sin texto antes ni después):
           ))}
         </div>
       </div>
-
+ 
       <div style={{ textAlign: "center", padding: "50px 20px 70px", borderTop: "1px solid #0d0d1f" }}>
         <h2 style={{ fontSize: "clamp(26px,4vw,42px)", fontWeight: 800, marginBottom: 10, color: "#fff" }}>Tu CM trabaja 24/7.</h2>
         <p style={{ color: "#777", fontSize: 15, marginBottom: 28 }}>7 días gratis · Sin tarjeta · Cancelás cuando quieras</p>
@@ -545,7 +545,7 @@ FORMATO EXACTO (sin texto antes ni después):
       </div>
     </div>
   );
-
+ 
   // ── PRICING ──────────────────────────────────────────────────
   if (view === "pricing") return (
     <div style={{ minHeight: "100vh", background: "#05050a" }}>
@@ -580,11 +580,11 @@ FORMATO EXACTO (sin texto antes ni después):
       </div>
     </div>
   );
-
+ 
   // ── APP ──────────────────────────────────────────────────────
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "#05050a", overflow: "hidden" }}>
-
+ 
       {/* EDITOR MODAL */}
       {showEditor && results[activeNet] && (
         <EditorModal
@@ -595,7 +595,7 @@ FORMATO EXACTO (sin texto antes ni después):
           onClose={() => setShowEditor(false)}
         />
       )}
-
+ 
       {/* NAV */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 16px", borderBottom: "1px solid #0d0d1f", background: "#07070e", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 7, cursor: "pointer" }} onClick={() => setView("landing")}>
@@ -615,24 +615,24 @@ FORMATO EXACTO (sin texto antes ni después):
           <button onClick={() => setView("pricing")} style={{ background: G, color: "#fff", border: "none", borderRadius: 7, padding: "5px 14px", cursor: "pointer", fontWeight: 700, fontSize: 11 }}>Suscribirme →</button>
         </div>
       </div>
-
+ 
       {/* GENERATOR */}
       {tab === "generator" && (
         <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-
+ 
           {/* LEFT */}
           <div style={{ width: 275, borderRight: "1px solid #0d0d1f", padding: "12px", display: "flex", flexDirection: "column", gap: 11, overflowY: "auto", flexShrink: 0 }}>
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 2 }}>Generador</div>
               <div style={{ fontSize: 11, color: "#888" }}>Seleccioná archivos y generá posts para 5 redes.</div>
             </div>
-
+ 
             {/* Rubro */}
             <div className="card">
               <span className="lbl">Rubro del negocio</span>
               <IndustryPicker value={brand.industry || ""} onChange={v => upd("industry", v)} />
             </div>
-
+ 
             {/* Files */}
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
@@ -665,14 +665,14 @@ FORMATO EXACTO (sin texto antes ni después):
                 + Subir archivos nuevos
               </div>
             </div>
-
+ 
             {/* Brief */}
             <div>
               <span className="lbl">Brief del post</span>
               <textarea value={topic} onChange={e => setTopic(e.target.value)} rows={3}
                 placeholder="Ej: Lanzamiento nueva colección, promo fin de semana, apertura de local..." />
             </div>
-
+ 
             {/* Brand info */}
             {brand.name && (
               <div className="card">
@@ -682,13 +682,13 @@ FORMATO EXACTO (sin texto antes ni después):
                 <span onClick={() => setTab("brand")} style={{ color: "#555", fontSize: 10, cursor: "pointer", marginTop: 5, display: "block" }}>Editar →</span>
               </div>
             )}
-
+ 
             <button onClick={generate} disabled={!canGen} style={{ background: canGen ? G : "#0d0d1f", color: canGen ? "#fff" : "#444", border: "none", borderRadius: 9, padding: "12px", fontSize: 14, fontWeight: 800, cursor: canGen ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
               {generating
                 ? <><div style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />Generando...</>
                 : `✦ Generar${selItems.length > 0 ? ` (${selItems.length} arch.)` : ""}`}
             </button>
-
+ 
             {(generating || genImg) && (
               <div className="card">
                 <div style={{ fontSize: 11, color: "#a78bfa", marginBottom: 4, animation: "pulse 1.2s ease infinite" }}>✦ Trabajando...</div>
@@ -698,10 +698,10 @@ FORMATO EXACTO (sin texto antes ni después):
               </div>
             )}
           </div>
-
+ 
           {/* RIGHT */}
           <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "12px 14px", gap: 8, overflow: "hidden" }}>
-
+ 
             {/* Network tabs */}
             <div style={{ display: "flex", gap: 5, flexWrap: "wrap", flexShrink: 0 }}>
               {NETWORKS.map(n => (
@@ -711,9 +711,9 @@ FORMATO EXACTO (sin texto antes ni después):
                 </button>
               ))}
             </div>
-
+ 
             <div style={{ flex: 1, display: "flex", gap: 10, overflow: "hidden" }}>
-
+ 
               {/* Text result */}
               <div style={{ flex: 1, background: "#07070e", border: `1px solid ${results[activeNet] ? "#7c3aed25" : "#0d0d1f"}`, borderRadius: 11, padding: "13px 15px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
                 {results._err && <div style={{ color: "#f43f5e", fontSize: 13 }}>❌ {results._err}</div>}
@@ -748,12 +748,12 @@ FORMATO EXACTO (sin texto antes ni después):
                   </div>
                 )}
               </div>
-
+ 
               {/* Image panel — always visible when results exist */}
               {results[activeNet] && (
                 <div style={{ width: 220, background: "#07070e", border: "1px solid #0d0d1f", borderRadius: 11, padding: "11px", display: "flex", flexDirection: "column", gap: 8, flexShrink: 0, overflowY: "auto" }}>
                   <span className="lbl" style={{ margin: 0 }}>Diseños de imagen</span>
-
+ 
                   {genImg && !postImgs[activeNet] ? (
                     <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 120 }}>
                       <div style={{ width: 22, height: 22, border: "2px solid #1e1e30", borderTopColor: "#7c3aed", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
@@ -797,7 +797,7 @@ FORMATO EXACTO (sin texto antes ni después):
                 </div>
               )}
             </div>
-
+ 
             {/* Status bar */}
             {Object.keys(results).filter(k => k !== "_err").length > 0 && (
               <div style={{ background: "#07070e", border: "1px solid #0d0d1f", borderRadius: 7, padding: "6px 11px", display: "flex", alignItems: "center", gap: 9, flexShrink: 0 }}>
@@ -812,7 +812,7 @@ FORMATO EXACTO (sin texto antes ni después):
           </div>
         </div>
       )}
-
+ 
       {/* GALLERY */}
       {tab === "gallery" && (
         <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
@@ -871,7 +871,7 @@ FORMATO EXACTO (sin texto antes ni después):
           )}
         </div>
       )}
-
+ 
       {/* BRAND */}
       {tab === "brand" && (
         <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
@@ -919,7 +919,7 @@ FORMATO EXACTO (sin texto antes ni después):
     </div>
   );
 }
-
+ 
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 </script>
 </body>
