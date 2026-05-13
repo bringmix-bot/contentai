@@ -180,7 +180,7 @@ Respondé directo.`;
         body:JSON.stringify({prompt})
       });
       const data = await res.json();
-      setResult(data.content?.map(b=>b.text||"").join("")||"Error al generar.");
+      setResult(data.text||"Error al generar.");
       setPostsUsed(p=>p+1);
     } catch { setResult("❌ Error de conexión."); }
     setGenerating(false);
