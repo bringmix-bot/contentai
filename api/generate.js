@@ -21,7 +21,7 @@ export default async function handler(req, res) {
       }),
     });
     const data = await response.json();
-    res.status(200).json(data);
+    res.status(200).json({ text: data.content?.[0]?.text || data.error?.message || 'Sin respuesta' });
   } catch (error) {
     res.status(500).json({ error: 'Error interno' });
   }
