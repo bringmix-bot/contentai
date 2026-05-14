@@ -334,113 +334,178 @@ function LibraryScreen({files,saveFiles,showToast,onNext}) {
 
 function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
   const [generating,setGenerating]=useState(false);
-  const [options,setOptions]=useState([]);
-  const [selected,setSelected]=useState(null);
-  const [editing,setEditing]=useState(false);
+  const [weekPosts,setWeekPosts]=useState([]); // 7 posts, each with 3 options
+  const [selections,setSelections]=useState({}); // {postIdx: optionIdx}
+  const [editing,setEditing]=useState(null); // {postIdx, optIdx}
   const [brief,setBrief]=useState("");
-  const canvasRefs=[useRef(),useRef(),useRef()];
+  const [progress,setProgress]=useState(0);
   const STYLES=[{id:1,name:"Minimalista"},{id:2,name:"Bold"},{id:3,name:"Editorial"}];
 
   const generate=async()=>{
     if(!brand.name){showToast("Primero completá el perfil de tu marca","err");return;}
     const imgs=files.filter(f=>f.type==="image");
     if(imgs.length===0){showToast("Agregá al menos una imagen a tus archivos","err");return;}
-    setGenerating(true); setOptions([]); setSelected(null);
+    setGenerating(true); setWeekPosts([]); setSelections({}); setProgress(0);
+
+    const PROMPTS=[
+      "Genera un caption "+((brand.tone||"profesional"))+" sobre el trabajo/servicio que ofrece la empresa.",
+      "Genera un caption testimonial o de caso de exito relacionado con esta empresa.",
+      "Genera un caption educativo con un tip o consejo relacionado al rubro.",
+      "Genera un caption promocional con llamado a la accion.",
+      "Genera un caption que muestre el equipo humano o valores de la empresa.",
+      "Genera un caption con una pregunta para generar engagement.",
+      "Genera un caption emotivo o inspirador relacionado al rubro.",
+    ];
+    const base="Empresa: "+brand.name+". Rubro: "+(brand.industry||"")+". Descripcion: "+(brand.description||"")+". Cliente ideal: "+(brand.target||"")+". "+(brief?"Contexto: "+brief+". ":"")+"Tono: "+(brand.tone||"profesional")+". Incluye 5-6 hashtags. Solo el caption, sin explicaciones.";
+
     try{
-      const imgSrc=imgs[Math.floor(Math.random()*imgs.length)].preview;
-      const briefCtx=brief?" Tema especifico: "+brief:"";
-      const base="Negocio: "+brand.name+". Rubro: "+(brand.industry||"")+". Descripcion: "+(brand.description||"")+". Cliente ideal: "+(brand.target||"")+"."+briefCtx;
-      const captions=await Promise.all([
-        generateText("Genera un caption "+((brand.tone||"profesional")).toLowerCase()+" para Instagram. "+base+" Tono: "+(brand.tone||"profesional")+". Incluye 5-6 hashtags. Solo el caption."),
-        generateText("Genera un caption emotivo y cercano para Instagram. "+base+" Conecta con el cliente de forma personal. Incluye 5-6 hashtags. Solo el caption."),
-        generateText("Genera un caption orientado a ventas y accion para Instagram. "+base+" Incluye llamado a la accion. Incluye 5-6 hashtags. Solo el caption."),
-      ]);
-      const overlayRaw=await generateText("Texto MUY CORTO para imagen de Instagram (maximo 5 palabras, sin hashtags, sin emojis). Empresa: "+brand.name+". Solo las palabras.");
-      const overlayText=overlayRaw.trim().replace(/['"]/g,"").slice(0,45);
-      const newOptions=STYLES.map((st,i)=>({
-        id:i,style:st.id,styleName:st.name,
-        caption:captions[i]||captions[0],
-        overlayText,imgSrc,
-        fontSize:56,fontColor:"#ffffff",
-        textPos:i===0?"bottom":i===1?"center":"top",
-        textBg:true,brandColor:brand.color||"#6d28d9",
-      }));
-      setOptions(newOptions);
-      showToast("3 opciones generadas!","ok");
+      const allPosts=[];
+      for(let i=0;i<7;i++){
+        setProgress(i+1);
+        const imgSrc=imgs[i%imgs.length].preview;
+        const [cap1,cap2,cap3,overlayRaw]=await Promise.all([
+          generateText(PROMPTS[i]+base),
+          generateText(PROMPTS[i]+" Version mas cercana y coloquial. "+base),
+          generateText(PROMPTS[i]+" Version orientada a ventas y conversion. "+base),
+          generateText("Texto MUY CORTO para imagen Instagram (maximo 5 palabras, sin hashtags, sin emojis, sin puntuacion). Empresa: "+brand.name+". Tema: "+PROMPTS[i].slice(0,40)+". Solo las palabras."),
+        ]);
+        const overlayText=overlayRaw.trim().replace(/['"]/g,"").slice(0,45);
+        const options=STYLES.map((st,si)=>({
+          id:si,style:st.id,styleName:st.name,
+          caption:[cap1,cap2,cap3][si]||cap1,
+          overlayText,imgSrc,
+          fontSize:56,fontColor:"#ffffff",
+          textPos:si===0?"bottom":si===1?"center":"top",
+          textBg:true,brandColor:brand.color||"#6d28d9",
+        }));
+        allPosts.push({postIdx:i,label:"Post "+(i+1),theme:PROMPTS[i].slice(8,40)+"...",options});
+        setWeekPosts([...allPosts]);
+      }
+      // Save selected posts
+      const selectedArr=allPosts.map((p,i)=>({...p.options[0],postIdx:i,id:Date.now()+i}));
+      savePosts(selectedArr);
+      showToast("7 publicaciones generadas!","ok");
     }catch(e){showToast("Error: "+e.message,"err");}
-    finally{setGenerating(false);}
+    finally{setGenerating(false);setProgress(0);}
   };
 
-  const handleSelect=(idx)=>{
-    setSelected(idx);
-    const post=options[idx];
-    savePosts([...posts,{...post,id:Date.now(),createdAt:new Date().toISOString()}]);
+  const selectOption=(postIdx,optIdx)=>{
+    setSelections(p=>({...p,[postIdx]:optIdx}));
   };
+
+  const allSelected=weekPosts.length===7&&Object.keys(selections).length===7;
 
   return (
     <div style={{padding:"32px 36px"}} className="fade-in">
       <div style={{marginBottom:24,display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:12}}>
         <div>
-          <h2 style={{fontSize:22,fontWeight:800,marginBottom:6}}>Crear publicación</h2>
-          <p style={{color:"var(--muted)",fontSize:14}}>La IA genera 3 opciones distintas — elegís la que más te guste.</p>
+          <h2 style={{fontSize:22,fontWeight:800,marginBottom:6}}>Crear publicaciones de la semana</h2>
+          <p style={{color:"var(--muted)",fontSize:14}}>La IA genera 7 posts con 3 opciones cada uno — elegís una por post.</p>
         </div>
         <button className="btn btn-primary" onClick={generate} disabled={generating}>
-          {generating?<><div className="spin"/>Generando...</>:"✦ Generar 3 opciones"}
+          {generating?<><div className="spin"/>Generando post {progress}/7...</>:"✦ Generar semana completa"}
         </button>
       </div>
+
       <div style={{marginBottom:20}}>
-        <span className="lbl">Brief del post (opcional)</span>
-        <input value={brief} onChange={e=>setBrief(e.target.value)} placeholder="Ej: Lanzamiento nueva colección, promo fin de semana, apertura de local..." />
+        <span className="lbl">Brief de la semana (opcional)</span>
+        <input value={brief} onChange={e=>setBrief(e.target.value)} placeholder="Ej: Semana de lanzamiento, promo del mes, nuevo producto..." />
       </div>
+
       {generating&&(
-        <div style={{textAlign:"center",padding:"60px 0",color:"var(--muted)"}}>
-          <div className="spin" style={{margin:"0 auto 16px",width:32,height:32,borderWidth:3}} />
-          <div>Generando 3 opciones únicas...</div>
-          <div style={{fontSize:12,marginTop:8,opacity:.6}}>Esto puede tomar unos segundos</div>
+        <div style={{padding:"24px",marginBottom:24}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:8,fontSize:13,color:"var(--muted)"}}>
+            <span>Generando publicaciones...</span>
+            <span style={{color:"var(--accent2)"}}>{progress}/7</span>
+          </div>
+          <div style={{height:6,background:"var(--surface2)",borderRadius:6,overflow:"hidden"}}>
+            <div style={{height:"100%",width:(progress/7*100)+"%",background:"linear-gradient(90deg,var(--accent),var(--accent2))",borderRadius:6,transition:"width .4s"}} />
+          </div>
+          {weekPosts.length>0&&<div style={{fontSize:12,color:"var(--muted)",marginTop:8}}>Mostrando posts generados hasta ahora...</div>}
         </div>
       )}
-      {options.length>0&&(
-        <div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16,marginBottom:20}}>
-            {options.map((opt,i)=>(
-              <PostOptionCard key={opt.id} opt={opt} canvasRef={canvasRefs[i]}
-                selected={selected===i} onSelect={()=>handleSelect(i)} />
+
+      {weekPosts.map((post,pi)=>(
+        <div key={pi} style={{marginBottom:36}} className="fade-in">
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+            <div style={{width:28,height:28,borderRadius:8,background:"linear-gradient(135deg,var(--accent),var(--accent2))",display:"grid",placeItems:"center",fontSize:13,fontWeight:800,flexShrink:0}}>{pi+1}</div>
+            <div>
+              <div style={{fontWeight:700,fontSize:15}}>Post {pi+1}</div>
+              <div style={{fontSize:12,color:"var(--muted)",textTransform:"capitalize"}}>{post.theme}</div>
+            </div>
+            {selections[pi]!==undefined&&<div style={{marginLeft:"auto",fontSize:12,color:"var(--success)",background:"rgba(34,211,238,.1)",border:"1px solid rgba(34,211,238,.2)",borderRadius:20,padding:"3px 10px"}}>✓ Opción {selections[pi]+1} elegida</div>}
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
+            {post.options.map((opt,oi)=>(
+              <WeekPostCard key={oi} opt={opt} postIdx={pi} optIdx={oi}
+                selected={selections[pi]===oi}
+                onSelect={()=>selectOption(pi,oi)}
+                onEdit={()=>setEditing({postIdx:pi,optIdx:oi})}
+              />
             ))}
           </div>
-          {selected!==null&&(
-            <div className="fade-in" style={{display:"flex",gap:10}}>
-              <button className="btn btn-ghost" style={{flex:1}} onClick={()=>setEditing(true)}>✏️ Editar diseño</button>
-              <button className="btn btn-primary" style={{flex:1}} onClick={onNext}>📅 Programar publicación →</button>
+        </div>
+      ))}
+
+      {weekPosts.length===7&&(
+        <div className="fade-in" style={{marginTop:8}}>
+          <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:12,padding:"16px 20px",marginBottom:16,display:"flex",alignItems:"center",gap:12}}>
+            <div style={{fontSize:24}}>📋</div>
+            <div>
+              <div style={{fontWeight:600,fontSize:14}}>{Object.keys(selections).length}/7 posts seleccionados</div>
+              <div style={{fontSize:12,color:"var(--muted)",marginTop:2}}>Elegí una opción por cada post para continuar</div>
             </div>
+          </div>
+          {allSelected&&(
+            <button className="btn btn-primary" style={{width:"100%"}} onClick={onNext}>
+              📅 Programar en el calendario →
+            </button>
           )}
         </div>
       )}
-      {editing&&selected!==null&&(
-        <EditorModal opt={options[selected]} brand={brand}
-          onClose={()=>setEditing(false)}
+
+      {editing&&(
+        <EditorModal
+          opt={weekPosts[editing.postIdx]?.options[editing.optIdx]}
+          brand={brand}
+          onClose={()=>setEditing(null)}
           onSave={(updated)=>{
-            const newOpts=options.map((o,i)=>i===selected?updated:o);
-            setOptions(newOpts); setEditing(false); showToast("Cambios guardados","ok");
+            const newWeek=[...weekPosts];
+            newWeek[editing.postIdx].options[editing.optIdx]=updated;
+            setWeekPosts(newWeek);
+            setEditing(null);
+            showToast("Cambios guardados","ok");
           }}
-          showToast={showToast} />
+          showToast={showToast}
+        />
       )}
     </div>
   );
 }
 
-function PostOptionCard({opt,canvasRef,selected,onSelect}) {
+function WeekPostCard({opt,postIdx,optIdx,selected,onSelect,onEdit}) {
+  const canvasRef=useRef();
   useEffect(()=>{if(canvasRef.current)drawPost(canvasRef.current,opt);},[opt]);
   return (
-    <div className={"post-option"+(selected?" selected":"")} onClick={onSelect}>
-      <div className="post-canvas-wrap">
+    <div className={"post-option"+(selected?" selected":"")} style={{position:"relative"}}>
+      <div className="post-canvas-wrap" onClick={onSelect}>
         <canvas ref={canvasRef} style={{width:"100%",height:"100%",display:"block"}} />
         <div style={{position:"absolute",top:8,left:8,background:"rgba(0,0,0,.65)",borderRadius:6,padding:"3px 8px",fontSize:11,fontWeight:600}}>{opt.styleName}</div>
         {selected&&<div style={{position:"absolute",top:8,right:8,background:"var(--accent)",borderRadius:"50%",width:22,height:22,display:"grid",placeItems:"center",fontSize:12}}>✓</div>}
       </div>
-      <div className="post-caption">{opt.caption}</div>
+      <div className="post-caption" onClick={onSelect}>{opt.caption}</div>
+      <div style={{padding:"0 12px 12px",display:"flex",gap:6}}>
+        <button onClick={onSelect} className="btn btn-primary" style={{flex:1,padding:"7px",fontSize:11}}>
+          {selected?"✓ Elegida":"Elegir esta"}
+        </button>
+        <button onClick={onEdit} className="btn btn-ghost" style={{padding:"7px 10px",fontSize:11}}>✏️</button>
+      </div>
     </div>
   );
 }
+
+
+function PostOptionCard(){return null;}
 
 function EditorModal({opt,brand,onClose,onSave,showToast}) {
   const canvasRef=useRef();
@@ -534,75 +599,187 @@ function EditorModal({opt,brand,onClose,onSave,showToast}) {
   );
 }
 
+
 function ScheduleScreen({socials,showToast}) {
-  const [schedules,setSchedules]=useState(store.get("schedules")||[]);
-  const [day,setDay]=useState("Lunes");
-  const [hour,setHour]=useState("09:00");
-  const [net,setNet]=useState("instagram");
-  const [mode,setMode]=useState("manual");
+  const [schedules,setSchedules]=useState(store.get("schedules")||{});
+  // schedules = { "2024-W-Mon": {postNum, hour, net}, ... }
+  const [posts,setPosts]=useState(store.get("posts")||[]);
+  const [selectedDay,setSelectedDay]=useState(null);
+  const [showModal,setShowModal]=useState(false);
+  const [modalData,setModalData]=useState({postNum:1,hour:"09:00",net:"instagram"});
   const connected=socials.filter(s=>s.connected);
-  const DAYS=["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
-  const save=(arr)=>{setSchedules(arr);store.set("schedules",arr);};
-  const add=()=>{
-    const s={id:Date.now(),day,hour,net,active:true,mode};
-    save([...schedules,s]); showToast("Automatización guardada!","ok");
+
+  const DAYS=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
+  const DAYS_FULL=["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+  const HOURS=["07:00","08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00","19:00","20:00","21:00","22:00"];
+
+  const saveSchedules=(s)=>{setSchedules(s);store.set("schedules",s);};
+
+  const openModal=(dayIdx)=>{
+    setSelectedDay(dayIdx);
+    const existing=schedules[dayIdx];
+    setModalData(existing||{postNum:1,hour:"09:00",net:connected[0]?.id||"instagram"});
+    setShowModal(true);
   };
-  const remove=(id)=>save(schedules.filter(s=>s.id!==id));
-  const toggle=(id)=>save(schedules.map(s=>s.id===id?{...s,active:!s.active}:s));
+
+  const assignPost=()=>{
+    saveSchedules({...schedules,[selectedDay]:modalData});
+    setShowModal(false);
+    showToast("Post "+modalData.postNum+" asignado al "+DAYS_FULL[selectedDay],"ok");
+  };
+
+  const removeSchedule=(dayIdx)=>{
+    const newS={...schedules};
+    delete newS[dayIdx];
+    saveSchedules(newS);
+  };
+
+  const scheduledCount=Object.keys(schedules).length;
+  const postNums=Array.from({length:Math.max(7,posts.length)},(_,i)=>i+1);
+
   return (
-    <div style={{padding:"32px 36px",maxWidth:680}} className="fade-in">
+    <div style={{padding:"32px 36px",maxWidth:800}} className="fade-in">
       <div style={{marginBottom:28}}>
-        <h2 style={{fontSize:22,fontWeight:800,marginBottom:6}}>Automatizar publicaciones</h2>
-        <p style={{color:"var(--muted)",fontSize:14}}>Configurá cuándo y en qué red publicar automáticamente.</p>
+        <h2 style={{fontSize:22,fontWeight:800,marginBottom:6}}>Calendario semanal</h2>
+        <p style={{color:"var(--muted)",fontSize:14}}>Asigná cada publicación a un día. Hacé click en el día para programarlo.</p>
       </div>
-      <div style={{display:"flex",gap:8,marginBottom:24}}>
-        {[["manual","📋 Manual"],["auto","🤖 Automático"]].map(([v,l])=>(
-          <button key={v} onClick={()=>setMode(v)} className="btn"
-            style={{flex:1,padding:"12px",fontSize:13,background:mode===v?"rgba(109,40,217,.2)":"var(--surface)",border:"1px solid "+(mode===v?"var(--accent2)":"var(--border)"),color:mode===v?"var(--accent2)":"var(--muted)"}}>{l}</button>
-        ))}
-      </div>
-      <div className="card" style={{marginBottom:16}}>
-        <div style={{fontWeight:600,marginBottom:16}}>Nueva automatización</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
-          <div><span className="lbl">Día</span><select value={day} onChange={e=>setDay(e.target.value)}>{DAYS.map(d=><option key={d}>{d}</option>)}</select></div>
-          <div><span className="lbl">Horario</span><input type="time" value={hour} onChange={e=>setHour(e.target.value)} /></div>
-        </div>
-        <div style={{marginBottom:16}}>
-          <span className="lbl">Red social</span>
-          {connected.length===0
-            ?<div style={{color:"var(--muted)",fontSize:13}}>No tenés redes conectadas.</div>
-            :<div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-              {connected.map(s=><button key={s.id} onClick={()=>setNet(s.id)} className="btn" style={{padding:"7px 14px",fontSize:13,background:net===s.id?"rgba(109,40,217,.2)":"var(--surface2)",border:"1px solid "+(net===s.id?"var(--accent2)":"var(--border)"),color:net===s.id?"var(--accent2)":"var(--muted)"}}>{s.icon} {s.name}</button>)}
-            </div>}
-        </div>
-        <button className="btn btn-primary" style={{width:"100%"}} onClick={add}>+ Agregar automatización</button>
-      </div>
-      {schedules.length>0&&(
-        <div>
-          <div className="lbl" style={{marginBottom:10}}>Automatizaciones</div>
-          {schedules.map(s=>{
-            const soc=socials.find(x=>x.id===s.net);
-            return(
-              <div key={s.id} className="card" style={{display:"flex",alignItems:"center",gap:12,marginBottom:8,borderColor:s.active?"rgba(34,211,238,.2)":"var(--border)"}}>
-                <span style={{fontSize:20}}>{soc?.icon}</span>
-                <div style={{flex:1}}>
-                  <div style={{fontWeight:600,fontSize:14}}>{soc?.name} · {s.day} a las {s.hour}</div>
-                  <div style={{fontSize:12,color:s.active?"var(--success)":"var(--muted)",marginTop:2}}>{s.active?"● Activo":"○ Pausado"} · {s.mode==="auto"?"Automático":"Manual"}</div>
-                </div>
-                <button onClick={()=>toggle(s.id)} className="btn btn-ghost" style={{fontSize:12,padding:"6px 12px"}}>{s.active?"Pausar":"Activar"}</button>
-                <button onClick={()=>remove(s.id)} style={{background:"none",border:"none",color:"var(--error)",cursor:"pointer",fontSize:18,padding:"4px 6px"}}>✕</button>
-              </div>
-            );
-          })}
+
+      {posts.length===0&&(
+        <div className="card" style={{textAlign:"center",padding:"40px",color:"var(--muted)"}}>
+          <div style={{fontSize:32,marginBottom:12}}>📋</div>
+          <div style={{fontWeight:600,marginBottom:6}}>No hay publicaciones generadas</div>
+          <div style={{fontSize:13}}>Volvé a "Crear publicación" y generá las 7 publicaciones de la semana.</div>
         </div>
       )}
-      <div className="card" style={{marginTop:16,borderColor:"rgba(109,40,217,.2)"}}>
-        <div style={{fontSize:12,color:"var(--accent2)",fontWeight:600,marginBottom:6}}>ℹ️ Cómo funciona</div>
-        <div style={{fontSize:13,color:"var(--muted)",lineHeight:1.7}}>
-          <strong style={{color:"var(--text)"}}>Manual:</strong> MCM te avisa cuando es hora de publicar y vos confirmás.<br/>
-          <strong style={{color:"var(--text)"}}>Automático:</strong> La IA elige una imagen de tu biblioteca, genera el contenido y publica sola.
+
+      {posts.length>0&&(
+        <div>
+          {/* Calendar grid */}
+          <div style={{marginBottom:24}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:8,marginBottom:8}}>
+              {DAYS.map(d=><div key={d} style={{textAlign:"center",fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:1,padding:"4px 0"}}>{d}</div>)}
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:8}}>
+              {DAYS_FULL.map((day,i)=>{
+                const sched=schedules[i];
+                const soc=sched&&socials.find(s=>s.id===sched.net);
+                return (
+                  <div key={i}
+                    onClick={()=>openModal(i)}
+                    style={{
+                      background:sched?"rgba(109,40,217,.15)":"var(--surface2)",
+                      border:"2px solid "+(sched?"var(--accent2)":"var(--border)"),
+                      borderRadius:12,padding:"14px 10px",
+                      cursor:"pointer",transition:"all .2s",minHeight:110,
+                      display:"flex",flexDirection:"column",alignItems:"center",gap:6,
+                    }}
+                    onMouseEnter={e=>e.currentTarget.style.borderColor="var(--accent2)"}
+                    onMouseLeave={e=>e.currentTarget.style.borderColor=sched?"var(--accent2)":"var(--border)"}
+                  >
+                    <div style={{fontSize:11,fontWeight:700,color:"var(--muted)"}}>{day.slice(0,3).toUpperCase()}</div>
+                    {sched?(
+                      <>
+                        <div style={{width:36,height:36,borderRadius:10,background:"linear-gradient(135deg,var(--accent),var(--accent2))",display:"grid",placeItems:"center",fontSize:16,fontWeight:800,color:"#fff"}}>{sched.postNum}</div>
+                        <div style={{fontSize:11,color:"var(--accent2)",fontWeight:600}}>{sched.hour}</div>
+                        <div style={{fontSize:12}}>{soc?.icon}</div>
+                        <button onClick={e=>{e.stopPropagation();removeSchedule(i);}} style={{background:"none",border:"none",color:"var(--error)",cursor:"pointer",fontSize:11,marginTop:2}}>✕ quitar</button>
+                      </>
+                    ):(
+                      <>
+                        <div style={{width:36,height:36,borderRadius:10,border:"2px dashed var(--border)",display:"grid",placeItems:"center",fontSize:20,color:"var(--border)"}}>+</div>
+                        <div style={{fontSize:11,color:"var(--muted)",textAlign:"center"}}>Click para asignar</div>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Summary */}
+          <div className="card" style={{marginBottom:16}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+              <div style={{fontWeight:600}}>Resumen de la semana</div>
+              <div style={{fontSize:13,color:"var(--muted)"}}>{scheduledCount}/7 días programados</div>
+            </div>
+            <div style={{height:6,background:"var(--surface2)",borderRadius:6,overflow:"hidden",marginBottom:12}}>
+              <div style={{height:"100%",width:(scheduledCount/7*100)+"%",background:"linear-gradient(90deg,var(--accent),var(--accent2))",borderRadius:6,transition:"width .4s"}} />
+            </div>
+            {Object.entries(schedules).map(([dayIdx,sched])=>{
+              const soc=socials.find(s=>s.id===sched.net);
+              return(
+                <div key={dayIdx} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid var(--border)"}}>
+                  <span style={{fontSize:16}}>{soc?.icon}</span>
+                  <span style={{fontWeight:600,fontSize:13,minWidth:90}}>{DAYS_FULL[dayIdx]}</span>
+                  <span style={{fontSize:13,color:"var(--muted)"}}>{sched.hour}</span>
+                  <span style={{background:"rgba(109,40,217,.2)",border:"1px solid rgba(168,85,247,.3)",borderRadius:20,padding:"2px 10px",fontSize:12,color:"var(--accent2)",marginLeft:"auto"}}>Post #{sched.postNum}</span>
+                </div>
+              );
+            })}
+            {Object.keys(schedules).length===0&&<div style={{color:"var(--muted)",fontSize:13,textAlign:"center",padding:"12px 0"}}>Hacé click en los días del calendario para asignar posts.</div>}
+          </div>
+
+          {scheduledCount>0&&(
+            <button className="btn btn-primary" style={{width:"100%"}} onClick={()=>showToast("Calendario guardado! MCM publicará automáticamente.","ok")}>
+              ✓ Confirmar calendario semanal
+            </button>
+          )}
         </div>
-      </div>
+      )}
+
+      {/* Assign modal */}
+      {showModal&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.85)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:16,backdropFilter:"blur(16px)"}}>
+          <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:18,padding:28,width:"100%",maxWidth:420}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+              <h3 style={{fontSize:16,fontWeight:700}}>Programar — {DAYS_FULL[selectedDay]}</h3>
+              <button onClick={()=>setShowModal(false)} style={{background:"var(--surface2)",border:"none",color:"var(--muted)",width:28,height:28,borderRadius:7,cursor:"pointer"}}>✕</button>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:14}}>
+              <div>
+                <span className="lbl">Número de publicación</span>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  {postNums.slice(0,7).map(n=>(
+                    <button key={n} onClick={()=>setModalData(p=>({...p,postNum:n}))} className="btn"
+                      style={{width:44,height:44,padding:0,fontSize:15,fontWeight:800,background:modalData.postNum===n?"rgba(109,40,217,.3)":"var(--surface2)",border:"2px solid "+(modalData.postNum===n?"var(--accent2)":"var(--border)"),color:modalData.postNum===n?"var(--accent2)":"var(--muted)",borderRadius:10}}>
+                      {n}
+                    </button>
+                  ))}
+                </div>
+                <div style={{fontSize:11,color:"var(--muted)",marginTop:6}}>Elegí cuál de los 7 posts va este día</div>
+              </div>
+              <div>
+                <span className="lbl">Horario</span>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  {HOURS.map(h=>(
+                    <button key={h} onClick={()=>setModalData(p=>({...p,hour:h}))} className="btn"
+                      style={{padding:"6px 10px",fontSize:12,background:modalData.hour===h?"rgba(109,40,217,.2)":"var(--surface2)",border:"1px solid "+(modalData.hour===h?"var(--accent2)":"var(--border)"),color:modalData.hour===h?"var(--accent2)":"var(--muted)",borderRadius:8}}>
+                      {h}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <span className="lbl">Red social</span>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  {connected.length===0
+                    ?<div style={{color:"var(--muted)",fontSize:13}}>No tenés redes conectadas.</div>
+                    :connected.map(s=>(
+                      <button key={s.id} onClick={()=>setModalData(p=>({...p,net:s.id}))} className="btn"
+                        style={{padding:"7px 14px",fontSize:13,background:modalData.net===s.id?"rgba(109,40,217,.2)":"var(--surface2)",border:"1px solid "+(modalData.net===s.id?"var(--accent2)":"var(--border)"),color:modalData.net===s.id?"var(--accent2)":"var(--muted)"}}>
+                        {s.icon} {s.name}
+                      </button>
+                    ))
+                  }
+                </div>
+              </div>
+              <button className="btn btn-primary" style={{width:"100%",marginTop:4}} onClick={assignPost}>
+                Asignar Post #{modalData.postNum} al {DAYS_FULL[selectedDay]}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
