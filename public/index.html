@@ -623,7 +623,7 @@ function LibraryScreen({files,saveFiles,showToast,onNext}) {
     const updated=[...files,...newFiles];
     saveFiles(updated);
     showToast(newFiles.length+" archivo(s) agregado(s)","ok");
-  };
+ industry:brand.industry||""},
   const remove=(id)=>saveFiles(files.filter(f=>f.id!==id));
   return (
     <div style={{padding:"32px 36px"}} className="fade-in">
