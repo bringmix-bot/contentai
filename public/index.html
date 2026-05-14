@@ -246,6 +246,292 @@ function IndustryPicker({ value, onChange }) {
 
 // ─── EDITOR MODAL ───────────────────────────────────────────────
 function EditorModal({ postText, netColor, bizName, selImgs, onClose }) {
+  const canvasRef = React.useRef(null);
+  const [style, setStyle] = React.useState(1);
+  const [imgIdx, setImgIdx] = React.useState(0);
+  const [overlayText, setOverlayText] = React.useState("Cargando...");
+  const [fontSize, setFontSize] = React.useState(52);
+  const [fontColor, setFontColor] = React.useState("#ffffff");
+  const [textPos, setTextPos] = React.useState("bottom");
+  const [textBg, setTextBg] = React.useState(true);
+  const [loadingText, setLoadingText] = React.useState(true);
+  const [publishing, setPublishing] = React.useState(false);
+  const [pubMsg, setPubMsg] = React.useState(null);
+  const [preview, setPreview] = React.useState(null);
+
+  const styleNames = ["", "Minimalista", "Bold", "Editorial"];
+  const photos = selImgs.filter(s => !s.isVideo);
+  const imgSrc = imgIdx >= 0 ? photos[imgIdx]?.preview : null;
+
+  // Generate short AI text on open
+  React.useEffect(() => {
+    setLoadingText(true);
+    fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: "Escribí un texto MUY CORTO para poner sobre una imagen de Instagram (máximo 6 palabras, sin hashtags, sin emojis, solo el texto). Negocio: " + bizName + ". Solo el texto, nada más." })
+    })
+    .then(r => r.json())
+    .then(d => { setOverlayText((d.text || "").trim().replace(/^["'"]|["'"]$/g,"").slice(0,50)); setLoadingText(false); })
+    .catch(() => { setOverlayText("Tu marca, tu estilo"); setLoadingText(false); });
+  }, []);
+
+  // Redraw canvas whenever any control changes
+  React.useEffect(() => {
+    drawCanvas();
+  }, [style, imgIdx, overlayText, fontSize, fontColor, textPos, textBg, imgSrc]);
+
+  const drawCanvas = async () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const W = 1080, H = 1080;
+    canvas.width = W; canvas.height = H;
+    const color = netColor || "#7c3aed";
+
+    // Draw background
+    if (imgSrc) {
+      await new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => { ctx.drawImage(img, 0, 0, W, H); resolve(); };
+        img.onerror = resolve;
+        img.src = imgSrc;
+      });
+      ctx.fillStyle = "rgba(0,0,0,0.4)";
+      ctx.fillRect(0, 0, W, H);
+    } else {
+      const bg = ctx.createLinearGradient(0, 0, W, H);
+      if (style === 1) { bg.addColorStop(0, "#0d0520"); bg.addColorStop(1, "#05050a"); }
+      else if (style === 2) { bg.addColorStop(0, "#060609"); bg.addColorStop(1, "#0d0520"); }
+      else { bg.addColorStop(0, "#0a0a14"); bg.addColorStop(1, "#05050a"); }
+      ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+      const g = ctx.createRadialGradient(W, 0, 0, W, 0, 600);
+      g.addColorStop(0, color + "44"); g.addColorStop(1, "transparent");
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    }
+
+    // Style decorations
+    if (style === 2) {
+      ctx.strokeStyle = "rgba(255,255,255,0.04)"; ctx.lineWidth = 1;
+      for (let x = 0; x <= W; x += 54) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+      for (let y = 0; y <= H; y += 54) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+      const bar = ctx.createLinearGradient(0,0,W,0);
+      bar.addColorStop(0, color); bar.addColorStop(1, "#7c3aed");
+      ctx.fillStyle = bar; ctx.fillRect(0,0,W,8); ctx.fillRect(0,H-8,W,8);
+    }
+    if (style === 3) {
+      ctx.fillStyle = "rgba(255,255,255,0.015)"; ctx.fillRect(560,0,520,H);
+      ctx.fillStyle = color; ctx.fillRect(0,0,6,H);
+    }
+
+    // Draw overlay text
+    const text = overlayText.trim();
+    if (text) {
+      const size = Math.max(24, Math.min(110, fontSize));
+      ctx.font = "bold " + size + "px Arial, sans-serif";
+      const maxW = 920;
+      const words = text.split(" ");
+      const lines = [];
+      let line = "";
+      words.forEach(w => {
+        const test = line + (line ? " " : "") + w;
+        if (ctx.measureText(test).width > maxW) { if (line) lines.push(line); line = w; }
+        else line = test;
+      });
+      if (line) lines.push(line);
+
+      const lineH = size * 1.3;
+      const totalH = lines.length * lineH;
+      const pad = 70;
+
+      let startY;
+      if (textPos === "top") startY = pad + size;
+      else if (textPos === "center") startY = (H - totalH) / 2 + size;
+      else startY = H - pad - totalH + size;
+
+      if (textBg) {
+        ctx.fillStyle = "rgba(0,0,0,0.58)";
+        const bx = pad - 16, by = startY - size - 10;
+        const bw = maxW + 32, bh = totalH + 28;
+        ctx.beginPath();
+        ctx.roundRect(bx, by, bw, bh, 12);
+        ctx.fill();
+      }
+
+      ctx.fillStyle = fontColor;
+      ctx.textAlign = "left";
+      lines.forEach((ln, i) => { ctx.fillText(ln, pad, startY + i * lineH); });
+    }
+
+    // Watermark
+    ctx.font = "500 18px Arial";
+    ctx.fillStyle = "rgba(255,255,255,0.22)";
+    ctx.textAlign = "right";
+    ctx.fillText("MCM · My Community Manager", W - 20, H - 20);
+
+    setPreview(canvas.toDataURL("image/png"));
+  };
+
+  const download = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const a = document.createElement("a");
+    a.href = canvas.toDataURL("image/png");
+    a.download = "MCM_post_" + styleNames[style] + ".png";
+    a.click();
+  };
+
+  const publishIG = async () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    setPublishing(true); setPubMsg(null);
+    try {
+      const imgData = canvas.toDataURL("image/png");
+      const upRes = await fetch("/api/instagram?action=upload", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ imageBase64: imgData }) });
+      const upData = await upRes.json();
+      if (!upData.success) throw new Error(upData.error);
+      const pubRes = await fetch("/api/instagram?action=publish", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ caption: postText, imageUrl: upData.url }) });
+      const pubData = await pubRes.json();
+      if (!pubData.success) throw new Error(pubData.error);
+      setPubMsg({ ok: true, text: "¡Publicado en @gonvinardell! 🎉" });
+    } catch(e) { setPubMsg({ ok: false, text: "Error: " + e.message }); }
+    finally { setPublishing(false); }
+  };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.92)", zIndex:3000, display:"flex", alignItems:"center", justifyContent:"center", padding:16, backdropFilter:"blur(16px)" }}>
+      <div style={{ background:"#0d0d1f", border:"1px solid #1e1e30", borderRadius:18, padding:22, width:"100%", maxWidth:980, maxHeight:"94vh", overflowY:"auto", display:"flex", gap:20, flexWrap:"wrap" }}>
+
+        {/* LEFT: Live canvas preview */}
+        <div style={{ flex:"0 0 340px" }}>
+          <span className="lbl">Preview en vivo</span>
+          <div style={{ borderRadius:10, overflow:"hidden", aspectRatio:"1", background:"#05050a", position:"relative" }}>
+            <canvas ref={canvasRef} style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+          </div>
+          <div style={{ fontSize:9, color:"#444", textAlign:"center", marginTop:6 }}>1080×1080px · Se actualiza en tiempo real</div>
+        </div>
+
+        {/* RIGHT: Controls */}
+        <div style={{ flex:1, minWidth:280, display:"flex", flexDirection:"column", gap:14 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <div style={{ fontSize:15, fontWeight:700, color:"#fff" }}>✏️ Editor de diseño</div>
+            <button onClick={onClose} style={{ background:"#1e1e30", border:"none", color:"#aaa", width:28, height:28, borderRadius:7, cursor:"pointer", fontSize:14 }}>✕</button>
+          </div>
+
+          {/* Plantilla */}
+          <div>
+            <span className="lbl">Plantilla</span>
+            <div style={{ display:"flex", gap:6 }}>
+              {[1,2,3].map(s => (
+                <button key={s} onClick={() => setStyle(s)} style={{ flex:1, background:style===s?"#7c3aed20":"#0a0a14", border:"1px solid "+(style===s?"#7c3aed":"#1e1e30"), borderRadius:8, padding:"9px", color:style===s?"#c4b5fd":"#888", cursor:"pointer", fontSize:12, fontWeight:style===s?700:400 }}>
+                  {styleNames[s]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Imagen de fondo */}
+          {photos.length > 0 && (
+            <div>
+              <span className="lbl">Imagen de fondo</span>
+              <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                <div onClick={() => setImgIdx(-1)} style={{ width:48, height:48, borderRadius:7, border:"2px solid "+(imgIdx===-1?"#7c3aed":"#1e1e30"), background:"#05050a", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:18 }}>🎨</div>
+                {photos.map((item, i) => (
+                  <div key={item.id} onClick={() => setImgIdx(i)} style={{ width:48, height:48, borderRadius:7, border:"2px solid "+(imgIdx===i?"#7c3aed":"transparent"), overflow:"hidden", cursor:"pointer" }}>
+                    <img src={item.preview} style={{ width:"100%", height:"100%", objectFit:"cover" }} alt="" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Texto sobre imagen */}
+          <div>
+            <span className="lbl">Texto sobre la imagen {loadingText && "— generando con IA..."}</span>
+            <textarea value={overlayText} onChange={e => setOverlayText(e.target.value)} rows={2}
+              placeholder="Máximo 6-8 palabras..."
+              style={{ background:"#07070e", border:"1px solid #1e1e30", borderRadius:8, color:"#fff", fontSize:13, padding:"8px 10px", width:"100%", resize:"none", outline:"none", fontFamily:"inherit" }} />
+            <div style={{ fontSize:11, color:"#555", marginTop:3 }}>Podés editarlo libremente</div>
+          </div>
+
+          {/* Tamaño y color */}
+          <div style={{ display:"flex", gap:12, alignItems:"flex-end" }}>
+            <div style={{ flex:1 }}>
+              <span className="lbl">Tamaño de fuente ({fontSize}px)</span>
+              <input type="range" min={20} max={100} value={fontSize} onChange={e => setFontSize(+e.target.value)} style={{ width:"100%", accentColor:"#7c3aed" }} />
+            </div>
+            <div>
+              <span className="lbl">Color</span>
+              <input type="color" value={fontColor} onChange={e => setFontColor(e.target.value)} style={{ width:42, height:34, borderRadius:6, border:"1px solid #1e1e30", cursor:"pointer", padding:2, background:"#07070e" }} />
+            </div>
+          </div>
+
+          {/* Posición */}
+          <div>
+            <span className="lbl">Posición del texto</span>
+            <div style={{ display:"flex", gap:5 }}>
+              {[["top","⬆ Arriba"],["center","↔ Centro"],["bottom","⬇ Abajo"]].map(([v,l]) => (
+                <button key={v} onClick={() => setTextPos(v)} style={{ flex:1, background:textPos===v?"#7c3aed20":"#0a0a14", border:"1px solid "+(textPos===v?"#7c3aed":"#1e1e30"), borderRadius:7, padding:"8px", color:textPos===v?"#c4b5fd":"#888", cursor:"pointer", fontSize:11 }}>{l}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Fondo texto */}
+          <div>
+            <button onClick={() => setTextBg(!textBg)} style={{ background:textBg?"#7c3aed20":"#0a0a14", border:"1px solid "+(textBg?"#7c3aed":"#1e1e30"), borderRadius:7, padding:"8px 14px", color:textBg?"#c4b5fd":"#888", cursor:"pointer", fontSize:12 }}>
+              {textBg ? "✓" : "○"} Fondo oscuro detrás del texto
+            </button>
+          </div>
+
+          {pubMsg && (
+            <div style={{ background:pubMsg.ok?"#064e3b":"#450a0a", border:"1px solid "+(pubMsg.ok?"#059669":"#dc2626"), color:pubMsg.ok?"#34d399":"#f87171", padding:"10px 14px", borderRadius:8, fontSize:12, fontWeight:600 }}>
+              {pubMsg.text}
+            </div>
+          )}
+
+          {/* Actions */}
+          <div style={{ display:"flex", gap:8, marginTop:"auto" }}>
+            <button onClick={download} style={{ flex:1, background:"#0d0d1f", color:"#c4b5fd", border:"1px solid #7c3aed50", borderRadius:9, padding:"11px", fontWeight:700, cursor:"pointer", fontSize:12 }}>
+              ⬇ Descargar
+            </button>
+            <button onClick={publishIG} disabled={publishing} style={{ flex:1, background:publishing?"#1e1e30":"linear-gradient(135deg,#E1306C,#833AB4)", color:"#fff", border:"none", borderRadius:9, padding:"11px", fontWeight:800, cursor:publishing?"not-allowed":"pointer", fontSize:12 }}>
+              {publishing ? "⏳ Publicando..." : "🚀 Publicar en IG"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+function IndustryPicker({ value, onChange }) {
+  const isCustom = value && !INDUSTRIES.includes(value);
+  const [showInput, setShowInput] = useState(isCustom);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <select
+        value={showInput ? "__custom__" : (value || "")}
+        onChange={e => {
+          if (e.target.value === "__custom__") { setShowInput(true); onChange(""); }
+          else { setShowInput(false); onChange(e.target.value); }
+        }}>
+        <option value="">¿Cuál es tu rubro?</option>
+        {INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
+        <option value="__custom__">✏️ Mi rubro no está en la lista</option>
+      </select>
+      {showInput && (
+        <input value={value || ""} onChange={e => onChange(e.target.value)}
+          placeholder="Escribí tu rubro (ej: Veterinaria, DJ, Arquitectura...)"
+          style={{ border: "1px solid #7c3aed60" }} autoFocus />
+      )}
+      {value && <div style={{ fontSize: 11, color: "#a78bfa" }}>✓ Posts para: <strong>{value}</strong></div>}
+    </div>
+  );
+}
+
+// ─── EDITOR MODAL ───────────────────────────────────────────────
+function EditorModal({ postText, netColor, bizName, selImgs, onClose }) {
   const [style, setStyle] = useState(1);
   const [imgIdx, setImgIdx] = useState(0);
   const [preview, setPreview] = useState(null);
