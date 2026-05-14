@@ -697,15 +697,15 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
           // Template 1: foto del cliente + texto corto
           {id:0,style:1,styleName:"Revista",caption:cap1,overlayText,imgSrc,
            fontSize:56,fontColor:"#ffffff",fontFamily:"Impact",fontWeight:"900",
-           textBg:false,brandColor:brand.color||"#6d28d9",industry:brand.industry||},
+           textBg:false,brandColor:brand.color||"#6d28d9",industry:brand.industry||""},
           // Template 2: diseño gráfico puro, sin foto, texto extenso
           {id:1,style:2,styleName:"Diseño",caption:cap2,overlayText,imgSrc:null,
            fontSize:56,fontColor:"#ffffff",fontFamily:"Impact",fontWeight:"900",
-           textBg:false,brandColor:brand.color||"#6d28d9",industry:brand.industry||},
+           textBg:false,brandColor:brand.color||"#6d28d9",industry:brand.industry||""},
           // Template 3: fondo generado por IA según rubro
           {id:2,style:3,styleName:"IA Visual",caption:cap3,overlayText,imgSrc:null,
            fontSize:56,fontColor:"#ffffff",fontFamily:"Impact",fontWeight:"900",
-           textBg:false,brandColor:brand.color||"#6d28d9",industry:brand.industry||},
+           textBg:false,brandColor:brand.color||"#6d28d9",industry:brand.industry||""},
         ];
         allPosts.push({postIdx:i,label:"Post "+(i+1),theme:PROMPTS[i].slice(8,40)+"...",options});
         setWeekPosts([...allPosts]);
