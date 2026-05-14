@@ -159,8 +159,8 @@ function smartWrap(ctx, text, maxW, maxLines) {
 
 // ════════════════════════════════════════════════════════════════
 // TEMPLATE 1 — FOTO DEL CLIENTE + DISEÑO EDITORIAL
-// Layout: foto ocupa 65% inferior, header blanco con titular negro
-// Estilo: revista de moda/gastronomía premium
+// Layout: foto full bleed, franja oscura en top 40% para texto, sin esfumados
+// Estilo: revista premium, foto protagonista
 // ════════════════════════════════════════════════════════════════
 async function drawTemplate1(canvas, opt) {
   const ctx = canvas.getContext("2d");
@@ -170,83 +170,78 @@ async function drawTemplate1(canvas, opt) {
   const bgImg = opt.imgSrc ? await loadImg(opt.imgSrc) : null;
   const text = (opt.overlayText||"").replace(/[\*\_\#]/g,"").trim().toUpperCase();
 
-  const HEADER = 370;
-  const PHOTO_Y = HEADER;
-  const FOOT = 80;
-
-  // ── HEADER: white ──
-  ctx.fillStyle = "#fafafa";
-  ctx.fillRect(0,0,W,HEADER);
-
-  // Top accent bar — full width, thick
-  ctx.fillStyle = `rgb(${r},${g},${b})`;
-  ctx.fillRect(0,0,W,14);
-
-  // ── PHOTO: bottom 65% ──
-  ctx.save();
-  ctx.beginPath(); ctx.rect(0,PHOTO_Y,W,H-PHOTO_Y); ctx.clip();
-  if(bgImg) coverImg(ctx,bgImg,0,PHOTO_Y,W,H-PHOTO_Y);
-  else { 
-    const bg=ctx.createLinearGradient(0,PHOTO_Y,W,H);
+  // ── FULL BLEED PHOTO — toda la imagen ──
+  if(bgImg) {
+    coverImg(ctx, bgImg, 0, 0, W, H);
+  } else {
+    const bg=ctx.createLinearGradient(0,0,W,H);
     bg.addColorStop(0,`rgb(${r},${g},${b})`); bg.addColorStop(1,"#000");
-    ctx.fillStyle=bg; ctx.fillRect(0,PHOTO_Y,W,H-PHOTO_Y);
+    ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
   }
-  ctx.restore();
 
-  // Gradient: photo fades into header at top
-  const fade = ctx.createLinearGradient(0,PHOTO_Y,0,PHOTO_Y+100);
-  fade.addColorStop(0,"#fafafa"); fade.addColorStop(1,"rgba(250,250,250,0)");
-  ctx.fillStyle=fade; ctx.fillRect(0,PHOTO_Y,W,100);
+  // ── DARK GRADIENT — top 45% para legibilidad del texto ──
+  const topGrad = ctx.createLinearGradient(0,0,0,H*0.52);
+  topGrad.addColorStop(0,"rgba(0,0,0,0.88)");
+  topGrad.addColorStop(0.7,"rgba(0,0,0,0.55)");
+  topGrad.addColorStop(1,"rgba(0,0,0,0)");
+  ctx.fillStyle=topGrad; ctx.fillRect(0,0,W,H*0.52);
 
-  // Dark gradient bottom of photo (for readability)
-  const darkFade = ctx.createLinearGradient(0,H-200,0,H);
-  darkFade.addColorStop(0,"rgba(0,0,0,0)"); darkFade.addColorStop(1,"rgba(0,0,0,0.6)");
-  ctx.fillStyle=darkFade; ctx.fillRect(0,H-200,W,200);
+  // ── BOTTOM GRADIENT — sutil para watermark ──
+  const botGrad = ctx.createLinearGradient(0,H*0.8,0,H);
+  botGrad.addColorStop(0,"rgba(0,0,0,0)"); botGrad.addColorStop(1,"rgba(0,0,0,0.5)");
+  ctx.fillStyle=botGrad; ctx.fillRect(0,H*0.8,W,H*0.2);
 
-  // ── HEADER TEXT ──
+  // ── TOP ACCENT LINE ──
+  ctx.fillStyle=`rgb(${r},${g},${b})`; ctx.fillRect(0,0,W,10);
+
+  // ── CATEGORY TAG ──
+  ctx.font="700 18px Arial,sans-serif";
+  ctx.fillStyle=`rgb(${r},${g},${b})`;
+  ctx.textAlign="left";
+  ctx.fillText("■  PUBLICACIÓN", 58, 64);
+
+  // ── MAIN HEADLINE — white, top left ──
   if(text) {
-    // Category tag
-    ctx.fillStyle = `rgb(${r},${g},${b})`;
-    ctx.font = "700 18px Arial,sans-serif";
-    ctx.textAlign = "left";
-    ctx.fillText("■  PUBLICACIÓN", 58, 68);
-
-    // Main headline — dynamic sizing
     const words = text.split(" ");
     const lines = [];
     for(let i=0;i<words.length;i+=2) lines.push(words.slice(i,i+2).join(" "));
-    
-    const availH = HEADER - 90 - 40;
-    let size = Math.min(160, Math.floor(availH / lines.length / 0.95));
-    size = Math.max(60, Math.min(size, 160));
-    
-    ctx.font = `900 ${size}px Impact,'Arial Black',sans-serif`;
-    // Shrink until fits width
-    while(size > 40) {
-      ctx.font = `900 ${size}px Impact,'Arial Black',sans-serif`;
-      const maxW = Math.max(...lines.map(l=>ctx.measureText(l).width));
-      if(maxW <= W-116) break;
-      size -= 4;
-    }
-    
-    ctx.fillStyle = "#0a0a0a";
-    ctx.textAlign = "left";
-    const lineH = size * 0.95;
-    const totalH = lines.length * lineH;
-    const startY = 88 + (availH - totalH)/2 + size*0.85;
-    lines.forEach((ln,i) => ctx.fillText(ln, 58, startY+i*lineH));
 
-    // Divider line below headline
-    ctx.fillStyle = `rgba(${r},${g},${b},0.3)`;
-    ctx.fillRect(58, HEADER-38, W-116, 1.5);
+    let size = 155;
+    ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`;
+    while(size>50){
+      ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`;
+      if(Math.max(...lines.map(l=>ctx.measureText(l).width)) <= W-116) break;
+      size-=4;
+    }
+
+    const availH = H*0.44;
+    const lineH = size*0.95;
+    const totalH = lines.length*lineH;
+    // Fit vertically too
+    if(totalH > availH) {
+      const newSize = Math.floor(availH/lines.length/0.95);
+      size = Math.max(40, newSize);
+      ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`;
+    }
+
+    ctx.fillStyle="#ffffff"; ctx.textAlign="left";
+    ctx.shadowColor="rgba(0,0,0,0.4)"; ctx.shadowBlur=12;
+    const lH = size*0.95;
+    const tH = lines.length*lH;
+    const startY = 90 + (availH-tH)/2 + size*0.85;
+    lines.forEach((ln,i)=>ctx.fillText(ln, 58, startY+i*lH));
+    ctx.shadowBlur=0;
+
+    // Underline accent
+    ctx.fillStyle=`rgba(${r},${g},${b},0.8)`;
+    ctx.fillRect(58, startY+tH-lH*0.1+16, 180, 5);
   }
 
-  // ── FOOTER on photo ──
-  ctx.font = "600 18px Arial"; ctx.fillStyle="rgba(255,255,255,0.7)"; ctx.textAlign="right";
+  // ── WATERMARK ──
+  ctx.font="600 18px Arial"; ctx.fillStyle="rgba(255,255,255,0.65)"; ctx.textAlign="right";
   ctx.fillText("MCM", W-42, H-28);
 }
 
-// ════════════════════════════════════════════════════════════════
 // TEMPLATE 2 — DISEÑO GRÁFICO PURO (SIN FOTO)
 // Layout: composición geométrica, tipografía grande, sin imagen
 // Estilo: agencia de diseño, marca premium, texto más extenso
@@ -342,8 +337,7 @@ async function drawTemplate2(canvas, opt) {
 
 // ════════════════════════════════════════════════════════════════
 // TEMPLATE 3 — FONDO GENERADO POR IA (según rubro)
-// Layout: fondo artístico generado con Canvas según industria
-// Estilo: cada rubro tiene su paleta y composición única
+// Cada industria tiene su propio lenguaje visual, paleta y elementos gráficos
 // ════════════════════════════════════════════════════════════════
 async function drawTemplate3(canvas, opt) {
   const ctx = canvas.getContext("2d");
@@ -353,123 +347,188 @@ async function drawTemplate3(canvas, opt) {
   const text = (opt.overlayText||"").replace(/[\*\_\#]/g,"").trim().toUpperCase();
   const industry = (opt.industry||"").toLowerCase();
 
-  // ── INDUSTRY-BASED BACKGROUND ──
-  const isFood = /gastro|restaurante|pizza|cafe|comida|food|panaderia|heladeria/i.test(industry);
+  const isFood = /gastro|restaurante|pizza|cafe|comida|food|panaderia|heladeria|granja|organica/i.test(industry+opt.caption);
   const isHealth = /salud|fitness|deporte|medic|bienestar|gym/i.test(industry);
   const isRealEstate = /inmobil|construcci|arquitect|paisaj/i.test(industry);
   const isTech = /tecnolog|software|digital|web|app/i.test(industry);
   const isFashion = /moda|ropa|indument|fashion|belleza|estetica/i.test(industry);
 
+  // ── FOOD & GASTRONOMY: vapores, círculos cálidos, textura rugosa ──
   if(isFood) {
-    // Warm gradient — orange/red tones
-    const bg=ctx.createLinearGradient(0,0,W,H);
-    bg.addColorStop(0,"#1a0800"); bg.addColorStop(0.5,"#3d1200"); bg.addColorStop(1,"#0d0000");
-    ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
-    // Warm light burst
-    const burst=ctx.createRadialGradient(W*0.7,H*0.3,0,W*0.7,H*0.3,W*0.6);
-    burst.addColorStop(0,"rgba(255,120,0,0.45)"); burst.addColorStop(1,"rgba(0,0,0,0)");
-    ctx.fillStyle=burst; ctx.fillRect(0,0,W,H);
-    // Circle decorations
-    ctx.strokeStyle="rgba(255,100,0,0.12)"; ctx.lineWidth=1;
-    [200,380,560].forEach(r2=>{ctx.beginPath();ctx.arc(W*0.75,H*0.28,r2,0,Math.PI*2);ctx.stroke();});
+    // Deep warm background
+    ctx.fillStyle="#0d0500"; ctx.fillRect(0,0,W,H);
+
+    // Main warm glow — center right (simula luz de cocina)
+    const glow1=ctx.createRadialGradient(W*0.75,H*0.35,0,W*0.75,H*0.35,W*0.55);
+    glow1.addColorStop(0,"rgba(200,80,0,0.55)");
+    glow1.addColorStop(0.5,"rgba(150,40,0,0.25)");
+    glow1.addColorStop(1,"rgba(0,0,0,0)");
+    ctx.fillStyle=glow1; ctx.fillRect(0,0,W,H);
+
+    // Secondary amber glow — bottom
+    const glow2=ctx.createRadialGradient(W*0.4,H*0.85,0,W*0.4,H*0.85,W*0.4);
+    glow2.addColorStop(0,"rgba(220,140,0,0.3)");
+    glow2.addColorStop(1,"rgba(0,0,0,0)");
+    ctx.fillStyle=glow2; ctx.fillRect(0,0,W,H);
+
+    // Plate circle — center right (evoca un plato)
+    ctx.beginPath(); ctx.arc(W*0.72,H*0.38,260,0,Math.PI*2);
+    ctx.strokeStyle="rgba(220,120,0,0.18)"; ctx.lineWidth=2; ctx.stroke();
+    ctx.beginPath(); ctx.arc(W*0.72,H*0.38,200,0,Math.PI*2);
+    ctx.strokeStyle="rgba(220,120,0,0.12)"; ctx.lineWidth=1; ctx.stroke();
+    ctx.beginPath(); ctx.arc(W*0.72,H*0.38,130,0,Math.PI*2);
+    ctx.strokeStyle="rgba(220,120,0,0.25)"; ctx.lineWidth=1.5; ctx.stroke();
+
+    // Steam lines — vertical wavy (simula vapor)
+    ctx.strokeStyle="rgba(255,200,100,0.08)"; ctx.lineWidth=2;
+    [W*0.6, W*0.68, W*0.76, W*0.84].forEach((x,i)=>{
+      ctx.beginPath();
+      for(let y=H*0.6;y>H*0.1;y-=20){
+        const wave=Math.sin((y+i*40)*0.04)*12;
+        y===Math.round(H*0.6)?ctx.moveTo(x+wave,y):ctx.lineTo(x+wave,y);
+      }
+      ctx.stroke();
+    });
+
+    // Grain texture overlay
+    for(let i=0;i<800;i++){
+      const x=Math.random()*W, y=Math.random()*H;
+      ctx.fillStyle=`rgba(255,180,60,${Math.random()*0.04})`;
+      ctx.fillRect(x,y,1.5,1.5);
+    }
+
+  // ── HEALTH & FITNESS: energía, líneas de movimiento, verde ──
   } else if(isHealth) {
-    const bg=ctx.createLinearGradient(0,0,W,H);
-    bg.addColorStop(0,"#001a10"); bg.addColorStop(1,"#000d08");
-    ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
-    const burst=ctx.createRadialGradient(W*0.5,H*0.4,0,W*0.5,H*0.4,W*0.7);
-    burst.addColorStop(0,"rgba(0,200,100,0.3)"); burst.addColorStop(1,"rgba(0,0,0,0)");
-    ctx.fillStyle=burst; ctx.fillRect(0,0,W,H);
-    // DNA-like lines
-    ctx.strokeStyle="rgba(0,200,100,0.08)"; ctx.lineWidth=1;
-    for(let x=0;x<W;x+=60){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+    ctx.fillStyle="#020d06"; ctx.fillRect(0,0,W,H);
+    const glow=ctx.createRadialGradient(W*0.5,H*0.4,0,W*0.5,H*0.4,W*0.65);
+    glow.addColorStop(0,"rgba(0,220,100,0.28)"); glow.addColorStop(1,"rgba(0,0,0,0)");
+    ctx.fillStyle=glow; ctx.fillRect(0,0,W,H);
+    // Speed lines
+    ctx.strokeStyle="rgba(0,200,80,0.07)"; ctx.lineWidth=1;
+    for(let i=0;i<20;i++){
+      const y=Math.random()*H;
+      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y+(Math.random()-0.5)*60); ctx.stroke();
+    }
+    // Heartbeat line
+    ctx.strokeStyle="rgba(0,230,100,0.4)"; ctx.lineWidth=3;
+    ctx.beginPath();
+    const pts=[0,H*0.5,W*0.2,H*0.5,W*0.3,H*0.5,W*0.35,H*0.25,W*0.4,H*0.65,W*0.45,H*0.5,W*0.55,H*0.5,W,H*0.5];
+    for(let i=0;i<pts.length;i+=2) i===0?ctx.moveTo(pts[i],pts[i+1]):ctx.lineTo(pts[i],pts[i+1]);
+    ctx.stroke();
+
+  // ── REAL ESTATE: plano arquitectónico, líneas precisas ──
   } else if(isRealEstate) {
-    const bg=ctx.createLinearGradient(0,0,0,H);
-    bg.addColorStop(0,"#0a0a14"); bg.addColorStop(1,"#05050a");
-    ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle="#04060f"; ctx.fillRect(0,0,W,H);
     // Blueprint grid
-    ctx.strokeStyle="rgba(100,150,255,0.07)"; ctx.lineWidth=1;
+    ctx.strokeStyle="rgba(80,130,255,0.07)"; ctx.lineWidth=1;
     for(let x=0;x<W;x+=54){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
     for(let y=0;y<H;y+=54){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
-    // House silhouette shape — abstract
-    const burst=ctx.createRadialGradient(W*0.5,H*0.45,0,W*0.5,H*0.45,W*0.55);
-    burst.addColorStop(0,`rgba(${r},${g},${b},0.35)`); burst.addColorStop(1,"rgba(0,0,0,0)");
-    ctx.fillStyle=burst; ctx.fillRect(0,0,W,H);
+    // House silhouette — abstract line art
+    ctx.strokeStyle=`rgba(${r},${g},${b},0.35)`; ctx.lineWidth=2;
+    const hx=W*0.62, hy=H*0.28, hw=W*0.28, hh=H*0.3;
+    ctx.beginPath();
+    // roof
+    ctx.moveTo(hx,hy+hh*0.4); ctx.lineTo(hx+hw/2,hy); ctx.lineTo(hx+hw,hy+hh*0.4);
+    // walls
+    ctx.lineTo(hx+hw,hy+hh); ctx.lineTo(hx,hy+hh); ctx.lineTo(hx,hy+hh*0.4);
+    // door
+    ctx.moveTo(hx+hw*0.4,hy+hh); ctx.lineTo(hx+hw*0.4,hy+hh*0.7); ctx.lineTo(hx+hw*0.6,hy+hh*0.7); ctx.lineTo(hx+hw*0.6,hy+hh);
+    ctx.stroke();
+    const glow=ctx.createRadialGradient(W*0.72,H*0.44,0,W*0.72,H*0.44,W*0.4);
+    glow.addColorStop(0,`rgba(${r},${g},${b},0.2)`); glow.addColorStop(1,"rgba(0,0,0,0)");
+    ctx.fillStyle=glow; ctx.fillRect(0,0,W,H);
+
+  // ── TECH: circuito, nodos, cyan ──
   } else if(isTech) {
-    ctx.fillStyle="#030308"; ctx.fillRect(0,0,W,H);
-    ctx.strokeStyle="rgba(0,200,255,0.06)"; ctx.lineWidth=1;
-    for(let x=0;x<W;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
-    for(let y=0;y<H;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
-    const burst=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,W*0.6);
-    burst.addColorStop(0,"rgba(0,180,255,0.2)"); burst.addColorStop(1,"rgba(0,0,0,0)");
-    ctx.fillStyle=burst; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle="#02040a"; ctx.fillRect(0,0,W,H);
+    // Circuit lines
+    ctx.strokeStyle="rgba(0,200,255,0.1)"; ctx.lineWidth=1;
+    const nodes=[[W*0.3,H*0.3],[W*0.6,H*0.25],[W*0.75,H*0.5],[W*0.5,H*0.65],[W*0.25,H*0.55]];
+    nodes.forEach(([x,y],i)=>{
+      nodes.forEach(([x2,y2],j)=>{
+        if(i<j){ ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x2,y2); ctx.stroke(); }
+      });
+      ctx.beginPath(); ctx.arc(x,y,6,0,Math.PI*2);
+      ctx.fillStyle="rgba(0,200,255,0.4)"; ctx.fill();
+    });
+    const glow=ctx.createRadialGradient(W*0.5,H*0.4,0,W*0.5,H*0.4,W*0.55);
+    glow.addColorStop(0,"rgba(0,180,255,0.18)"); glow.addColorStop(1,"rgba(0,0,0,0)");
+    ctx.fillStyle=glow; ctx.fillRect(0,0,W,H);
+
+  // ── FASHION: geometría elegante, diagonales, rosa/negro ──
   } else if(isFashion) {
-    const bg=ctx.createLinearGradient(0,0,W,H);
-    bg.addColorStop(0,"#1a0a0a"); bg.addColorStop(1,"#0a0a1a");
-    ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
-    ctx.strokeStyle="rgba(255,200,200,0.06)"; ctx.lineWidth=1;
-    for(let i=-H;i<W;i+=60){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i+H,H);ctx.stroke();}
-    const burst=ctx.createRadialGradient(W*0.6,H*0.4,0,W*0.6,H*0.4,W*0.5);
-    burst.addColorStop(0,"rgba(255,100,150,0.25)"); burst.addColorStop(1,"rgba(0,0,0,0)");
-    ctx.fillStyle=burst; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle="#0a0508"; ctx.fillRect(0,0,W,H);
+    // Diagonal pattern
+    ctx.strokeStyle="rgba(255,150,180,0.06)"; ctx.lineWidth=1;
+    for(let i=-H;i<W+H;i+=45){ ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i+H,H); ctx.stroke(); }
+    // Elegant circle
+    ctx.beginPath(); ctx.arc(W*0.65,H*0.4,200,0,Math.PI*2);
+    ctx.strokeStyle="rgba(255,100,150,0.2)"; ctx.lineWidth=1.5; ctx.stroke();
+    ctx.beginPath(); ctx.arc(W*0.65,H*0.4,150,0,Math.PI*2);
+    ctx.strokeStyle="rgba(255,100,150,0.1)"; ctx.lineWidth=1; ctx.stroke();
+    const glow=ctx.createRadialGradient(W*0.65,H*0.4,0,W*0.65,H*0.4,W*0.45);
+    glow.addColorStop(0,"rgba(255,80,140,0.22)"); glow.addColorStop(1,"rgba(0,0,0,0)");
+    ctx.fillStyle=glow; ctx.fillRect(0,0,W,H);
+
+  // ── GENERIC PREMIUM ──
   } else {
-    // Generic premium dark
-    const bg=ctx.createLinearGradient(0,0,W,H);
-    bg.addColorStop(0,"#0a080f"); bg.addColorStop(1,"#050508");
-    ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
-    const burst=ctx.createRadialGradient(W*0.6,H*0.35,0,W*0.6,H*0.35,W*0.65);
-    burst.addColorStop(0,`rgba(${r},${g},${b},0.35)`); burst.addColorStop(1,"rgba(0,0,0,0)");
-    ctx.fillStyle=burst; ctx.fillRect(0,0,W,H);
-    ctx.strokeStyle=`rgba(${r},${g},${b},0.07)`; ctx.lineWidth=1;
-    for(let y=0;y<H;y+=60){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+    ctx.fillStyle="#07060f"; ctx.fillRect(0,0,W,H);
+    const glow=ctx.createRadialGradient(W*0.65,H*0.38,0,W*0.65,H*0.38,W*0.6);
+    glow.addColorStop(0,`rgba(${r},${g},${b},0.32)`); glow.addColorStop(1,"rgba(0,0,0,0)");
+    ctx.fillStyle=glow; ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle=`rgba(${r},${g},${b},0.08)`; ctx.lineWidth=1;
+    for(let y=0;y<H;y+=60){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+    // Decorative rings
+    [320,240,160].forEach((rad,i)=>{
+      ctx.beginPath(); ctx.arc(W*0.68,H*0.38,rad,0,Math.PI*2);
+      ctx.strokeStyle=`rgba(${r},${g},${b},${0.15-i*0.04})`; ctx.lineWidth=1.5; ctx.stroke();
+    });
   }
 
-  // ── LARGE CIRCLE FRAME — decorative ──
-  ctx.beginPath(); ctx.arc(W*0.72, H*0.38, 280, 0, Math.PI*2);
-  ctx.strokeStyle=`rgba(${r},${g},${b},0.25)`; ctx.lineWidth=2; ctx.stroke();
-  ctx.beginPath(); ctx.arc(W*0.72, H*0.38, 240, 0, Math.PI*2);
-  ctx.strokeStyle=`rgba(${r},${g},${b},0.12)`; ctx.lineWidth=1; ctx.stroke();
+  // ── BOTTOM DARK GRADIENT (text area) ──
+  const botGrad=ctx.createLinearGradient(0,H*0.5,0,H);
+  botGrad.addColorStop(0,"rgba(0,0,0,0)"); botGrad.addColorStop(1,"rgba(0,0,0,0.92)");
+  ctx.fillStyle=botGrad; ctx.fillRect(0,H*0.5,W,H*0.5);
 
-  // ── BRAND NAME top left ──
-  ctx.font="300 20px Arial"; ctx.fillStyle=`rgba(${r},${g},${b},0.9)`; ctx.textAlign="left";
-  ctx.fillText("● MCM", 60, 64);
+  // ── BRAND TAG top left ──
+  ctx.font="600 18px Arial"; ctx.fillStyle=`rgba(${r},${g},${b},0.9)`; ctx.textAlign="left";
+  ctx.fillText("● MCM", 58, 60);
 
-  // ── MAIN TEXT — bottom left, massive ──
+  // ── MAIN TEXT — bottom, massive with glow ──
   if(text) {
-    const words = text.split(" ");
-    const lines = [];
+    const words=text.split(" ");
+    const lines=[];
     for(let i=0;i<words.length;i+=2) lines.push(words.slice(i,i+2).join(" "));
-    
+
     let size=130;
     ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`;
-    while(size>50){
+    while(size>40){
       ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`;
-      if(Math.max(...lines.map(l=>ctx.measureText(l).width))<=W-140) break;
+      if(Math.max(...lines.map(l=>ctx.measureText(l).width))<=W-116) break;
       size-=4;
     }
 
+    // Fit vertically in bottom 45%
+    const availH=H*0.42;
+    const lH=size*0.95;
+    if(lines.length*lH>availH){ size=Math.max(40,Math.floor(availH/lines.length/0.95)); ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`; }
+
     const lineH=size*0.95;
     const totalH=lines.length*lineH;
-    const startY=H-120-totalH+size*0.85;
+    const startY=H-80-totalH+size*0.85;
 
-    // Text shadow for depth
-    ctx.shadowColor=`rgba(${r},${g},${b},0.6)`;
-    ctx.shadowBlur=30;
+    ctx.shadowColor=`rgba(${r},${g},${b},0.7)`; ctx.shadowBlur=28;
     ctx.fillStyle="#ffffff"; ctx.textAlign="left";
     lines.forEach((ln,i)=>ctx.fillText(ln, 58, startY+i*lineH));
     ctx.shadowBlur=0;
 
-    // Underline accent
+    // Color underline
     ctx.fillStyle=`rgb(${r},${g},${b})`;
-    ctx.fillRect(58, H-110, Math.min(300, lines[lines.length-1] ? ctx.measureText(lines[lines.length-1]).width*0.6 : 200), 5);
+    ctx.fillRect(58, startY+totalH+8, 160, 5);
   }
 
-  // ── BOTTOM gradient ──
-  const bot=ctx.createLinearGradient(0,H-150,0,H);
-  bot.addColorStop(0,"rgba(0,0,0,0)"); bot.addColorStop(1,"rgba(0,0,0,0.8)");
-  ctx.fillStyle=bot; ctx.fillRect(0,H-150,W,150);
-
-  ctx.font="500 18px Arial"; ctx.fillStyle="rgba(255,255,255,0.4)"; ctx.textAlign="right";
-  ctx.fillText("Diseño generado por IA", W-48, H-28);
+  ctx.font="500 16px Arial"; ctx.fillStyle="rgba(255,255,255,0.35)"; ctx.textAlign="right";
+  ctx.fillText("Imagen generada por IA", W-42, H-26);
 }
 
 // ── ROUTER ──
