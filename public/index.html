@@ -466,10 +466,14 @@ function App() {
     if (!token) return;
     setLoadingProfiles(true);
     try {
-      const r = await fetch(`/api/buffer?action=profiles&token=${encodeURIComponent(token)}`);
+      const r = await fetch("/api/buffer?action=channels", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
       const data = await r.json();
-      if (data.profiles) setBufferProfiles(data.profiles);
-      else alert("Error: " + (data.error || "No se pudieron cargar los perfiles"));
+      if (data.channels) setBufferProfiles(data.channels);
+      else alert("Error: " + (data.error || "No se pudieron cargar los canales"));
     } catch (e) { alert("Error de conexión: " + e.message); }
     setLoadingProfiles(false);
   };
@@ -478,19 +482,19 @@ function App() {
     if (!bufferToken) return;
     setPublishing(true);
     setPublishResults([]);
-    const results = [];
+    const pubResults = [];
 
     for (const net of NETWORKS) {
       const netSchedule = schedule[net.id];
-      if (!netSchedule?.profileId || !results[net.id] !== undefined) {
-        if (!netSchedule?.profileId) continue;
-      }
-      if (!results[net.id] && !netSchedule?.profileId) continue;
-      const postText = results[net.id] || "";
+      if (!netSchedule?.profileId) continue;
+      const postText = results[net.id];
       if (!postText) continue;
 
-      const imgData = postImgs[net.id]?.[selDesign[net.id] || "d1"];
-      const imageBase64 = imgData ? imgData.split(",")[1] : null;
+      // Note: Buffer API requires image as public URL, not base64
+      // We send text only for now — image can be added manually in Buffer
+      const scheduledAt = netSchedule.datetime
+        ? new Date(netSchedule.datetime).toISOString()
+        : null;
 
       try {
         const r = await fetch("/api/buffer?action=schedule", {
@@ -498,20 +502,19 @@ function App() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             token: bufferToken,
-            profileId: netSchedule.profileId,
+            channelId: netSchedule.profileId,
             text: postText,
-            imageBase64,
-            scheduledAt: netSchedule.datetime || null,
+            scheduledAt,
           }),
         });
         const data = await r.json();
-        results.push({ net: net.label, success: data.success, error: data.error });
+        pubResults.push({ net: net.label, success: data.success, error: data.error });
       } catch (e) {
-        results.push({ net: net.label, success: false, error: e.message });
+        pubResults.push({ net: net.label, success: false, error: e.message });
       }
     }
 
-    setPublishResults(results);
+    setPublishResults(pubResults);
     setPublishing(false);
   };
 
@@ -1064,14 +1067,18 @@ TIKTOK: [frase corta e impactante para la imagen, máx 8 palabras, sin hashtags]
                 </button>
               </div>
               {bufferProfiles.length > 0 && (
-                <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {bufferProfiles.map(p => (
-                    <div key={p.id} style={{ background: "#0a0a14", border: "1px solid #1e1e30", borderRadius: 8, padding: "6px 12px", fontSize: 12, color: "#ccc", display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontSize: 14 }}>{p.service === "instagram" ? "📸" : p.service === "facebook" ? "👥" : p.service === "linkedin" ? "💼" : p.service === "twitter" ? "🐦" : "🌐"}</span>
-                      {p.name}
-                      <span style={{ color: "#34d399", fontSize: 10 }}>✓</span>
-                    </div>
-                  ))}
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ fontSize: 10, color: "#34d399", marginBottom: 6 }}>✓ {bufferProfiles.length} canal{bufferProfiles.length !== 1 ? "es" : ""} conectado{bufferProfiles.length !== 1 ? "s" : ""}</div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {bufferProfiles.map(p => (
+                      <div key={p.id} style={{ background: "#0a0a14", border: "1px solid #1e1e30", borderRadius: 8, padding: "5px 10px", fontSize: 11, color: "#ccc", display: "flex", alignItems: "center", gap: 5 }}>
+                        <span>{p.icon}</span>{p.service} — {p.name}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 10, color: "#555", marginTop: 8, lineHeight: 1.5 }}>
+                    ⚠️ La API de Buffer en beta solo soporta texto. Las imágenes las podés agregar manualmente en Buffer después de programar.
+                  </div>
                 </div>
               )}
             </div>
@@ -1088,22 +1095,21 @@ TIKTOK: [frase corta e impactante para la imagen, máx 8 palabras, sin hashtags]
                       <span style={{ fontSize: 11, color: "#34d399", marginLeft: "auto" }}>✓ Post listo</span>
                     </div>
 
-                    {/* Profile selector */}
+                    {/* Channel selector */}
                     {bufferProfiles.length > 0 ? (
                       <div>
-                        <span className="lbl" style={{ margin: "0 0 4px" }}>Cuenta de destino</span>
+                        <span className="lbl" style={{ margin: "0 0 4px" }}>Canal de destino</span>
                         <select
                           value={schedule[net.id]?.profileId || ""}
                           onChange={e => setSchedule(p => ({ ...p, [net.id]: { ...p[net.id], profileId: e.target.value } }))}>
-                          <option value="">Seleccioná una cuenta...</option>
-                          {bufferProfiles
-                            .filter(p => p.service === net.id || (net.id === "twitter" && p.service === "twitter"))
-                            .map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                          {bufferProfiles.map(p => <option key={p.id + "_all"} value={p.id}>{p.service}: {p.name}</option>)}
+                          <option value="">Seleccioná un canal...</option>
+                          {bufferProfiles.map(p => (
+                            <option key={p.id} value={p.id}>{p.icon} {p.service} — {p.name}</option>
+                          ))}
                         </select>
                       </div>
                     ) : (
-                      <div style={{ fontSize: 11, color: "#555" }}>Conectá Buffer arriba para seleccionar la cuenta</div>
+                      <div style={{ fontSize: 11, color: "#555" }}>Conectá Buffer arriba para ver tus canales</div>
                     )}
 
                     {/* Date/time picker */}
@@ -1115,7 +1121,7 @@ TIKTOK: [frase corta e impactante para la imagen, máx 8 palabras, sin hashtags]
                         onChange={e => setSchedule(p => ({ ...p, [net.id]: { ...p[net.id], datetime: e.target.value } }))}
                         min={new Date().toISOString().slice(0, 16)}
                       />
-                      <div style={{ fontSize: 10, color: "#555", marginTop: 3 }}>Si no elegís fecha, se publica ahora</div>
+                      <div style={{ fontSize: 10, color: "#555", marginTop: 3 }}>Si no elegís fecha, se agrega a la cola de Buffer</div>
                     </div>
 
                     {/* Preview text */}
