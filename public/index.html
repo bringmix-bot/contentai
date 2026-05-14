@@ -101,9 +101,10 @@ async function generateText(prompt) {
 
 async function drawPost(canvas, opt) {
   const ctx = canvas.getContext("2d");
-  const W=1080,H=1080;
+  const W=1080, H=1080;
   canvas.width=W; canvas.height=H;
   const color = opt.brandColor||"#6d28d9";
+  const font = opt.fontFamily||"Arial";
 
   if (opt.imgSrc) {
     await new Promise(resolve=>{
@@ -111,7 +112,7 @@ async function drawPost(canvas, opt) {
       img.onload=()=>{ctx.drawImage(img,0,0,W,H);resolve();};
       img.onerror=resolve; img.src=opt.imgSrc;
     });
-    const alpha = opt.style===1?0.38:opt.style===2?0.52:0.28;
+    const alpha = opt.style===1?0.32:opt.style===2?0.48:0.22;
     ctx.fillStyle="rgba(0,0,0,"+alpha+")"; ctx.fillRect(0,0,W,H);
   } else {
     const bg=ctx.createLinearGradient(0,0,W,H);
@@ -135,30 +136,40 @@ async function drawPost(canvas, opt) {
     ctx.fillStyle="rgba(255,255,255,0.02)"; ctx.fillRect(580,0,500,H);
     ctx.fillStyle=color; ctx.fillRect(0,0,8,H);
     const grad=ctx.createLinearGradient(0,H*0.6,0,H);
-    grad.addColorStop(0,"transparent"); grad.addColorStop(1,"rgba(0,0,0,0.7)");
+    grad.addColorStop(0,"transparent"); grad.addColorStop(1,"rgba(0,0,0,0.65)");
     ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
   }
 
   const text=(opt.overlayText||"").trim();
   if(text){
     const size=Math.max(24,Math.min(120,opt.fontSize||56));
-    ctx.font="bold "+size+"px Arial,sans-serif";
-    const maxW=900,pad=80;
+    const weight=opt.fontWeight||"bold";
+    ctx.font=weight+" "+size+"px "+font+",sans-serif";
+    const maxW=900;
     const words=text.split(" "); const lines=[]; let line="";
-    words.forEach(w=>{const t=line+(line?" ":"")+w; if(ctx.measureText(t).width>maxW){if(line)lines.push(line);line=w;}else line=t;});
+    words.forEach(w=>{
+      const t=line+(line?" ":"")+w;
+      if(ctx.measureText(t).width>maxW){if(line)lines.push(line);line=w;}else line=t;
+    });
     if(line)lines.push(line);
-    const lineH=size*1.28,totalH=lines.length*lineH;
-    let startY=opt.textPos==="top"?pad+size:opt.textPos==="center"?(H-totalH)/2+size:H-pad-totalH+size;
-    if(opt.textBg!==false){
-      ctx.fillStyle="rgba(0,0,0,0.6)";
-      ctx.beginPath(); ctx.roundRect(pad-20,startY-size-14,maxW+40,totalH+32,14); ctx.fill();
+    const lineH=size*1.28, totalH=lines.length*lineH;
+
+    // Position: use textX/textY (0-1 relative) if set, else center
+    const tx=opt.textX!==undefined?opt.textX*W:80;
+    const ty=opt.textY!==undefined?opt.textY*H:(H-totalH)/2+size;
+
+    if(opt.textBg){
+      ctx.fillStyle="rgba(0,0,0,0.62)";
+      ctx.beginPath(); ctx.roundRect(tx-20,ty-size-14,maxW+40,totalH+32,14); ctx.fill();
     }
     ctx.fillStyle=opt.fontColor||"#ffffff"; ctx.textAlign="left";
-    lines.forEach((ln,i)=>ctx.fillText(ln,pad,startY+i*lineH));
+    lines.forEach((ln,i)=>ctx.fillText(ln,tx,ty+i*lineH));
   }
+
   ctx.font="400 16px Arial"; ctx.fillStyle="rgba(255,255,255,0.18)"; ctx.textAlign="right";
   ctx.fillText("MCM My Community Manager",W-24,H-22);
 }
+
 
 function App() {
   const [screen, setScreen] = useState("connect");
@@ -367,7 +378,7 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
           generateText(PROMPTS[i]+base),
           generateText(PROMPTS[i]+" Version mas cercana y coloquial. "+base),
           generateText(PROMPTS[i]+" Version orientada a ventas y conversion. "+base),
-          generateText("Texto MUY CORTO para imagen Instagram (maximo 5 palabras, sin hashtags, sin emojis, sin puntuacion). Empresa: "+brand.name+". Tema: "+PROMPTS[i].slice(0,40)+". Solo las palabras."),
+          generateText("Sos un director creativo de una agencia de marketing. Mirá esta situacion: la imagen de fondo muestra contenido relacionado a esta empresa: "+brand.name+" ("+brand.industry+"). El tema del post es: "+PROMPTS[i].slice(8,50)+". Escribi un texto MUY CORTO (exactamente 3 a 6 palabras) para superponer sobre esa imagen. Debe ser creativo, relacionado visualmente con el contenido de la imagen, impactante y memorable. Sin hashtags, sin emojis, sin puntuacion al final. Solo las palabras."),
         ]);
         const overlayText=overlayRaw.trim().replace(/['"]/g,"").slice(0,45);
         const options=STYLES.map((st,si)=>({
@@ -376,7 +387,7 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
           overlayText,imgSrc,
           fontSize:56,fontColor:"#ffffff",
           textPos:si===0?"bottom":si===1?"center":"top",
-          textBg:true,brandColor:brand.color||"#6d28d9",
+          textBg:false,brandColor:brand.color||"#6d28d9",
         }));
         allPosts.push({postIdx:i,label:"Post "+(i+1),theme:PROMPTS[i].slice(8,40)+"...",options});
         setWeekPosts([...allPosts]);
@@ -509,16 +520,59 @@ function PostOptionCard(){return null;}
 
 function EditorModal({opt,brand,onClose,onSave,showToast}) {
   const canvasRef=useRef();
-  const [form,setForm]=useState({...opt});
+  const previewRef=useRef(); // preview div for drag
+  const [form,setForm]=useState({
+    ...opt,
+    textBg: false,           // no background by default
+    textX: opt.textX!==undefined?opt.textX:0.08,
+    textY: opt.textY!==undefined?opt.textY:0.75,
+    fontFamily: opt.fontFamily||"Arial",
+    fontWeight: opt.fontWeight||"bold",
+  });
   const [publishing,setPublishing]=useState(false);
   const [pubMsg,setPubMsg]=useState(null);
+  const [dragging,setDragging]=useState(false);
   const upd=(k,v)=>setForm(p=>({...p,[k]:v}));
+
+  const FONTS=[
+    {id:"Arial",label:"Sans-Serif",sample:"Aa"},
+    {id:"Georgia",label:"Serif",sample:"Aa"},
+    {id:"'Courier New'",label:"Mono",sample:"Aa"},
+    {id:"Impact",label:"Impact",sample:"Aa"},
+    {id:"'Times New Roman'",label:"Times",sample:"Aa"},
+    {id:"Verdana",label:"Verdana",sample:"Aa"},
+  ];
 
   useEffect(()=>{if(canvasRef.current)drawPost(canvasRef.current,form);},[form]);
 
+  // Drag to position text
+  const handlePreviewMouseDown=(e)=>{
+    e.preventDefault();
+    setDragging(true);
+  };
+
+  const handlePreviewMouseMove=(e)=>{
+    if(!dragging)return;
+    const rect=previewRef.current.getBoundingClientRect();
+    const x=Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width));
+    const y=Math.max(0,Math.min(1,(e.clientY-rect.top)/rect.height));
+    upd("textX",x);
+    upd("textY",y);
+  };
+
+  const handlePreviewMouseUp=()=>setDragging(false);
+
+  const handlePreviewTouch=(e)=>{
+    const t=e.touches[0];
+    const rect=previewRef.current.getBoundingClientRect();
+    const x=Math.max(0,Math.min(1,(t.clientX-rect.left)/rect.width));
+    const y=Math.max(0,Math.min(1,(t.clientY-rect.top)/rect.height));
+    upd("textX",x); upd("textY",y);
+  };
+
   const download=()=>{
-    const c=canvasRef.current; if(!c)return;
-    const a=document.createElement("a"); a.href=c.toDataURL("image/png"); a.download="MCM_post.png"; a.click();
+    const cv=canvasRef.current; if(!cv)return;
+    const a=document.createElement("a"); a.href=cv.toDataURL("image/png"); a.download="MCM_post.png"; a.click();
   };
 
   const publishIG=async()=>{
@@ -540,56 +594,115 @@ function EditorModal({opt,brand,onClose,onSave,showToast}) {
   return (
     <div className="editor-wrap">
       <div className="editor-box">
+        {/* LEFT: Draggable canvas preview */}
         <div style={{flex:"0 0 340px"}}>
-          <div className="lbl">Preview en vivo</div>
-          <div style={{borderRadius:12,overflow:"hidden",aspectRatio:"1",background:"var(--bg)"}}>
-            <canvas ref={canvasRef} style={{width:"100%",height:"100%",display:"block"}} />
+          <div className="lbl">Preview — arrastrá el texto</div>
+          <div
+            ref={previewRef}
+            style={{borderRadius:12,overflow:"hidden",aspectRatio:"1",background:"var(--bg)",cursor:dragging?"grabbing":"crosshair",position:"relative",userSelect:"none"}}
+            onMouseDown={handlePreviewMouseDown}
+            onMouseMove={handlePreviewMouseMove}
+            onMouseUp={handlePreviewMouseUp}
+            onMouseLeave={handlePreviewMouseUp}
+            onTouchMove={handlePreviewTouch}
+          >
+            <canvas ref={canvasRef} style={{width:"100%",height:"100%",display:"block",pointerEvents:"none"}} />
+            {/* Drag hint */}
+            <div style={{position:"absolute",bottom:8,left:0,right:0,textAlign:"center",fontSize:10,color:"rgba(255,255,255,.4)",pointerEvents:"none"}}>
+              Click para mover el texto
+            </div>
           </div>
-          <div style={{fontSize:10,color:"var(--muted)",textAlign:"center",marginTop:6}}>1080x1080px — se actualiza en tiempo real</div>
+          <div style={{fontSize:10,color:"var(--muted)",textAlign:"center",marginTop:6}}>1080×1080px</div>
         </div>
-        <div style={{flex:1,minWidth:260,display:"flex",flexDirection:"column",gap:14}}>
+
+        {/* RIGHT: Controls */}
+        <div style={{flex:1,minWidth:260,display:"flex",flexDirection:"column",gap:13,overflowY:"auto"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <h3 style={{fontSize:16,fontWeight:700}}>Editor de diseño</h3>
             <button onClick={onClose} style={{background:"var(--surface2)",border:"none",color:"var(--muted)",width:30,height:30,borderRadius:8,cursor:"pointer",fontSize:14}}>✕</button>
           </div>
+
+          {/* Texto */}
           <div>
-            <span className="lbl">Texto sobre la imagen (max 6 palabras)</span>
-            <input value={form.overlayText} onChange={e=>upd("overlayText",e.target.value)} placeholder="Texto corto para la imagen..." />
+            <span className="lbl">Texto sobre la imagen</span>
+            <input value={form.overlayText} onChange={e=>upd("overlayText",e.target.value)} placeholder="Máximo 6-8 palabras..." style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:10,color:"var(--text)",fontSize:13,padding:"10px 12px",width:"100%",outline:"none",fontFamily:"inherit"}} />
           </div>
+
+          {/* Caption */}
           <div>
             <span className="lbl">Caption del post</span>
-            <textarea value={form.caption} onChange={e=>upd("caption",e.target.value)} rows={5} style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:10,color:"var(--text)",fontSize:13,padding:"10px 12px",width:"100%",outline:"none",fontFamily:"inherit"}} />
+            <textarea value={form.caption} onChange={e=>upd("caption",e.target.value)} rows={4}
+              style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:10,color:"var(--text)",fontSize:12,padding:"10px 12px",width:"100%",outline:"none",fontFamily:"inherit",resize:"none"}} />
           </div>
-          <div style={{display:"flex",gap:12,alignItems:"flex-end"}}>
-            <div style={{flex:1}}>
-              <span className="lbl">Tamaño fuente ({form.fontSize}px)</span>
-              <input type="range" min={20} max={100} value={form.fontSize} onChange={e=>upd("fontSize",+e.target.value)} style={{width:"100%",accentColor:"var(--accent)"}} />
-            </div>
-            <div>
-              <span className="lbl">Color</span>
-              <input type="color" value={form.fontColor} onChange={e=>upd("fontColor",e.target.value)} style={{width:44,height:36,borderRadius:8,border:"1px solid var(--border)",cursor:"pointer",padding:3}} />
-            </div>
-          </div>
+
+          {/* Fuente */}
           <div>
-            <span className="lbl">Posición del texto</span>
-            <div style={{display:"flex",gap:6}}>
-              {[["top","Arriba"],["center","Centro"],["bottom","Abajo"]].map(([v,l])=>(
-                <button key={v} onClick={()=>upd("textPos",v)} className="btn"
-                  style={{flex:1,padding:"8px",fontSize:12,background:form.textPos===v?"rgba(109,40,217,.2)":"var(--surface2)",border:"1px solid "+(form.textPos===v?"var(--accent2)":"var(--border)"),color:form.textPos===v?"var(--accent2)":"var(--muted)"}}>{l}</button>
+            <span className="lbl">Tipografía</span>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
+              {[
+                {id:"Arial",label:"Sans-Serif"},
+                {id:"Georgia",label:"Serif"},
+                {id:"'Courier New'",label:"Mono"},
+                {id:"Impact",label:"Impact"},
+                {id:"'Times New Roman'",label:"Times"},
+                {id:"Verdana",label:"Verdana"},
+              ].map(f=>(
+                <button key={f.id} onClick={()=>upd("fontFamily",f.id)} className="btn"
+                  style={{padding:"8px 6px",fontSize:11,flexDirection:"column",gap:2,
+                    background:form.fontFamily===f.id?"rgba(109,40,217,.2)":"var(--surface2)",
+                    border:"1px solid "+(form.fontFamily===f.id?"var(--accent2)":"var(--border)"),
+                    color:form.fontFamily===f.id?"var(--accent2)":"var(--muted)"}}>
+                  <span style={{fontSize:16,fontFamily:f.id,fontWeight:"bold"}}>Aa</span>
+                  <span>{f.label}</span>
+                </button>
               ))}
             </div>
           </div>
+
+          {/* Peso de fuente */}
+          <div>
+            <span className="lbl">Peso</span>
+            <div style={{display:"flex",gap:6}}>
+              {[["normal","Normal"],["bold","Negrita"],["900","Extra Bold"]].map(([v,l])=>(
+                <button key={v} onClick={()=>upd("fontWeight",v)} className="btn"
+                  style={{flex:1,padding:"7px",fontSize:12,
+                    background:form.fontWeight===v?"rgba(109,40,217,.2)":"var(--surface2)",
+                    border:"1px solid "+(form.fontWeight===v?"var(--accent2)":"var(--border)"),
+                    color:form.fontWeight===v?"var(--accent2)":"var(--muted)",
+                    fontFamily:form.fontFamily,fontWeight:v}}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Tamaño y color */}
+          <div style={{display:"flex",gap:12,alignItems:"flex-end"}}>
+            <div style={{flex:1}}>
+              <span className="lbl">Tamaño ({form.fontSize}px)</span>
+              <input type="range" min={20} max={110} value={form.fontSize} onChange={e=>upd("fontSize",+e.target.value)} style={{width:"100%",accentColor:"var(--accent)"}} />
+            </div>
+            <div>
+              <span className="lbl">Color</span>
+              <input type="color" value={form.fontColor||"#ffffff"} onChange={e=>upd("fontColor",e.target.value)} style={{width:44,height:36,borderRadius:8,border:"1px solid var(--border)",cursor:"pointer",padding:3}} />
+            </div>
+          </div>
+
+          {/* Fondo del texto */}
           <div>
             <button onClick={()=>upd("textBg",!form.textBg)} className="btn"
               style={{background:form.textBg?"rgba(109,40,217,.2)":"var(--surface2)",border:"1px solid "+(form.textBg?"var(--accent2)":"var(--border)"),color:form.textBg?"var(--accent2)":"var(--muted)",fontSize:12,padding:"8px 14px"}}>
               {form.textBg?"✓ Fondo oscuro: ON":"○ Fondo oscuro: OFF"}
             </button>
           </div>
+
           {pubMsg&&<div style={{background:pubMsg.ok?"#0d2b1f":"#1f0d0d",border:"1px solid "+(pubMsg.ok?"var(--success)":"var(--error)"),color:pubMsg.ok?"var(--success)":"var(--error)",padding:"10px 14px",borderRadius:8,fontSize:12,fontWeight:600}}>{pubMsg.text}</div>}
+
           <div style={{display:"flex",gap:8,marginTop:"auto"}}>
             <button onClick={download} className="btn btn-ghost" style={{flex:1}}>⬇ Descargar</button>
             <button onClick={()=>onSave(form)} className="btn btn-ghost" style={{flex:1}}>✓ Guardar</button>
-            <button onClick={publishIG} disabled={publishing} className="btn btn-primary" style={{flex:1,background:publishing?"var(--surface2)":"linear-gradient(135deg,#E1306C,#833AB4)"}}>
+            <button onClick={publishIG} disabled={publishing} className="btn btn-primary"
+              style={{flex:1,background:publishing?"var(--surface2)":"linear-gradient(135deg,#E1306C,#833AB4)"}}>
               {publishing?<><div className="spin"/>Publicando</>:"🚀 Publicar IG"}
             </button>
           </div>
@@ -599,22 +712,6 @@ function EditorModal({opt,brand,onClose,onSave,showToast}) {
   );
 }
 
-
-function PostMiniCard({post, postNum, onCanvas}) {
-  const canvasRef = useRef();
-  useEffect(()=>{
-    if(canvasRef.current && post) drawPost(canvasRef.current, post);
-  },[post]);
-  return (
-    <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
-      <div style={{position:"relative",width:"100%",aspectRatio:"1",borderRadius:10,overflow:"hidden",background:"var(--bg)",border:"2px solid var(--border)",cursor:"grab"}}>
-        <canvas ref={canvasRef} style={{width:"100%",height:"100%",display:"block"}} />
-        <div style={{position:"absolute",top:4,left:4,background:"linear-gradient(135deg,var(--accent),var(--accent2))",borderRadius:6,padding:"3px 8px",fontSize:11,fontWeight:800,color:"#fff"}}>#{postNum}</div>
-      </div>
-      <div style={{fontSize:10,color:"var(--muted)",textAlign:"center",lineHeight:1.4}}>Post #{postNum}</div>
-    </div>
-  );
-}
 
 function ScheduleScreen({socials,showToast}) {
   const now = new Date();
