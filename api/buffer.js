@@ -66,7 +66,7 @@ export default async function handler(req, res) {
 
     try {
       const input = scheduledAt
-        ? { channelId, text, schedulingType: 'customScheduled', dueAt: new Date(scheduledAt).toISOString() }
+        ? { channelId, text, schedulingType: 'custom', dueAt: new Date(scheduledAt).toISOString() }
         : { channelId, text, schedulingType: 'automatic', mode: 'addToQueue' };
 
       const data = await gql(
