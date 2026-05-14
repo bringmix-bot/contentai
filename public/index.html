@@ -505,6 +505,8 @@ function App() {
             channelId: netSchedule.profileId,
             text: postText,
             scheduledAt,
+            service: net.id,
+            imageBase64: postImgs[net.id]?.[selDesign[net.id]||"d1"]?.split(",")[1] || null,
           }),
         });
         const data = await r.json();
