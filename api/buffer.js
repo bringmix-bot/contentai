@@ -6,24 +6,53 @@ export default async function handler(req, res) {
 
   const { action } = req.query;
 
-  // ── GET PROFILES ──────────────────────────────────────────────
-  if (req.method === 'GET' && action === 'profiles') {
+  async function gql(token, query, variables = {}) {
+    const r = await fetch('https://api.buffer.com/graphql', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+    const text = await r.text();
+    let data;
+    try { data = JSON.parse(text); } catch { throw new Error('Respuesta inválida de Buffer: ' + text.slice(0, 200)); }
+    if (data.errors?.length) throw new Error(data.errors[0].message);
+    return data.data;
+  }
+
+  // ── GET CHANNELS ──────────────────────────────────────────────
+  if (req.method === 'GET' && action === 'channels') {
     const { token } = req.query;
     if (!token) return res.status(400).json({ error: 'Token requerido' });
+
     try {
-      const r = await fetch('https://api.bufferapp.com/1/profiles.json', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await r.json();
-      if (!r.ok) return res.status(r.status).json({ error: data.error || 'Error de Buffer' });
-      // Map to simplified format
-      const profiles = data.map(p => ({
-        id: p.id,
-        service: p.service,
-        name: p.formatted_username || p.service_username,
-        avatar: p.avatar_https,
+      // Step 1: get org ID
+      const orgRes = await gql(token, `query { account { organizations { id name } } }`);
+      const orgs = orgRes?.account?.organizations || [];
+      if (!orgs.length) return res.status(400).json({ error: 'No se encontraron organizaciones' });
+
+      const orgId = orgs[0].id;
+
+      // Step 2: get channels
+      const chanRes = await gql(token, `
+        query($orgId: String!) {
+          channels(organizationId: $orgId) {
+            id name service serviceId
+          }
+        }
+      `, { orgId });
+
+      const serviceIcons = { instagram:'📸', facebook:'👥', linkedin:'💼', twitter:'🐦', tiktok:'🎵' };
+      const channels = (chanRes?.channels || []).map(ch => ({
+        id: ch.id,
+        name: ch.name || ch.serviceId || ch.service,
+        service: ch.service,
+        icon: serviceIcons[ch.service] || '🌐',
       }));
-      return res.status(200).json({ profiles });
+
+      return res.status(200).json({ channels });
     } catch (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -31,56 +60,30 @@ export default async function handler(req, res) {
 
   // ── SCHEDULE POST ─────────────────────────────────────────────
   if (req.method === 'POST' && action === 'schedule') {
-    const { token, profileId, text, imageBase64, scheduledAt } = req.body;
-    if (!token || !profileId || !text) return res.status(400).json({ error: 'Faltan datos' });
+    const { token, channelId, text, scheduledAt } = req.body;
+    if (!token || !channelId || !text) return res.status(400).json({ error: 'Faltan datos requeridos' });
 
     try {
-      const body = new URLSearchParams();
-      body.append('profile_ids[]', profileId);
-      body.append('text', text);
-      if (scheduledAt) {
-        body.append('scheduled_at', scheduledAt);
-      } else {
-        body.append('now', 'true');
-      }
+      const input = {
+        channelId,
+        text,
+        schedulingType: scheduledAt ? 'customScheduled' : 'automatic',
+        ...(scheduledAt ? { dueAt: new Date(scheduledAt).toISOString() } : { mode: 'addToQueue' }),
+      };
 
-      // If image, upload first
-      if (imageBase64) {
-        try {
-          const imgBuffer = Buffer.from(imageBase64, 'base64');
-          const formData = new FormData();
-          const blob = new Blob([imgBuffer], { type: 'image/png' });
-          formData.append('file', blob, 'mcm_post.png');
-
-          const uploadRes = await fetch('https://api.bufferapp.com/1/media/upload.json', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
-            body: formData,
-          });
-          if (uploadRes.ok) {
-            const uploadData = await uploadRes.json();
-            if (uploadData.media) {
-              body.append('media[photo]', uploadData.media.photo || '');
-            }
+      const data = await gql(token, `
+        mutation($input: CreatePostInput!) {
+          createPost(input: $input) {
+            ... on PostActionSuccess { post { id text } }
+            ... on MutationError { message }
           }
-        } catch (uploadErr) {
-          console.warn('Image upload failed, posting text only:', uploadErr.message);
         }
-      }
+      `, { input });
 
-      const r = await fetch('https://api.bufferapp.com/1/updates/create.json', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: body.toString(),
-      });
+      const result = data?.createPost;
+      if (result?.message) return res.status(400).json({ error: result.message });
 
-      const data = await r.json();
-      if (!r.ok) return res.status(r.status).json({ error: data.error || 'Error al programar' });
-      return res.status(200).json({ success: true, updateId: data.updates?.[0]?.id });
-
+      return res.status(200).json({ success: true, postId: result?.post?.id });
     } catch (err) {
       return res.status(500).json({ error: err.message });
     }
