@@ -115,26 +115,32 @@ export default async function handler(req, res) {
         ? { schedulingType: 'automatic', mode: 'customScheduled', dueAt: new Date(scheduledAt).toISOString() }
         : { schedulingType: 'automatic', mode: 'addToQueue' };
 
-      let input = { channelId, text, ...scheduling };
+      // input is now built inline in the query string
 
-      // Add image using correct Buffer assets format
-      if (imageUrl) {
-        input.assets = [{ image: { url: imageUrl } }];
-      }
+      // Build query with values inline to avoid GraphQL type issues
+      const schedulingLine = scheduledAt
+        ? `schedulingType: automatic, mode: customScheduled, dueAt: "${new Date(scheduledAt).toISOString()}"`
+        : `schedulingType: automatic, mode: addToQueue`;
 
-      // Instagram requires type
-      if (service === 'instagram') {
-        input.instagramOptions = { type: 'post' };
-      }
+      const assetsLine = imageUrl
+        ? `assets: [{ image: { url: "${imageUrl}" } }]`
+        : '';
 
-      const data = await gql(`
-        mutation CreatePost($input: CreatePostInput!) {
-          createPost(input: $input) {
+      const query = `
+        mutation CreatePost {
+          createPost(input: {
+            channelId: "${channelId}"
+            text: ${JSON.stringify(text)}
+            ${schedulingLine}
+            ${assetsLine}
+          }) {
             ... on PostActionSuccess { post { id text } }
             ... on MutationError { message }
           }
         }
-      `, { input });
+      `;
+
+      const data = await gql(query);
 
       const result = data?.createPost;
       if (result?.message) return res.status(400).json({ error: result.message });
