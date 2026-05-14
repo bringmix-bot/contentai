@@ -126,6 +126,10 @@ export default async function handler(req, res) {
         ? `assets: [{ image: { url: "${imageUrl}" } }]`
         : '';
 
+      const instagramLine = service === 'instagram'
+        ? `instagramData: { shareType: post }`
+        : '';
+
       const query = `
         mutation CreatePost {
           createPost(input: {
@@ -133,6 +137,7 @@ export default async function handler(req, res) {
             text: ${JSON.stringify(text)}
             ${schedulingLine}
             ${assetsLine}
+            ${instagramLine}
           }) {
             ... on PostActionSuccess { post { id text } }
             ... on MutationError { message }
