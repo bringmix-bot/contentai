@@ -250,12 +250,7 @@ function EditorModal({ postText, netColor, bizName, selImgs, onClose }) {
   const [imgIdx, setImgIdx] = useState(0);
   const [preview, setPreview] = useState(null);
   const [generating, setGenerating] = useState(false);
-  const [overlayText, setOverlayText] = useState(() => {
-    if (!postText) return "";
-    const first = postText.split(/[.!?
-]/)[0].trim();
-    return first.length < 60 ? first : postText.split(" ").slice(0,7).join(" ");
-  });
+  const [overlayText, setOverlayText] = useState("");
   const [fontSize, setFontSize] = useState(52);
   const [fontColor, setFontColor] = useState("#ffffff");
   const [textPos, setTextPos] = useState("bottom");
