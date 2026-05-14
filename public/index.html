@@ -250,8 +250,34 @@ function EditorModal({ postText, netColor, bizName, selImgs, onClose }) {
   const [imgIdx, setImgIdx] = useState(0);
   const [preview, setPreview] = useState(null);
   const [generating, setGenerating] = useState(false);
+  const [overlayText, setOverlayText] = useState(() => {
+    if (!postText) return "";
+    const first = postText.split(/[.!?
+]/)[0].trim();
+    return first.length < 60 ? first : postText.split(" ").slice(0,7).join(" ");
+  });
+  const [fontSize, setFontSize] = useState(52);
+  const [fontColor, setFontColor] = useState("#ffffff");
+  const [textPos, setTextPos] = useState("bottom");
+  const [publishing, setPublishing] = useState(false);
+  const [pubMsg, setPubMsg] = useState(null);
 
   const imgPreview = selImgs.filter(s => !s.isVideo)[imgIdx]?.preview || null;
+
+  const publishIG = async () => {
+    setPublishing(true); setPubMsg(null);
+    try {
+      if (!preview) throw new Error("Generá el preview primero");
+      const upRes = await fetch("/api/instagram?action=upload", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ imageBase64: preview }) });
+      const upData = await upRes.json();
+      if (!upData.success) throw new Error(upData.error);
+      const pubRes = await fetch("/api/instagram?action=publish", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ caption: postText, imageUrl: upData.url }) });
+      const pubData = await pubRes.json();
+      if (!pubData.success) throw new Error(pubData.error);
+      setPubMsg({ ok:true, text:"¡Publicado en @gonvinardell! 🎉" });
+    } catch(e) { setPubMsg({ ok:false, text:"Error: " + e.message }); }
+    finally { setPublishing(false); }
+  };
 
   const regenerate = async () => {
     setGenerating(true);
@@ -332,12 +358,45 @@ function EditorModal({ postText, netColor, bizName, selImgs, onClose }) {
             </div>
           )}
 
+          {/* Text controls */}
+          <div>
+            <span className="lbl">Texto sobre la imagen</span>
+            <textarea value={overlayText || ""} onChange={e => setOverlayText(e.target.value)} rows={2}
+              placeholder="Texto corto para la imagen..."
+              style={{ background:"#07070e", border:"1px solid #1e1e30", borderRadius:8, color:"#fff", fontSize:13, padding:"8px 10px", width:"100%", resize:"none", outline:"none", fontFamily:"inherit" }} />
+          </div>
+          <div style={{ display:"flex", gap:10 }}>
+            <div style={{ flex:1 }}>
+              <span className="lbl">Tamaño fuente</span>
+              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                <input type="range" min={20} max={100} value={fontSize} onChange={e => setFontSize(+e.target.value)} style={{ flex:1, accentColor:"#7c3aed" }} />
+                <span style={{ fontSize:11, color:"#aaa", width:24 }}>{fontSize}</span>
+              </div>
+            </div>
+            <div>
+              <span className="lbl">Color</span>
+              <input type="color" value={fontColor} onChange={e => setFontColor(e.target.value)}
+                style={{ width:38, height:30, borderRadius:6, border:"1px solid #1e1e30", cursor:"pointer", padding:2 }} />
+            </div>
+          </div>
+          <div>
+            <span className="lbl">Posición</span>
+            <div style={{ display:"flex", gap:5 }}>
+              {[["top","Arriba"],["center","Centro"],["bottom","Abajo"]].map(([v,l]) => (
+                <button key={v} onClick={() => setTextPos(v)} style={{ flex:1, background:textPos===v?"#7c3aed20":"#0a0a14", border:"1px solid " + (textPos===v?"#7c3aed":"#1e1e30"), borderRadius:7, padding:"7px", color:textPos===v?"#c4b5fd":"#888", cursor:"pointer", fontSize:11 }}>{l}</button>
+              ))}
+            </div>
+          </div>
           {/* Actions */}
-          <div style={{ display: "flex", gap: 8, marginTop: "auto" }}>
-            <button onClick={download} style={{ flex: 1, background: G, color: "#fff", border: "none", borderRadius: 9, padding: "11px", fontWeight: 800, cursor: "pointer", fontSize: 13 }}>
-              ⬇ Descargar imagen
+          <div style={{ display: "flex", gap: 8, marginTop: "auto", flexWrap:"wrap" }}>
+            <button onClick={download} style={{ flex: 1, background: "#0d0d1f", color:"#c4b5fd", border: "1px solid #7c3aed50", borderRadius: 9, padding: "11px", fontWeight: 800, cursor: "pointer", fontSize: 12 }}>
+              ⬇ Descargar
+            </button>
+            <button onClick={publishIG} disabled={publishing} style={{ flex:1, background:publishing?"#1e1e30":"linear-gradient(135deg,#E1306C,#833AB4)", color:"#fff", border:"none", borderRadius:9, padding:"11px", fontWeight:800, cursor:publishing?"not-allowed":"pointer", fontSize:12 }}>
+              {publishing ? "⏳ Publicando..." : "🚀 Publicar en IG"}
             </button>
           </div>
+          {pubMsg && <div style={{ background:pubMsg.ok?"#064e3b":"#450a0a", border:"1px solid " + (pubMsg.ok?"#059669":"#dc2626"), color:pubMsg.ok?"#34d399":"#f87171", padding:"9px 12px", borderRadius:8, fontSize:12, fontWeight:600 }}>{pubMsg.text}</div>}
         </div>
       </div>
     </div>
@@ -345,6 +404,56 @@ function EditorModal({ postText, netColor, bizName, selImgs, onClose }) {
 }
 
 // ─── MAIN APP ────────────────────────────────────────────────────
+function SchedulePanel() {
+  const DAYS = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+  const NETS = [{id:"instagram",icon:"📸",label:"Instagram"},{id:"facebook",icon:"👥",label:"Facebook"},{id:"twitter",icon:"🐦",label:"X/Twitter"},{id:"linkedin",icon:"💼",label:"LinkedIn"},{id:"tiktok",icon:"🎵",label:"TikTok"}];
+  const [schedules, setSchedules] = useState(JSON.parse(localStorage.getItem("mcm_sch") || "[]"));
+  const [day, setDay] = useState("Lunes");
+  const [hour, setHour] = useState("09:00");
+  const [net, setNet] = useState("instagram");
+  const [saved, setSaved] = useState(false);
+  const save = (arr) => { setSchedules(arr); localStorage.setItem("mcm_sch", JSON.stringify(arr)); };
+  const add = () => { const s=[...schedules,{id:Date.now(),day,hour,net,active:true}]; save(s); setSaved(true); setTimeout(()=>setSaved(false),2000); };
+  const remove = id => save(schedules.filter(s=>s.id!==id));
+  const toggle = id => save(schedules.map(s=>s.id===id?{...s,active:!s.active}:s));
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:16}}>
+      <div style={{background:"#0d0d1f",border:"1px solid #1e1e30",borderRadius:12,padding:16,display:"flex",flexDirection:"column",gap:12}}>
+        <span className="lbl" style={{margin:0}}>Nueva automatización</span>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <div><span className="lbl">Día</span><select value={day} onChange={e=>setDay(e.target.value)}>{DAYS.map(d=><option key={d}>{d}</option>)}</select></div>
+          <div><span className="lbl">Horario</span><input type="time" value={hour} onChange={e=>setHour(e.target.value)} /></div>
+        </div>
+        <div>
+          <span className="lbl">Red social</span>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {NETS.map(n=><button key={n.id} onClick={()=>setNet(n.id)} style={{background:net===n.id?"#7c3aed20":"#07070e",border:"1px solid "+(net===n.id?"#7c3aed":"#1e1e30"),borderRadius:7,padding:"7px 12px",color:net===n.id?"#c4b5fd":"#888",cursor:"pointer",fontSize:12}}>{n.icon} {n.label}</button>)}
+          </div>
+        </div>
+        <button onClick={add} style={{background:"linear-gradient(135deg,#7c3aed,#ec4899)",color:"#fff",border:"none",borderRadius:9,padding:"11px",fontWeight:800,cursor:"pointer",fontSize:13}}>
+          {saved?"✓ Guardado":"+ Agregar automatización"}
+        </button>
+      </div>
+      {schedules.length>0&&<div>
+        <span className="lbl">Automatizaciones</span>
+        {schedules.map(s=>{const n=NETS.find(x=>x.id===s.net); return(
+          <div key={s.id} style={{background:"#0d0d1f",border:"1px solid "+(s.active?"#7c3aed30":"#1e1e30"),borderRadius:10,padding:"12px 14px",display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+            <span style={{fontSize:16}}>{n?.icon}</span>
+            <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:"#fff"}}>{n?.label} · {s.day} {s.hour}</div><div style={{fontSize:11,color:s.active?"#34d399":"#555"}}>{s.active?"● Activo":"○ Pausado"}</div></div>
+            <button onClick={()=>toggle(s.id)} style={{background:"#07070e",border:"1px solid #1e1e30",borderRadius:6,padding:"5px 10px",color:"#888",cursor:"pointer",fontSize:11}}>{s.active?"Pausar":"Activar"}</button>
+            <button onClick={()=>remove(s.id)} style={{background:"#07070e",border:"1px solid #1e1e30",borderRadius:6,padding:"5px 8px",color:"#f43f5e",cursor:"pointer",fontSize:13}}>✕</button>
+          </div>
+        );})}
+      </div>}
+      {schedules.length===0&&<div style={{textAlign:"center",padding:"32px 0",color:"#333",fontSize:13}}>No hay automatizaciones configuradas.</div>}
+      <div style={{background:"#07070e",border:"1px solid #1e1e30",borderRadius:10,padding:"12px 14px"}}>
+        <div style={{fontSize:11,color:"#7c3aed",fontWeight:700,marginBottom:4}}>ℹ️ Cómo funciona</div>
+        <div style={{fontSize:12,color:"#666",lineHeight:1.7}}>MCM genera y publica en los días y horarios configurados, usando tu contenido y el perfil de tu marca.</div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [view, setView] = useState("landing");
   const [tab, setTab] = useState("generator");
@@ -466,46 +575,6 @@ FORMATO EXACTO (sin texto antes ni después):
     const b = new Blob([results[id]], { type: "text/plain" });
     const u = URL.createObjectURL(b); const a = document.createElement("a");
     a.href = u; a.download = `MCM_${n.label}.txt`; a.click(); URL.revokeObjectURL(u);
-  };
-
-  const [igPublishing, setIgPublishing] = React.useState(false);
-  const [igToast, setIgToast] = React.useState(null);
-
-  const showToast = (msg, type = 'ok') => {
-    setIgToast({ msg, type });
-    setTimeout(() => setIgToast(null), 4000);
-  };
-
-  const publishToInstagram = async () => {
-    const imgData = postImgs['instagram']?.[selDesign['instagram'] || 'd1'];
-    const caption = results['instagram'];
-    if (!imgData || !caption) { showToast('Primero generá el contenido de Instagram', 'err'); return; }
-    setIgPublishing(true);
-    try {
-      // Upload image to Cloudinary
-      const uploadRes = await fetch('/api/instagram?action=upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: imgData })
-      });
-      const uploadData = await uploadRes.json();
-      if (!uploadData.success) throw new Error(uploadData.error || 'Error al subir imagen');
-
-      // Publish to Instagram
-      const publishRes = await fetch('/api/instagram?action=publish', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ caption, imageUrl: uploadData.url })
-      });
-      const publishData = await publishRes.json();
-      if (!publishData.success) throw new Error(publishData.error || 'Error al publicar');
-
-      showToast('¡Publicado en @gonvinardell! 🎉', 'ok');
-    } catch (e) {
-      showToast('Error: ' + e.message, 'err');
-    } finally {
-      setIgPublishing(false);
-    }
   };
 
   const dlImg = id => {
@@ -644,7 +713,7 @@ FORMATO EXACTO (sin texto antes ni después):
           <span style={{ fontSize: 9, color: "#444", letterSpacing: 1 }}>MY COMMUNITY MANAGER</span>
         </div>
         <div style={{ display: "flex", gap: 2 }}>
-          {[["generator", "✦", "Generador"], ["gallery", "📁", "Mi contenido"], ["brand", "🎨", "Mi marca"]].map(([id, ic, lb]) => (
+          {[["generator", "✦", "Generador"], ["schedule", "📅", "Automatizar"], ["gallery", "📁", "Mi contenido"], ["brand", "🎨", "Mi marca"]].map(([id, ic, lb]) => (
             <button key={id} onClick={() => setTab(id)} style={{ background: tab === id ? "#0d0d1f" : "transparent", border: `1px solid ${tab === id ? "#1e1e30" : "transparent"}`, borderRadius: 7, padding: "5px 12px", color: tab === id ? "#fff" : "#555", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
               <span>{ic}</span><span>{lb}</span>
             </button>
@@ -822,12 +891,6 @@ FORMATO EXACTO (sin texto antes ni después):
                         style={{ background: G, color: "#fff", border: "none", borderRadius: 7, padding: "8px", fontWeight: 700, cursor: "pointer", fontSize: 11 }}>
                         ⬇ Descargar imagen
                       </button>
-                      {activeNet === 'instagram' && (
-                        <button onClick={publishToInstagram} disabled={igPublishing}
-                          style={{ background: igPublishing ? '#1e1e30' : 'linear-gradient(135deg,#E1306C,#833AB4)', color: '#fff', border: 'none', borderRadius: 7, padding: '8px', fontWeight: 700, cursor: igPublishing ? 'not-allowed' : 'pointer', fontSize: 11, opacity: igPublishing ? 0.7 : 1 }}>
-                          {igPublishing ? '⏳ Publicando...' : '🚀 Publicar en IG'}
-                        </button>
-                      )}
                       <div style={{ fontSize: 9, color: "#444", textAlign: "center" }}>1080×1080px</div>
                     </>
                   ) : (
@@ -855,6 +918,19 @@ FORMATO EXACTO (sin texto antes ni después):
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* SCHEDULE */}
+      {tab === "schedule" && (
+        <div style={{flex:1,overflowY:"auto",padding:"20px 24px"}}>
+          <div style={{maxWidth:520}}>
+            <div style={{marginBottom:18}}>
+              <div style={{fontSize:15,fontWeight:700,color:"#fff",marginBottom:3}}>📅 Automatización de publicaciones</div>
+              <div style={{fontSize:12,color:"#888"}}>Configurá cuándo quierés que MCM publique por vos automáticamente.</div>
+            </div>
+            <SchedulePanel />
           </div>
         </div>
       )}
@@ -960,11 +1036,6 @@ FORMATO EXACTO (sin texto antes ni después):
               {brand.name && <button onClick={() => setTab("generator")} style={{ background: G, color: "#fff", border: "none", borderRadius: 9, padding: "11px", fontWeight: 800, cursor: "pointer", fontSize: 13 }}>Ir al generador →</button>}
             </div>
           </div>
-        </div>
-      )}
-      {igToast && (
-        <div style={{ position: 'fixed', bottom: 24, right: 24, background: igToast.type === 'ok' ? '#064e3b' : '#450a0a', border: `1px solid ${igToast.type === 'ok' ? '#059669' : '#dc2626'}`, color: igToast.type === 'ok' ? '#34d399' : '#f87171', padding: '12px 18px', borderRadius: 10, fontSize: 13, fontWeight: 600, zIndex: 1000, maxWidth: 320, animation: 'fadeIn 0.3s ease' }}>
-          {igToast.msg}
         </div>
       )}
     </div>
