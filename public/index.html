@@ -601,159 +601,197 @@ function EditorModal({opt,brand,onClose,onSave,showToast}) {
 
 
 function ScheduleScreen({socials,showToast}) {
-  const [schedules,setSchedules]=useState(store.get("schedules")||{});
-  // schedules = { "2024-W-Mon": {postNum, hour, net}, ... }
+  const now = new Date();
+  const [year,setYear]=useState(now.getFullYear());
+  const [month,setMonth]=useState(now.getMonth()); // 0-11
+  const [schedules,setSchedules]=useState(store.get("schedules")||{}); // key: "YYYY-MM-DD"
   const [posts,setPosts]=useState(store.get("posts")||[]);
-  const [selectedDay,setSelectedDay]=useState(null);
+  const [selectedDate,setSelectedDate]=useState(null);
   const [showModal,setShowModal]=useState(false);
   const [modalData,setModalData]=useState({postNum:1,hour:"09:00",net:"instagram"});
   const connected=socials.filter(s=>s.connected);
 
-  const DAYS=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
-  const DAYS_FULL=["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+  const MONTHS=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+  const DAYS_HEADER=["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
   const HOURS=["07:00","08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00","19:00","20:00","21:00","22:00"];
 
   const saveSchedules=(s)=>{setSchedules(s);store.set("schedules",s);};
 
-  const openModal=(dayIdx)=>{
-    setSelectedDay(dayIdx);
-    const existing=schedules[dayIdx];
+  const getDaysInMonth=(y,m)=>new Date(y,m+1,0).getDate();
+  const getFirstDayOfMonth=(y,m)=>new Date(y,m,1).getDay(); // 0=Sun
+
+  const prevMonth=()=>{if(month===0){setMonth(11);setYear(y=>y-1);}else setMonth(m=>m-1);};
+  const nextMonth=()=>{if(month===11){setMonth(0);setYear(y=>y+1);}else setMonth(m=>m+1);};
+
+  const dateKey=(y,m,d)=>`${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+  const todayKey=dateKey(now.getFullYear(),now.getMonth(),now.getDate());
+
+  const openModal=(day)=>{
+    const key=dateKey(year,month,day);
+    setSelectedDate({day,key,label:day+" de "+MONTHS[month]+" "+year});
+    const existing=schedules[key];
     setModalData(existing||{postNum:1,hour:"09:00",net:connected[0]?.id||"instagram"});
     setShowModal(true);
   };
 
   const assignPost=()=>{
-    saveSchedules({...schedules,[selectedDay]:modalData});
+    saveSchedules({...schedules,[selectedDate.key]:modalData});
     setShowModal(false);
-    showToast("Post "+modalData.postNum+" asignado al "+DAYS_FULL[selectedDay],"ok");
+    showToast("Post #"+modalData.postNum+" programado para el "+selectedDate.label,"ok");
   };
 
-  const removeSchedule=(dayIdx)=>{
-    const newS={...schedules};
-    delete newS[dayIdx];
-    saveSchedules(newS);
+  const removeSchedule=(key)=>{
+    const s={...schedules}; delete s[key]; saveSchedules(s);
   };
 
+  const daysInMonth=getDaysInMonth(year,month);
+  const firstDay=getFirstDayOfMonth(year,month);
+  const totalCells=Math.ceil((firstDay+daysInMonth)/7)*7;
   const scheduledCount=Object.keys(schedules).length;
-  const postNums=Array.from({length:Math.max(7,posts.length)},(_,i)=>i+1);
+  const postNums=Array.from({length:7},(_,i)=>i+1);
 
   return (
-    <div style={{padding:"32px 36px",maxWidth:800}} className="fade-in">
+    <div style={{padding:"32px 36px",maxWidth:820}} className="fade-in">
       <div style={{marginBottom:28}}>
-        <h2 style={{fontSize:22,fontWeight:800,marginBottom:6}}>Calendario semanal</h2>
-        <p style={{color:"var(--muted)",fontSize:14}}>Asigná cada publicación a un día. Hacé click en el día para programarlo.</p>
+        <h2 style={{fontSize:22,fontWeight:800,marginBottom:6}}>Calendario de publicaciones</h2>
+        <p style={{color:"var(--muted)",fontSize:14}}>Hacé click en cualquier fecha para asignar un post y un horario.</p>
       </div>
 
       {posts.length===0&&(
         <div className="card" style={{textAlign:"center",padding:"40px",color:"var(--muted)"}}>
           <div style={{fontSize:32,marginBottom:12}}>📋</div>
           <div style={{fontWeight:600,marginBottom:6}}>No hay publicaciones generadas</div>
-          <div style={{fontSize:13}}>Volvé a "Crear publicación" y generá las 7 publicaciones de la semana.</div>
+          <div style={{fontSize:13}}>Volvé a "Crear publicación" y generá las 7 publicaciones.</div>
         </div>
       )}
 
       {posts.length>0&&(
         <div>
-          {/* Calendar grid */}
-          <div style={{marginBottom:24}}>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:8,marginBottom:8}}>
-              {DAYS.map(d=><div key={d} style={{textAlign:"center",fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:1,padding:"4px 0"}}>{d}</div>)}
+          {/* Calendar navigation */}
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+            <button onClick={prevMonth} className="btn btn-ghost" style={{padding:"8px 14px",fontSize:16}}>‹</button>
+            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:18}}>{MONTHS[month]} {year}</div>
+            <button onClick={nextMonth} className="btn btn-ghost" style={{padding:"8px 14px",fontSize:16}}>›</button>
+          </div>
+
+          {/* Day headers */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:4}}>
+            {DAYS_HEADER.map(d=>(
+              <div key={d} style={{textAlign:"center",fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:1,padding:"6px 0"}}>{d}</div>
+            ))}
+          </div>
+
+          {/* Calendar cells */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:24}}>
+            {Array.from({length:totalCells},(_,i)=>{
+              const day=i-firstDay+1;
+              const isValid=day>=1&&day<=daysInMonth;
+              const key=isValid?dateKey(year,month,day):null;
+              const sched=key&&schedules[key];
+              const isToday=key===todayKey;
+              const isPast=key&&key<todayKey;
+              const soc=sched&&socials.find(s=>s.id===sched.net);
+              return (
+                <div key={i}
+                  onClick={()=>isValid&&!isPast&&openModal(day)}
+                  style={{
+                    minHeight:80,borderRadius:10,padding:"8px",
+                    background:!isValid?"transparent":sched?"rgba(109,40,217,.15)":isPast?"rgba(255,255,255,.02)":"var(--surface2)",
+                    border:!isValid?"none":"2px solid "+(isToday?"var(--accent2)":sched?"rgba(168,85,247,.4)":isPast?"var(--border)":"var(--border)"),
+                    cursor:isValid&&!isPast?"pointer":"default",
+                    transition:"all .15s",
+                    display:"flex",flexDirection:"column",gap:4,
+                    opacity:isPast?0.4:1,
+                  }}
+                  onMouseEnter={e=>{if(isValid&&!isPast)e.currentTarget.style.borderColor="var(--accent2)";}}
+                  onMouseLeave={e=>{if(isValid)e.currentTarget.style.borderColor=isToday?"var(--accent2)":sched?"rgba(168,85,247,.4)":"var(--border)";}}
+                >
+                  {isValid&&(
+                    <>
+                      <div style={{fontSize:13,fontWeight:isToday?800:500,color:isToday?"var(--accent2)":isPast?"var(--muted)":"var(--text)"}}>{day}</div>
+                      {sched&&(
+                        <div style={{display:"flex",flexDirection:"column",gap:3}}>
+                          <div style={{background:"linear-gradient(135deg,var(--accent),var(--accent2))",borderRadius:6,padding:"3px 7px",fontSize:11,fontWeight:800,color:"#fff",textAlign:"center"}}>Post #{sched.postNum}</div>
+                          <div style={{fontSize:10,color:"var(--accent2)",textAlign:"center"}}>{sched.hour}</div>
+                          <div style={{fontSize:11,textAlign:"center"}}>{soc?.icon}</div>
+                          <button onClick={e=>{e.stopPropagation();removeSchedule(key);}} style={{background:"none",border:"none",color:"var(--error)",cursor:"pointer",fontSize:10,padding:"1px"}}>✕ quitar</button>
+                        </div>
+                      )}
+                      {!sched&&!isPast&&<div style={{fontSize:10,color:"var(--border)",marginTop:"auto",textAlign:"center"}}>+</div>}
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Summary */}
+          <div className="card" style={{marginBottom:16}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+              <div style={{fontWeight:600}}>Posts programados</div>
+              <div style={{fontSize:13,color:"var(--muted)"}}>{scheduledCount} en total</div>
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:8}}>
-              {DAYS_FULL.map((day,i)=>{
-                const sched=schedules[i];
-                const soc=sched&&socials.find(s=>s.id===sched.net);
-                return (
-                  <div key={i}
-                    onClick={()=>openModal(i)}
-                    style={{
-                      background:sched?"rgba(109,40,217,.15)":"var(--surface2)",
-                      border:"2px solid "+(sched?"var(--accent2)":"var(--border)"),
-                      borderRadius:12,padding:"14px 10px",
-                      cursor:"pointer",transition:"all .2s",minHeight:110,
-                      display:"flex",flexDirection:"column",alignItems:"center",gap:6,
-                    }}
-                    onMouseEnter={e=>e.currentTarget.style.borderColor="var(--accent2)"}
-                    onMouseLeave={e=>e.currentTarget.style.borderColor=sched?"var(--accent2)":"var(--border)"}
-                  >
-                    <div style={{fontSize:11,fontWeight:700,color:"var(--muted)"}}>{day.slice(0,3).toUpperCase()}</div>
-                    {sched?(
-                      <>
-                        <div style={{width:36,height:36,borderRadius:10,background:"linear-gradient(135deg,var(--accent),var(--accent2))",display:"grid",placeItems:"center",fontSize:16,fontWeight:800,color:"#fff"}}>{sched.postNum}</div>
-                        <div style={{fontSize:11,color:"var(--accent2)",fontWeight:600}}>{sched.hour}</div>
-                        <div style={{fontSize:12}}>{soc?.icon}</div>
-                        <button onClick={e=>{e.stopPropagation();removeSchedule(i);}} style={{background:"none",border:"none",color:"var(--error)",cursor:"pointer",fontSize:11,marginTop:2}}>✕ quitar</button>
-                      </>
-                    ):(
-                      <>
-                        <div style={{width:36,height:36,borderRadius:10,border:"2px dashed var(--border)",display:"grid",placeItems:"center",fontSize:20,color:"var(--border)"}}>+</div>
-                        <div style={{fontSize:11,color:"var(--muted)",textAlign:"center"}}>Click para asignar</div>
-                      </>
-                    )}
+            {scheduledCount===0&&<div style={{color:"var(--muted)",fontSize:13,textAlign:"center",padding:"10px 0"}}>Hacé click en los días del calendario para programar posts.</div>}
+            <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:200,overflowY:"auto"}}>
+              {Object.entries(schedules).sort(([a],[b])=>a.localeCompare(b)).map(([key,sched])=>{
+                const soc=socials.find(s=>s.id===sched.net);
+                const [y,m,d]=key.split("-");
+                const date=new Date(+y,+m-1,+d);
+                const label=date.toLocaleDateString("es-AR",{weekday:"short",day:"numeric",month:"short"});
+                return(
+                  <div key={key} style={{display:"flex",alignItems:"center",gap:10,padding:"6px 0",borderBottom:"1px solid var(--border)"}}>
+                    <span style={{fontSize:15}}>{soc?.icon}</span>
+                    <span style={{fontSize:13,fontWeight:500,flex:1,textTransform:"capitalize"}}>{label}</span>
+                    <span style={{fontSize:12,color:"var(--muted)"}}>{sched.hour}</span>
+                    <span style={{background:"rgba(109,40,217,.2)",border:"1px solid rgba(168,85,247,.3)",borderRadius:20,padding:"2px 10px",fontSize:12,color:"var(--accent2)"}}>Post #{sched.postNum}</span>
+                    <button onClick={()=>removeSchedule(key)} style={{background:"none",border:"none",color:"var(--error)",cursor:"pointer",fontSize:14}}>✕</button>
                   </div>
                 );
               })}
             </div>
           </div>
 
-          {/* Summary */}
-          <div className="card" style={{marginBottom:16}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-              <div style={{fontWeight:600}}>Resumen de la semana</div>
-              <div style={{fontSize:13,color:"var(--muted)"}}>{scheduledCount}/7 días programados</div>
-            </div>
-            <div style={{height:6,background:"var(--surface2)",borderRadius:6,overflow:"hidden",marginBottom:12}}>
-              <div style={{height:"100%",width:(scheduledCount/7*100)+"%",background:"linear-gradient(90deg,var(--accent),var(--accent2))",borderRadius:6,transition:"width .4s"}} />
-            </div>
-            {Object.entries(schedules).map(([dayIdx,sched])=>{
-              const soc=socials.find(s=>s.id===sched.net);
-              return(
-                <div key={dayIdx} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid var(--border)"}}>
-                  <span style={{fontSize:16}}>{soc?.icon}</span>
-                  <span style={{fontWeight:600,fontSize:13,minWidth:90}}>{DAYS_FULL[dayIdx]}</span>
-                  <span style={{fontSize:13,color:"var(--muted)"}}>{sched.hour}</span>
-                  <span style={{background:"rgba(109,40,217,.2)",border:"1px solid rgba(168,85,247,.3)",borderRadius:20,padding:"2px 10px",fontSize:12,color:"var(--accent2)",marginLeft:"auto"}}>Post #{sched.postNum}</span>
-                </div>
-              );
-            })}
-            {Object.keys(schedules).length===0&&<div style={{color:"var(--muted)",fontSize:13,textAlign:"center",padding:"12px 0"}}>Hacé click en los días del calendario para asignar posts.</div>}
-          </div>
-
           {scheduledCount>0&&(
-            <button className="btn btn-primary" style={{width:"100%"}} onClick={()=>showToast("Calendario guardado! MCM publicará automáticamente.","ok")}>
-              ✓ Confirmar calendario semanal
+            <button className="btn btn-primary" style={{width:"100%"}} onClick={()=>showToast("Calendario confirmado! MCM publicará automáticamente.","ok")}>
+              ✓ Confirmar calendario
             </button>
           )}
         </div>
       )}
 
       {/* Assign modal */}
-      {showModal&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.85)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:16,backdropFilter:"blur(16px)"}}>
-          <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:18,padding:28,width:"100%",maxWidth:420}}>
+      {showModal&&selectedDate&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.88)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:16,backdropFilter:"blur(16px)"}}>
+          <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:18,padding:28,width:"100%",maxWidth:440}} className="fade-in">
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
-              <h3 style={{fontSize:16,fontWeight:700}}>Programar — {DAYS_FULL[selectedDay]}</h3>
+              <h3 style={{fontSize:16,fontWeight:700}}>📅 {selectedDate.label}</h3>
               <button onClick={()=>setShowModal(false)} style={{background:"var(--surface2)",border:"none",color:"var(--muted)",width:28,height:28,borderRadius:7,cursor:"pointer"}}>✕</button>
             </div>
-            <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            <div style={{display:"flex",flexDirection:"column",gap:16}}>
               <div>
-                <span className="lbl">Número de publicación</span>
+                <span className="lbl">Número de publicación (1-7)</span>
                 <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                  {postNums.slice(0,7).map(n=>(
+                  {postNums.map(n=>(
                     <button key={n} onClick={()=>setModalData(p=>({...p,postNum:n}))} className="btn"
-                      style={{width:44,height:44,padding:0,fontSize:15,fontWeight:800,background:modalData.postNum===n?"rgba(109,40,217,.3)":"var(--surface2)",border:"2px solid "+(modalData.postNum===n?"var(--accent2)":"var(--border)"),color:modalData.postNum===n?"var(--accent2)":"var(--muted)",borderRadius:10}}>
+                      style={{width:46,height:46,padding:0,fontSize:16,fontWeight:800,
+                        background:modalData.postNum===n?"rgba(109,40,217,.3)":"var(--surface2)",
+                        border:"2px solid "+(modalData.postNum===n?"var(--accent2)":"var(--border)"),
+                        color:modalData.postNum===n?"var(--accent2)":"var(--muted)",borderRadius:10}}>
                       {n}
                     </button>
                   ))}
                 </div>
-                <div style={{fontSize:11,color:"var(--muted)",marginTop:6}}>Elegí cuál de los 7 posts va este día</div>
+                <div style={{fontSize:11,color:"var(--muted)",marginTop:6}}>Elegí cuál de las 7 publicaciones va este día</div>
               </div>
               <div>
                 <span className="lbl">Horario</span>
-                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
                   {HOURS.map(h=>(
                     <button key={h} onClick={()=>setModalData(p=>({...p,hour:h}))} className="btn"
-                      style={{padding:"6px 10px",fontSize:12,background:modalData.hour===h?"rgba(109,40,217,.2)":"var(--surface2)",border:"1px solid "+(modalData.hour===h?"var(--accent2)":"var(--border)"),color:modalData.hour===h?"var(--accent2)":"var(--muted)",borderRadius:8}}>
+                      style={{padding:"6px 9px",fontSize:12,
+                        background:modalData.hour===h?"rgba(109,40,217,.2)":"var(--surface2)",
+                        border:"1px solid "+(modalData.hour===h?"var(--accent2)":"var(--border)"),
+                        color:modalData.hour===h?"var(--accent2)":"var(--muted)",borderRadius:8}}>
                       {h}
                     </button>
                   ))}
@@ -761,20 +799,22 @@ function ScheduleScreen({socials,showToast}) {
               </div>
               <div>
                 <span className="lbl">Red social</span>
-                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                  {connected.length===0
-                    ?<div style={{color:"var(--muted)",fontSize:13}}>No tenés redes conectadas.</div>
-                    :connected.map(s=>(
+                {connected.length===0
+                  ?<div style={{color:"var(--muted)",fontSize:13}}>No tenés redes conectadas.</div>
+                  :<div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                    {connected.map(s=>(
                       <button key={s.id} onClick={()=>setModalData(p=>({...p,net:s.id}))} className="btn"
-                        style={{padding:"7px 14px",fontSize:13,background:modalData.net===s.id?"rgba(109,40,217,.2)":"var(--surface2)",border:"1px solid "+(modalData.net===s.id?"var(--accent2)":"var(--border)"),color:modalData.net===s.id?"var(--accent2)":"var(--muted)"}}>
+                        style={{padding:"7px 14px",fontSize:13,
+                          background:modalData.net===s.id?"rgba(109,40,217,.2)":"var(--surface2)",
+                          border:"1px solid "+(modalData.net===s.id?"var(--accent2)":"var(--border)"),
+                          color:modalData.net===s.id?"var(--accent2)":"var(--muted)"}}>
                         {s.icon} {s.name}
                       </button>
-                    ))
-                  }
-                </div>
+                    ))}
+                  </div>}
               </div>
-              <button className="btn btn-primary" style={{width:"100%",marginTop:4}} onClick={assignPost}>
-                Asignar Post #{modalData.postNum} al {DAYS_FULL[selectedDay]}
+              <button className="btn btn-primary" style={{width:"100%"}} onClick={assignPost}>
+                Programar Post #{modalData.postNum} para el {selectedDate.label} a las {modalData.hour}
               </button>
             </div>
           </div>
