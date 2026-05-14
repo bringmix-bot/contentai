@@ -117,9 +117,9 @@ export default async function handler(req, res) {
 
       let input = { channelId, text, ...scheduling };
 
-      // Add image URL if we have one
+      // Add image using correct Buffer assets format
       if (imageUrl) {
-        input.mediaUrls = [imageUrl];
+        input.assets = [{ image: { url: imageUrl } }];
       }
 
       // Instagram requires type
