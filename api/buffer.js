@@ -111,9 +111,12 @@ export default async function handler(req, res) {
       }
 
       // Build input based on service and whether we have an image
+      // Instagram requires notification scheduling (API limitation)
+      const isInstagram = service === 'instagram';
+      const schedulingType = isInstagram ? 'notification' : 'automatic';
       const scheduling = scheduledAt
-        ? { schedulingType: 'automatic', mode: 'customScheduled', dueAt: new Date(scheduledAt).toISOString() }
-        : { schedulingType: 'automatic', mode: 'addToQueue' };
+        ? { schedulingType, mode: 'customScheduled', dueAt: new Date(scheduledAt).toISOString() }
+        : { schedulingType, mode: 'addToQueue' };
 
       // input is now built inline in the query string
 
