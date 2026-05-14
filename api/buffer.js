@@ -36,13 +36,13 @@ export default async function handler(req, res) {
       const orgs = orgRes?.account?.organizations || [];
       if (!orgs.length) return res.status(400).json({ error: 'No se encontraron organizaciones. Conectá al menos una red social en Buffer primero.' });
 
+      const orgId = orgs[0].id;
       const chanRes = await gql(
-        `query GetChannels($organizationId: String!) {
-          channels(input: { organizationId: $organizationId }) {
+        `query GetChannels {
+          channels(input: { organizationId: "${orgId}" }) {
             id name displayName service
           }
-        }`,
-        { organizationId: orgs[0].id }
+        }`
       );
 
       const icons = { instagram:'📸', facebook:'👥', linkedin:'💼', twitter:'🐦', tiktok:'🎵', threads:'🧵' };
