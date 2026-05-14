@@ -99,6 +99,7 @@ async function generateText(prompt) {
   return d.text||"";
 }
 
+
 async function loadImg(src) {
   return new Promise(resolve => {
     const img = new Image();
@@ -116,238 +117,366 @@ function hexToRgb(hex) {
   } catch { return {r:109,g:40,b:217}; }
 }
 
-// Draw image covering a rect, centered
-function drawCover(ctx, img, x, y, w, h) {
+// Draw image covering area, centered & cropped
+function coverImg(ctx, img, x, y, w, h) {
   if (!img) return;
-  const ratio = Math.max(w/img.width, h/img.height);
-  const dw = img.width*ratio, dh = img.height*ratio;
+  const s = Math.max(w/img.width, h/img.height);
+  const dw = img.width*s, dh = img.height*s;
   ctx.drawImage(img, x+(w-dw)/2, y+(h-dh)/2, dw, dh);
 }
 
-// Wrap text into lines fitting maxW
-function wrapText(ctx, text, maxW) {
+// Rounded rectangle helper
+function rRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.closePath();
+}
+
+// Smart text wrapping with max lines
+function smartWrap(ctx, text, maxW, maxLines) {
   const words = text.split(" ");
   const lines = []; let line = "";
-  words.forEach(w => {
+  for(const w of words) {
     const t = line + (line?" ":"") + w;
-    if (ctx.measureText(t).width > maxW) { if(line) lines.push(line); line = w; }
-    else line = t;
-  });
+    if (ctx.measureText(t).width > maxW) {
+      if (line) lines.push(line);
+      line = w;
+      if (lines.length >= maxLines-1) { 
+        // last line — add remaining
+        const rest = words.slice(words.indexOf(w)).join(" ");
+        lines.push(rest);
+        return lines;
+      }
+    } else line = t;
+  }
   if (line) lines.push(line);
   return lines;
 }
 
-async function drawPost(canvas, opt) {
+// ════════════════════════════════════════════════════════════════
+// TEMPLATE 1 — FOTO DEL CLIENTE + DISEÑO EDITORIAL
+// Layout: foto ocupa 65% inferior, header blanco con titular negro
+// Estilo: revista de moda/gastronomía premium
+// ════════════════════════════════════════════════════════════════
+async function drawTemplate1(canvas, opt) {
   const ctx = canvas.getContext("2d");
   const W=1080, H=1080;
   canvas.width=W; canvas.height=H;
-
-  const color = opt.brandColor || "#6d28d9";
-  const { r, g, b } = hexToRgb(color);
-  const style = opt.style || 1;
-  const rawText = (opt.overlayText || "").trim();
-  const text = rawText.toUpperCase();
+  const {r,g,b} = hexToRgb(opt.brandColor||"#6d28d9");
   const bgImg = opt.imgSrc ? await loadImg(opt.imgSrc) : null;
+  const text = (opt.overlayText||"").replace(/[\*\_\#]/g,"").trim().toUpperCase();
 
-  // ─────────────────────────────────────────────────────────────
-  // TEMPLATE 1 — REVISTA
-  // Franja blanca arriba con titular negro gigante.
-  // Foto cubre la mitad inferior. Línea de color de marca.
-  // ─────────────────────────────────────────────────────────────
-  if (style === 1) {
-    const HEADER_H = 420; // white area height
-    const PHOTO_Y = HEADER_H;
-    const PHOTO_H = H - HEADER_H;
-    const ACCENT_H = 12;
+  const HEADER = 370;
+  const PHOTO_Y = HEADER;
+  const FOOT = 80;
 
-    // White header
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, W, HEADER_H);
+  // ── HEADER: white ──
+  ctx.fillStyle = "#fafafa";
+  ctx.fillRect(0,0,W,HEADER);
 
-    // Accent line at top
-    ctx.fillStyle = color;
-    ctx.fillRect(0, 0, W, ACCENT_H);
+  // Top accent bar — full width, thick
+  ctx.fillStyle = `rgb(${r},${g},${b})`;
+  ctx.fillRect(0,0,W,14);
 
-    // Photo area — bottom half
-    ctx.save();
-    ctx.beginPath(); ctx.rect(0, PHOTO_Y, W, PHOTO_H); ctx.clip();
-    if (bgImg) drawCover(ctx, bgImg, 0, PHOTO_Y, W, PHOTO_H);
-    else { ctx.fillStyle="#111"; ctx.fillRect(0, PHOTO_Y, W, PHOTO_H); }
-    // Gradient fade top of photo into white
-    const fadeH = 120;
-    const fade = ctx.createLinearGradient(0, PHOTO_Y, 0, PHOTO_Y+fadeH);
-    fade.addColorStop(0, "#ffffff"); fade.addColorStop(1, "rgba(255,255,255,0)");
-    ctx.fillStyle=fade; ctx.fillRect(0, PHOTO_Y, W, fadeH);
-    ctx.restore();
+  // ── PHOTO: bottom 65% ──
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0,PHOTO_Y,W,H-PHOTO_Y); ctx.clip();
+  if(bgImg) coverImg(ctx,bgImg,0,PHOTO_Y,W,H-PHOTO_Y);
+  else { 
+    const bg=ctx.createLinearGradient(0,PHOTO_Y,W,H);
+    bg.addColorStop(0,`rgb(${r},${g},${b})`); bg.addColorStop(1,"#000");
+    ctx.fillStyle=bg; ctx.fillRect(0,PHOTO_Y,W,H-PHOTO_Y);
+  }
+  ctx.restore();
 
-    // Thin horizontal rule in header
-    ctx.fillStyle = "#e0e0e0";
-    ctx.fillRect(60, HEADER_H - 48, W-120, 1);
+  // Gradient: photo fades into header at top
+  const fade = ctx.createLinearGradient(0,PHOTO_Y,0,PHOTO_Y+100);
+  fade.addColorStop(0,"#fafafa"); fade.addColorStop(1,"rgba(250,250,250,0)");
+  ctx.fillStyle=fade; ctx.fillRect(0,PHOTO_Y,W,100);
 
-    // Headline — black, multiple lines, left-aligned
-    if (text) {
-      // Split into chunks of ~2 words for dramatic line breaks
-      const words = text.split(" ");
-      const lines = [];
-      for(let i=0; i<words.length; i+=2) lines.push(words.slice(i,i+2).join(" "));
-      const size = lines.length >= 4 ? 88 : lines.length === 3 ? 105 : lines.length === 2 ? 130 : 160;
-      ctx.font = "900 "+size+"px Impact,'Arial Black',sans-serif";
-      ctx.fillStyle = "#0a0a0a";
-      ctx.textAlign = "left";
-      const lineH = size * 0.98;
-      // Center vertically in header (below accent, above rule)
-      const usableH = HEADER_H - ACCENT_H - 60;
-      const totalH = lines.length * lineH;
-      const startY = ACCENT_H + (usableH - totalH)/2 + size * 0.85;
-      lines.forEach((ln, i) => ctx.fillText(ln, 60, startY + i*lineH));
+  // Dark gradient bottom of photo (for readability)
+  const darkFade = ctx.createLinearGradient(0,H-200,0,H);
+  darkFade.addColorStop(0,"rgba(0,0,0,0)"); darkFade.addColorStop(1,"rgba(0,0,0,0.6)");
+  ctx.fillStyle=darkFade; ctx.fillRect(0,H-200,W,200);
+
+  // ── HEADER TEXT ──
+  if(text) {
+    // Category tag
+    ctx.fillStyle = `rgb(${r},${g},${b})`;
+    ctx.font = "700 18px Arial,sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("■  PUBLICACIÓN", 58, 68);
+
+    // Main headline — dynamic sizing
+    const words = text.split(" ");
+    const lines = [];
+    for(let i=0;i<words.length;i+=2) lines.push(words.slice(i,i+2).join(" "));
+    
+    const availH = HEADER - 90 - 40;
+    let size = Math.min(160, Math.floor(availH / lines.length / 0.95));
+    size = Math.max(60, Math.min(size, 160));
+    
+    ctx.font = `900 ${size}px Impact,'Arial Black',sans-serif`;
+    // Shrink until fits width
+    while(size > 40) {
+      ctx.font = `900 ${size}px Impact,'Arial Black',sans-serif`;
+      const maxW = Math.max(...lines.map(l=>ctx.measureText(l).width));
+      if(maxW <= W-116) break;
+      size -= 4;
     }
+    
+    ctx.fillStyle = "#0a0a0a";
+    ctx.textAlign = "left";
+    const lineH = size * 0.95;
+    const totalH = lines.length * lineH;
+    const startY = 88 + (availH - totalH)/2 + size*0.85;
+    lines.forEach((ln,i) => ctx.fillText(ln, 58, startY+i*lineH));
 
-    // Bottom black strip on photo
-    const strip = ctx.createLinearGradient(0, H-120, 0, H);
-    strip.addColorStop(0, "rgba(0,0,0,0)"); strip.addColorStop(1, "rgba(0,0,0,0.7)");
-    ctx.fillStyle=strip; ctx.fillRect(0, H-120, W, 120);
-
-    // Watermark bottom right
-    ctx.font = "500 20px Arial"; ctx.fillStyle="rgba(255,255,255,0.6)"; ctx.textAlign="right";
-    ctx.fillText("MCM", W-36, H-28);
+    // Divider line below headline
+    ctx.fillStyle = `rgba(${r},${g},${b},0.3)`;
+    ctx.fillRect(58, HEADER-38, W-116, 1.5);
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // TEMPLATE 2 — IMPACTO
-  // Panel izquierdo: color sólido de marca + texto blanco masivo.
-  // Panel derecho: foto completa.
-  // Superposición: texto rompe el borde entre paneles.
-  // ─────────────────────────────────────────────────────────────
-  else if (style === 2) {
-    const SPLIT = 520; // split point x
+  // ── FOOTER on photo ──
+  ctx.font = "600 18px Arial"; ctx.fillStyle="rgba(255,255,255,0.7)"; ctx.textAlign="right";
+  ctx.fillText("MCM", W-42, H-28);
+}
 
-    // Right panel — photo
-    ctx.save();
-    ctx.beginPath(); ctx.rect(SPLIT-60, 0, W-SPLIT+60, H); ctx.clip();
-    if (bgImg) drawCover(ctx, bgImg, SPLIT-60, 0, W-SPLIT+60, H);
-    else {
-      const bg=ctx.createLinearGradient(SPLIT,0,W,H);
-      bg.addColorStop(0,"#1a1a2e"); bg.addColorStop(1,"#16213e");
-      ctx.fillStyle=bg; ctx.fillRect(SPLIT-60,0,W,H);
+// ════════════════════════════════════════════════════════════════
+// TEMPLATE 2 — DISEÑO GRÁFICO PURO (SIN FOTO)
+// Layout: composición geométrica, tipografía grande, sin imagen
+// Estilo: agencia de diseño, marca premium, texto más extenso
+// ════════════════════════════════════════════════════════════════
+async function drawTemplate2(canvas, opt) {
+  const ctx = canvas.getContext("2d");
+  const W=1080, H=1080;
+  canvas.width=W; canvas.height=H;
+  const {r,g,b} = hexToRgb(opt.brandColor||"#6d28d9");
+  const text = (opt.overlayText||"").replace(/[\*\_\#]/g,"").trim();
+  const caption = (opt.caption||"").replace(/[\*\_\#\n]/g," ").replace(/\s+/g," ").trim();
+
+  // ── BACKGROUND: dark with geometric shapes ──
+  ctx.fillStyle = "#0a0a0f";
+  ctx.fillRect(0,0,W,H);
+
+  // Large circle — color accent, top right
+  ctx.beginPath();
+  ctx.arc(W+100, -100, 520, 0, Math.PI*2);
+  const circGrad = ctx.createRadialGradient(W+100,-100,0,W+100,-100,520);
+  circGrad.addColorStop(0, `rgba(${r},${g},${b},0.7)`);
+  circGrad.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = circGrad; ctx.fill();
+
+  // Second circle — bottom left
+  ctx.beginPath(); ctx.arc(-60, H+60, 340, 0, Math.PI*2);
+  const circGrad2 = ctx.createRadialGradient(-60,H+60,0,-60,H+60,340);
+  circGrad2.addColorStop(0, `rgba(${r},${g},${b},0.4)`);
+  circGrad2.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle=circGrad2; ctx.fill();
+
+  // Horizontal lines — decorative
+  ctx.strokeStyle = `rgba(${r},${g},${b},0.15)`; ctx.lineWidth=1;
+  for(let y=0;y<H;y+=54){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+
+  // ── LARGE COLOR BLOCK — left ──
+  ctx.fillStyle = `rgb(${r},${g},${b})`;
+  rRect(ctx, 50, 200, 18, H-400, 9);
+  ctx.fill();
+
+  // ── MAIN HEADLINE — large, left-aligned ──
+  if(text) {
+    const words = text.toUpperCase().split(" ");
+    const lines = [];
+    for(let i=0;i<words.length;i+=2) lines.push(words.slice(i,i+2).join(" "));
+    
+    let size = 150;
+    ctx.font = `900 ${size}px Impact,'Arial Black',sans-serif`;
+    while(size>50){
+      ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`;
+      if(Math.max(...lines.map(l=>ctx.measureText(l).width)) <= W-160) break;
+      size-=4;
     }
-    // Darken right panel slightly
-    ctx.fillStyle="rgba(0,0,0,0.25)"; ctx.fillRect(SPLIT-60,0,W,H);
-    ctx.restore();
-
-    // Left panel — solid color
-    ctx.fillStyle = color;
-    ctx.fillRect(0, 0, SPLIT, H);
-
-    // Subtle diagonal grid on left panel
-    ctx.save();
-    ctx.beginPath(); ctx.rect(0,0,SPLIT,H); ctx.clip();
-    ctx.strokeStyle = "rgba(255,255,255,0.07)"; ctx.lineWidth = 1;
-    for(let i=-H; i<W; i+=80) {
-      ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i+H,H); ctx.stroke();
-    }
-    ctx.restore();
-
-    // Vertical accent line at split
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(SPLIT-4, 0, 8, H);
-
-    // Text on left panel — massive, overflows split
-    if (text) {
-      const words = text.split(" ");
-      const lines = [];
-      for(let i=0; i<words.length; i+=2) lines.push(words.slice(i,i+2).join(" "));
-      const maxW = SPLIT + 80; // allow overflow
-      const size = lines.length>=4?90:lines.length===3?110:lines.length===2?140:180;
-      ctx.font = "900 "+size+"px Impact,'Arial Black',sans-serif";
-      ctx.fillStyle = "#ffffff";
-      ctx.textAlign = "left";
-      ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur=16;
-      const lineH = size * 1.0;
-      const totalH = lines.length*lineH;
-      const startY = (H-totalH)/2 + size*0.82;
-      lines.forEach((ln,i)=>ctx.fillText(ln, 52, startY+i*lineH));
-      ctx.shadowBlur=0;
-    }
-
-    // Top accent bar
-    ctx.fillStyle = "rgba(255,255,255,0.25)"; ctx.fillRect(52, 60, 80, 5);
-
-    // Brand — bottom left
-    ctx.font="700 22px Arial"; ctx.fillStyle="rgba(255,255,255,0.65)"; ctx.textAlign="left";
-    ctx.fillText("MCM", 52, H-38);
+    ctx.fillStyle="#ffffff"; ctx.textAlign="left";
+    const lineH=size*0.95;
+    const startY=200+size*0.9;
+    lines.forEach((ln,i)=>ctx.fillText(ln, 96, startY+i*lineH));
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // TEMPLATE 3 — CINE / LETTERBOX
-  // Foto full bleed. Barra negra arriba (pequeña) y abajo (grande).
-  // Texto fino y elegante en la barra inferior.
-  // Línea decorativa + tipografía serif/light.
-  // ─────────────────────────────────────────────────────────────
-  else {
-    const BAR_TOP = 90;
-    const BAR_BOT = 280;
-    const PHOTO_Y = BAR_TOP;
-    const PHOTO_H = H - BAR_TOP - BAR_BOT;
-
-    // Full bleed photo
-    if (bgImg) drawCover(ctx, bgImg, 0, 0, W, H);
-    else {
-      const bg=ctx.createLinearGradient(0,0,W,H);
-      bg.addColorStop(0,"#0f0c29"); bg.addColorStop(1,"#302b63");
-      ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+  // ── EXTENDED TEXT — body copy ──
+  if(caption) {
+    const bodySize = 32;
+    ctx.font = `300 ${bodySize}px Arial,sans-serif`;
+    ctx.fillStyle="rgba(255,255,255,0.75)";
+    ctx.textAlign="left";
+    const maxW = W-150;
+    const words = caption.split(" ");
+    const lines=[]; let line="";
+    for(const w of words){
+      const t=line+(line?" ":"")+w;
+      if(ctx.measureText(t).width>maxW){if(line)lines.push(line);line=w;}
+      else line=t;
+      if(lines.length>=4) break;
     }
-
-    // Subtle vignette
-    const vig = ctx.createRadialGradient(W/2,H/2,H*0.2,W/2,H/2,H*0.75);
-    vig.addColorStop(0,"transparent"); vig.addColorStop(1,"rgba(0,0,0,0.6)");
-    ctx.fillStyle=vig; ctx.fillRect(0,0,W,H);
-
-    // Top bar — solid black
-    ctx.fillStyle = "#000000";
-    ctx.fillRect(0, 0, W, BAR_TOP);
-
-    // Bottom bar — solid black
-    ctx.fillStyle = "#000000";
-    ctx.fillRect(0, H-BAR_BOT, W, BAR_BOT);
-
-    // Color accent line — top of bottom bar
-    ctx.fillStyle = color;
-    ctx.fillRect(0, H-BAR_BOT, W, 6);
-
-    // Top bar: small eyebrow text right-aligned
-    ctx.font = "400 22px Georgia,serif"; ctx.fillStyle="rgba(255,255,255,0.5)"; ctx.textAlign="right";
-    ctx.fillText("MCM", W-48, 58);
-
-    // Decorative line in bottom bar
-    ctx.fillStyle = "rgba(255,255,255,0.2)";
-    ctx.fillRect(60, H-BAR_BOT+32, 120, 1);
-
-    // Main text — elegant, large, centered in bottom bar
-    if (text) {
-      const words = text.split(" ");
-      const lines = [];
-      // For letterbox: longer lines, fewer breaks
-      for(let i=0; i<words.length; i+=3) lines.push(words.slice(i,i+3).join(" "));
-      const usableH = BAR_BOT - 80;
-      const size = lines.length>=3 ? 70 : lines.length===2 ? 88 : 110;
-      ctx.font = "300 "+size+"px Georgia,'Times New Roman',serif";
-      ctx.fillStyle = "#ffffff";
-      ctx.textAlign = "center";
-      const lineH = size*1.15;
-      const totalH = lines.length*lineH;
-      const barCenterY = H-BAR_BOT + (BAR_BOT/2);
-      const startY = barCenterY - totalH/2 + size*0.8 + 10;
-      lines.forEach((ln,i)=>ctx.fillText(ln, W/2, startY+i*lineH));
-    }
-
-    // Second decorative line
-    ctx.fillStyle = "rgba(255,255,255,0.2)";
-    ctx.fillRect(W-180, H-BAR_BOT+32, 120, 1);
-
-    // Top bar: left tag
-    ctx.font="600 20px Arial"; ctx.fillStyle=color; ctx.textAlign="left";
-    ctx.fillText("●", 48, 58);
+    if(line&&lines.length<4) lines.push(line);
+    const bodyY = H-280;
+    lines.forEach((ln,i)=>ctx.fillText(ln, 96, bodyY+i*(bodySize*1.5)));
   }
+
+  // ── BOTTOM BAR ──
+  ctx.fillStyle=`rgba(${r},${g},${b},0.9)`;
+  ctx.fillRect(0,H-72,W,72);
+  ctx.font="700 22px Arial"; ctx.fillStyle="#ffffff"; ctx.textAlign="left";
+  ctx.fillText("MCM · MY COMMUNITY MANAGER", 48, H-27);
+
+  // Decorative corner elements
+  ctx.strokeStyle=`rgba(${r},${g},${b},0.5)`; ctx.lineWidth=2;
+  // top-left corner brackets
+  ctx.beginPath(); ctx.moveTo(38,38); ctx.lineTo(38,90); ctx.moveTo(38,38); ctx.lineTo(90,38); ctx.stroke();
+  // bottom-right
+  ctx.beginPath(); ctx.moveTo(W-38,H-82); ctx.lineTo(W-38,H-90-36); ctx.moveTo(W-38,H-82); ctx.lineTo(W-90,H-82); ctx.stroke();
+}
+
+// ════════════════════════════════════════════════════════════════
+// TEMPLATE 3 — FONDO GENERADO POR IA (según rubro)
+// Layout: fondo artístico generado con Canvas según industria
+// Estilo: cada rubro tiene su paleta y composición única
+// ════════════════════════════════════════════════════════════════
+async function drawTemplate3(canvas, opt) {
+  const ctx = canvas.getContext("2d");
+  const W=1080, H=1080;
+  canvas.width=W; canvas.height=H;
+  const {r,g,b} = hexToRgb(opt.brandColor||"#6d28d9");
+  const text = (opt.overlayText||"").replace(/[\*\_\#]/g,"").trim().toUpperCase();
+  const industry = (opt.industry||"").toLowerCase();
+
+  // ── INDUSTRY-BASED BACKGROUND ──
+  const isFood = /gastro|restaurante|pizza|cafe|comida|food|panaderia|heladeria/i.test(industry);
+  const isHealth = /salud|fitness|deporte|medic|bienestar|gym/i.test(industry);
+  const isRealEstate = /inmobil|construcci|arquitect|paisaj/i.test(industry);
+  const isTech = /tecnolog|software|digital|web|app/i.test(industry);
+  const isFashion = /moda|ropa|indument|fashion|belleza|estetica/i.test(industry);
+
+  if(isFood) {
+    // Warm gradient — orange/red tones
+    const bg=ctx.createLinearGradient(0,0,W,H);
+    bg.addColorStop(0,"#1a0800"); bg.addColorStop(0.5,"#3d1200"); bg.addColorStop(1,"#0d0000");
+    ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+    // Warm light burst
+    const burst=ctx.createRadialGradient(W*0.7,H*0.3,0,W*0.7,H*0.3,W*0.6);
+    burst.addColorStop(0,"rgba(255,120,0,0.45)"); burst.addColorStop(1,"rgba(0,0,0,0)");
+    ctx.fillStyle=burst; ctx.fillRect(0,0,W,H);
+    // Circle decorations
+    ctx.strokeStyle="rgba(255,100,0,0.12)"; ctx.lineWidth=1;
+    [200,380,560].forEach(r2=>{ctx.beginPath();ctx.arc(W*0.75,H*0.28,r2,0,Math.PI*2);ctx.stroke();});
+  } else if(isHealth) {
+    const bg=ctx.createLinearGradient(0,0,W,H);
+    bg.addColorStop(0,"#001a10"); bg.addColorStop(1,"#000d08");
+    ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+    const burst=ctx.createRadialGradient(W*0.5,H*0.4,0,W*0.5,H*0.4,W*0.7);
+    burst.addColorStop(0,"rgba(0,200,100,0.3)"); burst.addColorStop(1,"rgba(0,0,0,0)");
+    ctx.fillStyle=burst; ctx.fillRect(0,0,W,H);
+    // DNA-like lines
+    ctx.strokeStyle="rgba(0,200,100,0.08)"; ctx.lineWidth=1;
+    for(let x=0;x<W;x+=60){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  } else if(isRealEstate) {
+    const bg=ctx.createLinearGradient(0,0,0,H);
+    bg.addColorStop(0,"#0a0a14"); bg.addColorStop(1,"#05050a");
+    ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+    // Blueprint grid
+    ctx.strokeStyle="rgba(100,150,255,0.07)"; ctx.lineWidth=1;
+    for(let x=0;x<W;x+=54){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+    for(let y=0;y<H;y+=54){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+    // House silhouette shape — abstract
+    const burst=ctx.createRadialGradient(W*0.5,H*0.45,0,W*0.5,H*0.45,W*0.55);
+    burst.addColorStop(0,`rgba(${r},${g},${b},0.35)`); burst.addColorStop(1,"rgba(0,0,0,0)");
+    ctx.fillStyle=burst; ctx.fillRect(0,0,W,H);
+  } else if(isTech) {
+    ctx.fillStyle="#030308"; ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle="rgba(0,200,255,0.06)"; ctx.lineWidth=1;
+    for(let x=0;x<W;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+    for(let y=0;y<H;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+    const burst=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,W*0.6);
+    burst.addColorStop(0,"rgba(0,180,255,0.2)"); burst.addColorStop(1,"rgba(0,0,0,0)");
+    ctx.fillStyle=burst; ctx.fillRect(0,0,W,H);
+  } else if(isFashion) {
+    const bg=ctx.createLinearGradient(0,0,W,H);
+    bg.addColorStop(0,"#1a0a0a"); bg.addColorStop(1,"#0a0a1a");
+    ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle="rgba(255,200,200,0.06)"; ctx.lineWidth=1;
+    for(let i=-H;i<W;i+=60){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i+H,H);ctx.stroke();}
+    const burst=ctx.createRadialGradient(W*0.6,H*0.4,0,W*0.6,H*0.4,W*0.5);
+    burst.addColorStop(0,"rgba(255,100,150,0.25)"); burst.addColorStop(1,"rgba(0,0,0,0)");
+    ctx.fillStyle=burst; ctx.fillRect(0,0,W,H);
+  } else {
+    // Generic premium dark
+    const bg=ctx.createLinearGradient(0,0,W,H);
+    bg.addColorStop(0,"#0a080f"); bg.addColorStop(1,"#050508");
+    ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+    const burst=ctx.createRadialGradient(W*0.6,H*0.35,0,W*0.6,H*0.35,W*0.65);
+    burst.addColorStop(0,`rgba(${r},${g},${b},0.35)`); burst.addColorStop(1,"rgba(0,0,0,0)");
+    ctx.fillStyle=burst; ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle=`rgba(${r},${g},${b},0.07)`; ctx.lineWidth=1;
+    for(let y=0;y<H;y+=60){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  }
+
+  // ── LARGE CIRCLE FRAME — decorative ──
+  ctx.beginPath(); ctx.arc(W*0.72, H*0.38, 280, 0, Math.PI*2);
+  ctx.strokeStyle=`rgba(${r},${g},${b},0.25)`; ctx.lineWidth=2; ctx.stroke();
+  ctx.beginPath(); ctx.arc(W*0.72, H*0.38, 240, 0, Math.PI*2);
+  ctx.strokeStyle=`rgba(${r},${g},${b},0.12)`; ctx.lineWidth=1; ctx.stroke();
+
+  // ── BRAND NAME top left ──
+  ctx.font="300 20px Arial"; ctx.fillStyle=`rgba(${r},${g},${b},0.9)`; ctx.textAlign="left";
+  ctx.fillText("● MCM", 60, 64);
+
+  // ── MAIN TEXT — bottom left, massive ──
+  if(text) {
+    const words = text.split(" ");
+    const lines = [];
+    for(let i=0;i<words.length;i+=2) lines.push(words.slice(i,i+2).join(" "));
+    
+    let size=130;
+    ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`;
+    while(size>50){
+      ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`;
+      if(Math.max(...lines.map(l=>ctx.measureText(l).width))<=W-140) break;
+      size-=4;
+    }
+
+    const lineH=size*0.95;
+    const totalH=lines.length*lineH;
+    const startY=H-120-totalH+size*0.85;
+
+    // Text shadow for depth
+    ctx.shadowColor=`rgba(${r},${g},${b},0.6)`;
+    ctx.shadowBlur=30;
+    ctx.fillStyle="#ffffff"; ctx.textAlign="left";
+    lines.forEach((ln,i)=>ctx.fillText(ln, 58, startY+i*lineH));
+    ctx.shadowBlur=0;
+
+    // Underline accent
+    ctx.fillStyle=`rgb(${r},${g},${b})`;
+    ctx.fillRect(58, H-110, Math.min(300, lines[lines.length-1] ? ctx.measureText(lines[lines.length-1]).width*0.6 : 200), 5);
+  }
+
+  // ── BOTTOM gradient ──
+  const bot=ctx.createLinearGradient(0,H-150,0,H);
+  bot.addColorStop(0,"rgba(0,0,0,0)"); bot.addColorStop(1,"rgba(0,0,0,0.8)");
+  ctx.fillStyle=bot; ctx.fillRect(0,H-150,W,150);
+
+  ctx.font="500 18px Arial"; ctx.fillStyle="rgba(255,255,255,0.4)"; ctx.textAlign="right";
+  ctx.fillText("Diseño generado por IA", W-48, H-28);
+}
+
+// ── ROUTER ──
+async function drawPost(canvas, opt) {
+  if(opt.style===1) return drawTemplate1(canvas, opt);
+  if(opt.style===2) return drawTemplate2(canvas, opt);
+  return drawTemplate3(canvas, opt);
 }
 
 
@@ -561,14 +690,23 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
           generateText("Sos un director creativo de una agencia de marketing. Mirá esta situacion: la imagen de fondo muestra contenido relacionado a esta empresa: "+brand.name+" ("+brand.industry+"). El tema del post es: "+PROMPTS[i].slice(8,50)+". Escribi un texto MUY CORTO (exactamente 3 a 6 palabras) para superponer sobre esa imagen. Debe ser creativo, relacionado visualmente con el contenido de la imagen, impactante y memorable. Sin hashtags, sin emojis, sin puntuacion al final. Solo las palabras."),
         ]);
         const overlayText=overlayRaw.trim().replace(/['"\*\_\#]/g,"").replace(/\s+/g," ").slice(0,45);
-        const options=STYLES.map((st,si)=>({
-          id:si,style:st.id,styleName:st.name,
-          caption:[cap1,cap2,cap3][si]||cap1,
-          overlayText,imgSrc,
-          fontSize:56,fontColor:"#ffffff",fontFamily:"Impact",fontWeight:"900",
-          textPos:si===0?"bottom":si===1?"center":"top",
-          textBg:false,brandColor:brand.color||"#6d28d9",
-        }));
+        // Each template gets different image, text and caption
+        const imgs2=files.filter(f=>f.type==="image");
+        const img2=imgs2[(i+1)%imgs2.length]?.preview||imgSrc; // different photo for template 2 if available
+        const options=[
+          // Template 1: foto del cliente + texto corto
+          {id:0,style:1,styleName:"Revista",caption:cap1,overlayText,imgSrc,
+           fontSize:56,fontColor:"#ffffff",fontFamily:"Impact",fontWeight:"900",
+           textBg:false,brandColor:brand.color||"#6d28d9",industry:brand.industry||},
+          // Template 2: diseño gráfico puro, sin foto, texto extenso
+          {id:1,style:2,styleName:"Diseño",caption:cap2,overlayText,imgSrc:null,
+           fontSize:56,fontColor:"#ffffff",fontFamily:"Impact",fontWeight:"900",
+           textBg:false,brandColor:brand.color||"#6d28d9",industry:brand.industry||},
+          // Template 3: fondo generado por IA según rubro
+          {id:2,style:3,styleName:"IA Visual",caption:cap3,overlayText,imgSrc:null,
+           fontSize:56,fontColor:"#ffffff",fontFamily:"Impact",fontWeight:"900",
+           textBg:false,brandColor:brand.color||"#6d28d9",industry:brand.industry||},
+        ];
         allPosts.push({postIdx:i,label:"Post "+(i+1),theme:PROMPTS[i].slice(8,40)+"...",options});
         setWeekPosts([...allPosts]);
       }
