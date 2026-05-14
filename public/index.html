@@ -516,47 +516,34 @@ async function generarPost() {
   btnText.textContent = 'Generando...';
 
   try {
-    const messages = [];
+    const body = {};
 
     if (imageBase64) {
-      messages.push({
-        role: 'user',
-        content: [
-          {
-            type: 'image',
-            source: { type: 'base64', media_type: 'image/jpeg', data: imageBase64.split(',')[1] }
-          },
-          {
-            type: 'text',
-            text: `Analizá esta imagen del producto/negocio y generá un post para Instagram.
+      body.prompt = `Analizá esta imagen del producto/negocio y generá un post para Instagram.
 Negocio: ${negocio}
 Tono: ${tono}
 Tipo de post: ${tipo}
 
-Generá un caption atractivo con emojis relevantes y 5-8 hashtags al final. Solo el texto del post, sin explicaciones.`
-          }
-        ]
-      });
+Generá un caption atractivo con emojis relevantes y 5-8 hashtags al final. Solo el texto del post, sin explicaciones.`;
+      body.imageBase64 = imageBase64.split(',')[1];
+      body.imageMediaType = 'image/jpeg';
     } else {
-      messages.push({
-        role: 'user',
-        content: `Generá un post para Instagram para este negocio:
+      body.prompt = `Generá un post para Instagram para este negocio:
 Negocio: ${negocio}
 Tono: ${tono}
 Tipo de post: ${tipo}
 
-Generá un caption atractivo con emojis relevantes y 5-8 hashtags al final. Solo el texto del post, sin explicaciones. Máximo 2200 caracteres.`
-      });
+Generá un caption atractivo con emojis relevantes y 5-8 hashtags al final. Solo el texto del post, sin explicaciones. Máximo 2200 caracteres.`;
     }
 
     const response = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages })
+      body: JSON.stringify(body)
     });
 
     const data = await response.json();
-    const text = data.text || data.content?.[0]?.text || '';
+    const text = data.text || '';
 
     if (!text) throw new Error('No se recibió respuesta');
 
