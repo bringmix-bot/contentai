@@ -38,7 +38,9 @@ export default async function handler(req, res) {
 
       const chanRes = await gql(
         `query GetChannels($organizationId: String!) {
-          channels(organizationId: $organizationId) { id name service serviceId }
+          channels(input: { organizationId: $organizationId }) {
+            id name displayName service
+          }
         }`,
         { organizationId: orgs[0].id }
       );
@@ -46,7 +48,7 @@ export default async function handler(req, res) {
       const icons = { instagram:'📸', facebook:'👥', linkedin:'💼', twitter:'🐦', tiktok:'🎵', threads:'🧵' };
       const channels = (chanRes?.channels || []).map(ch => ({
         id: ch.id,
-        name: ch.name || ch.serviceId || ch.service,
+        name: ch.displayName || ch.name || ch.service,
         service: ch.service,
         icon: icons[ch.service] || '🌐',
       }));
