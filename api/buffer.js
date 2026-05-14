@@ -4,7 +4,10 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const { action } = req.query;
+  // Parse action from query string manually
+  const url = new URL(req.url, `https://${req.headers.host}`);
+  const action = url.searchParams.get('action');
+  const tokenFromQuery = url.searchParams.get('token');
 
   async function gql(token, query, variables = {}) {
     const r = await fetch('https://api.buffer.com', {
@@ -17,19 +20,19 @@ export default async function handler(req, res) {
     });
     const text = await r.text();
     let data;
-    try { data = JSON.parse(text); } catch { throw new Error('Buffer respondió: ' + text.slice(0, 300)); }
+    try { data = JSON.parse(text); } catch { throw new Error('Buffer respondió: ' + text.slice(0, 200)); }
     if (data.errors?.length) throw new Error(data.errors[0].message);
     return data.data;
   }
 
   // ── GET CHANNELS ──────────────────────────────────────────────
-  if (req.method === 'GET' && action === 'channels') {
-    const { token } = req.query;
+  if (action === 'channels') {
+    const token = tokenFromQuery;
     if (!token) return res.status(400).json({ error: 'Token requerido' });
 
     try {
       const orgRes = await gql(token, `
-        query GetOrganizations {
+        query {
           account {
             organizations { id name }
           }
@@ -37,17 +40,14 @@ export default async function handler(req, res) {
       `);
 
       const orgs = orgRes?.account?.organizations || [];
-      if (!orgs.length) return res.status(400).json({ error: 'No se encontraron organizaciones en Buffer' });
+      if (!orgs.length) return res.status(400).json({ error: 'No se encontraron organizaciones en tu cuenta de Buffer. Conectá al menos una red social primero.' });
 
       const orgId = orgs[0].id;
 
       const chanRes = await gql(token, `
         query GetChannels($organizationId: String!) {
           channels(organizationId: $organizationId) {
-            id
-            name
-            service
-            serviceId
+            id name service serviceId
           }
         }
       `, { organizationId: orgId });
@@ -60,7 +60,7 @@ export default async function handler(req, res) {
         icon: icons[ch.service] || '🌐',
       }));
 
-      return res.status(200).json({ channels });
+      return res.status(200).json({ channels, total: channels.length });
 
     } catch (err) {
       return res.status(500).json({ error: err.message });
@@ -68,7 +68,9 @@ export default async function handler(req, res) {
   }
 
   // ── SCHEDULE POST ─────────────────────────────────────────────
-  if (req.method === 'POST' && action === 'schedule') {
+  if (action === 'schedule') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
     const { token, channelId, text, scheduledAt } = req.body;
     if (!token || !channelId || !text) return res.status(400).json({ error: 'Faltan datos: token, channelId y text son requeridos' });
 
@@ -80,19 +82,14 @@ export default async function handler(req, res) {
       const data = await gql(token, `
         mutation CreatePost($input: CreatePostInput!) {
           createPost(input: $input) {
-            ... on PostActionSuccess {
-              post { id text }
-            }
-            ... on MutationError {
-              message
-            }
+            ... on PostActionSuccess { post { id text } }
+            ... on MutationError { message }
           }
         }
       `, { input });
 
       const result = data?.createPost;
       if (result?.message) return res.status(400).json({ error: result.message });
-
       return res.status(200).json({ success: true, postId: result?.post?.id });
 
     } catch (err) {
@@ -100,5 +97,10 @@ export default async function handler(req, res) {
     }
   }
 
-  return res.status(404).json({ error: 'Acción no encontrada. Usá ?action=channels o ?action=schedule' });
+  // Default - show available actions
+  return res.status(400).json({
+    error: 'Acción requerida',
+    available: ['channels (GET)', 'schedule (POST)'],
+    received: { action, method: req.method, url: req.url }
+  });
 }
