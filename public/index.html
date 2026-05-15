@@ -988,43 +988,45 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
       const prefs=store.get("stylePrefs")||{};
       for(let i=0;i<7;i++){
         setProgress(i+1);
-        // Elegir imagen relacionada al brief — analiza TODAS las imágenes con Vision
+        // ── SELECCIÓN DE IMAGEN POR BRIEF ──
+        // Estrategia: cada imagen recibe una puntuación de relevancia (0-10) 
+        // comparada directamente con el brief en un solo llamado Vision.
+        // Se elige la de mayor puntaje. Sin pasos intermedios que puedan fallar.
         let imgSrc = imgs[i % imgs.length].preview;
         let imgMatchWarning = false;
-        if(postBrief && imgs.length > 0) {
-          if(imgs.length === 1) {
-            imgSrc = imgs[0].preview;
-            imgMatchWarning = true;
-          } else {
-            try {
-              // Analizar todas las imágenes en paralelo con Vision real (base64)
-              const imgDescPromises = imgs.map((img, idx) => {
-                const parts = img.preview.split(",");
-                const b64 = parts[1] || "";
-                const mtype = (parts[0]||"").split(";")[0].split(":")[1] || "image/jpeg";
-                if(!b64) return Promise.resolve({ idx, desc: "" });
-                return generateTextWithImage(
-                  `Listá en 5 palabras máximo los elementos principales de esta imagen. Muy específico (ej: "gallinas, huevos, gallinero" o "lechuga, campo, plantas verdes"). Sin explicaciones, solo las palabras clave separadas por comas.`,
+
+        if(postBrief && imgs.length > 1) {
+          try {
+            setProgressMsg(`Post ${i+1}: analizando ${imgs.length} imágenes para "${postBrief}"...`);
+            const scores = await Promise.all(imgs.map(async (img, idx) => {
+              const parts = img.preview.split(",");
+              const b64 = parts[1];
+              const mtype = (parts[0]||"").split(";")[0].split(":")[1] || "image/jpeg";
+              if(!b64 || b64.length < 100) return { idx, score: 0 };
+              try {
+                const result = await generateTextWithImage(
+                  `El cliente quiere publicar sobre: "${postBrief}". ¿Esta imagen muestra ese tema o algo directamente relacionado? Respondé con UN SOLO número del 0 al 10 donde 0=sin relación, 10=perfectamente relacionado. Solo el número.`,
                   b64, mtype
-                ).then(desc => ({ idx, desc: desc.trim() }))
-                 .catch(() => ({ idx, desc: "" }));
-              });
-              const descriptions = await Promise.all(imgDescPromises);
-              const valid = descriptions.filter(d => d.desc);
-              if(valid.length > 0) {
-                const selectPrompt = `Post sobre: "${postBrief}".\n\n${valid.map(d=>`Imagen ${d.idx+1}: ${d.desc}`).join("\n")}\n\nElegí el número de la imagen más relacionada con "${postBrief}". Solo el número.`;
-                const choice = await generateText(selectPrompt);
-                const chosenIdx = parseInt(choice.trim().replace(/\D/g,"")) - 1;
-                if(!isNaN(chosenIdx) && chosenIdx >= 0 && chosenIdx < imgs.length) {
-                  imgSrc = imgs[chosenIdx].preview;
-                } else {
-                  imgMatchWarning = true;
-                }
-              }
-            } catch(e) {
-              imgSrc = imgs[i % imgs.length].preview;
+                );
+                const score = parseInt(result.trim().replace(/\D/g,"")) || 0;
+                return { idx, score };
+              } catch { return { idx, score: 0 }; }
+            }));
+
+            // Elegir la imagen con mayor puntaje
+            const best = scores.reduce((a, b) => b.score > a.score ? b : a, { idx: i % imgs.length, score: 0 });
+            setProgressMsg(`Post ${i+1}: imagen seleccionada (relevancia ${best.score}/10) — generando texto...`);
+            if(best.score >= 4) {
+              imgSrc = imgs[best.idx].preview;
+            } else {
+              imgSrc = imgs[best.idx].preview;
+              imgMatchWarning = true;
             }
+          } catch(e) {
+            imgSrc = imgs[i % imgs.length].preview;
           }
+        } else {
+          setProgressMsg(`Post ${i+1}: generando contenido...`);
         }
         const ctx=buildBrandContext(i);
         const slideCount=slideCounts[i]||1;
@@ -1106,10 +1108,10 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
       savePosts(allPosts.map((p,i)=>({...p.options[0],postIdx:i,id:Date.now()+i})));
       showToast("7 publicaciones generadas!","ok");
     }catch(e){showToast("Error: "+e.message,"err");}
-    finally{setGenerating(false);setProgress(0);}
+    finally{setGenerating(false);setProgress(0);setProgressMsg("");}
   };
 
-  const selectOption=(postIdx,optIdx)=>setSelections(p=>({...p,[postIdx]:optIdx}));
+  const [progressMsg, setProgressMsg] = useState("");
   const allSelected=weekPosts.length===7&&Object.keys(selections).length===7;
 
   return (
@@ -1156,7 +1158,7 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
       {generating&&(
         <div style={{padding:"20px",marginBottom:20}}>
           <div style={{display:"flex",justifyContent:"space-between",marginBottom:8,fontSize:13,color:"var(--muted)"}}>
-            <span>Generando publicaciones...</span>
+            <span>{progressMsg||"Generando publicaciones..."}</span>
             <span style={{color:"var(--accent2)"}}>{progress}/7</span>
           </div>
           <div style={{height:6,background:"var(--surface2)",borderRadius:6,overflow:"hidden"}}>
