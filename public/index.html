@@ -99,7 +99,6 @@ async function generateText(prompt) {
   return d.text||"";
 }
 
-
 async function loadImg(src) {
   return new Promise(resolve => {
     const img = new Image();
@@ -117,7 +116,6 @@ function hexToRgb(hex) {
   } catch { return {r:109,g:40,b:217}; }
 }
 
-// Draw image covering area, centered & cropped
 function coverImg(ctx, img, x, y, w, h) {
   if (!img) return;
   const s = Math.max(w/img.width, h/img.height);
@@ -125,7 +123,6 @@ function coverImg(ctx, img, x, y, w, h) {
   ctx.drawImage(img, x+(w-dw)/2, y+(h-dh)/2, dw, dh);
 }
 
-// Rounded rectangle helper
 function rRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
   ctx.moveTo(x+r, y);
@@ -136,31 +133,10 @@ function rRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-// Smart text wrapping with max lines
-function smartWrap(ctx, text, maxW, maxLines) {
-  const words = text.split(" ");
-  const lines = []; let line = "";
-  for(const w of words) {
-    const t = line + (line?" ":"") + w;
-    if (ctx.measureText(t).width > maxW) {
-      if (line) lines.push(line);
-      line = w;
-      if (lines.length >= maxLines-1) { 
-        // last line — add remaining
-        const rest = words.slice(words.indexOf(w)).join(" ");
-        lines.push(rest);
-        return lines;
-      }
-    } else line = t;
-  }
-  if (line) lines.push(line);
-  return lines;
-}
-
 // ════════════════════════════════════════════════════════════════
-// TEMPLATE 1 — FOTO DEL CLIENTE + DISEÑO EDITORIAL
-// Layout: foto full bleed, franja oscura en top 40% para texto, sin esfumados
-// Estilo: revista premium, foto protagonista
+// TEMPLATE 1 — FOTO EDITORIAL
+// Foto protagonista full bleed. Franja oscura top-left para el texto.
+// Estilo: revista premium internacional.
 // ════════════════════════════════════════════════════════════════
 async function drawTemplate1(canvas, opt) {
   const ctx = canvas.getContext("2d");
@@ -170,7 +146,7 @@ async function drawTemplate1(canvas, opt) {
   const bgImg = opt.imgSrc ? await loadImg(opt.imgSrc) : null;
   const text = (opt.overlayText||"").replace(/[\*\_\#]/g,"").trim().toUpperCase();
 
-  // ── FULL BLEED PHOTO — toda la imagen ──
+  // Full bleed photo
   if(bgImg) {
     coverImg(ctx, bgImg, 0, 0, W, H);
   } else {
@@ -179,165 +155,252 @@ async function drawTemplate1(canvas, opt) {
     ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
   }
 
-  // ── DARK GRADIENT — top 45% para legibilidad del texto ──
-  const topGrad = ctx.createLinearGradient(0,0,0,H*0.52);
-  topGrad.addColorStop(0,"rgba(0,0,0,0.88)");
-  topGrad.addColorStop(0.7,"rgba(0,0,0,0.55)");
-  topGrad.addColorStop(1,"rgba(0,0,0,0)");
-  ctx.fillStyle=topGrad; ctx.fillRect(0,0,W,H*0.52);
+  // Dark overlay ONLY top-left triangle area (diagonal cut)
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(0,0); ctx.lineTo(W*0.72,0); ctx.lineTo(0,H*0.72); ctx.closePath();
+  const triGrad = ctx.createLinearGradient(0,0,W*0.5,H*0.5);
+  triGrad.addColorStop(0,"rgba(0,0,0,0.82)");
+  triGrad.addColorStop(0.7,"rgba(0,0,0,0.55)");
+  triGrad.addColorStop(1,"rgba(0,0,0,0)");
+  ctx.fillStyle=triGrad; ctx.fill();
+  ctx.restore();
 
-  // ── BOTTOM GRADIENT — sutil para watermark ──
-  const botGrad = ctx.createLinearGradient(0,H*0.8,0,H);
-  botGrad.addColorStop(0,"rgba(0,0,0,0)"); botGrad.addColorStop(1,"rgba(0,0,0,0.5)");
-  ctx.fillStyle=botGrad; ctx.fillRect(0,H*0.8,W,H*0.2);
+  // Bottom gradient for watermark
+  const botGrad = ctx.createLinearGradient(0,H*0.82,0,H);
+  botGrad.addColorStop(0,"rgba(0,0,0,0)"); botGrad.addColorStop(1,"rgba(0,0,0,0.55)");
+  ctx.fillStyle=botGrad; ctx.fillRect(0,H*0.82,W,H*0.18);
 
-  // ── TOP ACCENT LINE ──
-  ctx.fillStyle=`rgb(${r},${g},${b})`; ctx.fillRect(0,0,W,10);
+  // Brand color accent bar — left edge
+  ctx.fillStyle=`rgb(${r},${g},${b})`;
+  ctx.fillRect(0, 0, 10, H);
 
-  // ── CATEGORY TAG ──
-  ctx.font="700 18px Arial,sans-serif";
+  // Category label
+  ctx.font="700 17px Arial,sans-serif";
   ctx.fillStyle=`rgb(${r},${g},${b})`;
   ctx.textAlign="left";
-  ctx.fillText("■  PUBLICACIÓN", 58, 64);
+  ctx.fillText("▲  MCM", 42, 58);
 
-  // ── MAIN HEADLINE — white, top left ──
+  // Main headline — diagonal layout, large
   if(text) {
     const words = text.split(" ");
+    // Group into lines of max 2 words
     const lines = [];
     for(let i=0;i<words.length;i+=2) lines.push(words.slice(i,i+2).join(" "));
 
-    let size = 155;
+    let size = 148;
     ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`;
-    while(size>50){
+    // Shrink until fits in diagonal zone (max width shrinks diagonally)
+    while(size>40){
       ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`;
-      if(Math.max(...lines.map(l=>ctx.measureText(l).width)) <= W-116) break;
+      const maxW = W*0.62 - 50;
+      if(Math.max(...lines.map(l=>ctx.measureText(l).width)) <= maxW) break;
       size-=4;
     }
 
-    const availH = H*0.44;
-    const lineH = size*0.95;
-    const totalH = lines.length*lineH;
-    // Fit vertically too
-    if(totalH > availH) {
-      const newSize = Math.floor(availH/lines.length/0.95);
-      size = Math.max(40, newSize);
-      ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`;
+    const availH = H*0.56;
+    const lH = size*0.96;
+    if(lines.length*lH > availH) {
+      const ns = Math.max(36, Math.floor(availH/lines.length/0.96));
+      size = ns; ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`;
     }
 
     ctx.fillStyle="#ffffff"; ctx.textAlign="left";
-    ctx.shadowColor="rgba(0,0,0,0.4)"; ctx.shadowBlur=12;
-    const lH = size*0.95;
-    const tH = lines.length*lH;
-    const startY = 90 + (availH-tH)/2 + size*0.85;
-    lines.forEach((ln,i)=>ctx.fillText(ln, 58, startY+i*lH));
+    ctx.shadowColor="rgba(0,0,0,0.5)"; ctx.shadowBlur=14;
+    const lineH = size*0.96;
+    const totalH = lines.length * lineH;
+    const startY = 90 + size*0.85;
+    lines.forEach((ln,i) => ctx.fillText(ln, 42, startY + i*lineH));
     ctx.shadowBlur=0;
 
-    // Underline accent
-    ctx.fillStyle=`rgba(${r},${g},${b},0.8)`;
-    ctx.fillRect(58, startY+tH-lH*0.1+16, 180, 5);
+    // Color accent line under last word
+    ctx.fillStyle=`rgb(${r},${g},${b})`;
+    ctx.fillRect(42, startY + totalH - lineH*0.1 + 14, Math.min(ctx.measureText(lines[lines.length-1]).width, 300), 6);
   }
 
-  // ── WATERMARK ──
-  ctx.font="600 18px Arial"; ctx.fillStyle="rgba(255,255,255,0.65)"; ctx.textAlign="right";
-  ctx.fillText("MCM", W-42, H-28);
+  // Bottom-right: watermark
+  ctx.font="600 17px Arial"; ctx.fillStyle="rgba(255,255,255,0.6)"; ctx.textAlign="right";
+  ctx.fillText("MCM", W-36, H-28);
 }
 
-// TEMPLATE 2 — DISEÑO GRÁFICO PURO (SIN FOTO)
-// Layout: composición geométrica, tipografía grande, sin imagen
-// Estilo: agencia de diseño, marca premium, texto más extenso
+// ════════════════════════════════════════════════════════════════
+// TEMPLATE 2 — DISEÑO GRÁFICO PURO
+// Sin foto. Tipografía masiva + geometría. Texto más extenso.
+// Variante visual basada en número de post (seed) para diversidad.
 // ════════════════════════════════════════════════════════════════
 async function drawTemplate2(canvas, opt) {
   const ctx = canvas.getContext("2d");
   const W=1080, H=1080;
   canvas.width=W; canvas.height=H;
   const {r,g,b} = hexToRgb(opt.brandColor||"#6d28d9");
-  const text = (opt.overlayText||"").replace(/[\*\_\#]/g,"").trim();
+  const text = (opt.overlayText||"").replace(/[\*\_\#]/g,"").trim().toUpperCase();
   const caption = (opt.caption||"").replace(/[\*\_\#\n]/g," ").replace(/\s+/g," ").trim();
+  const seed = opt.seed || 0; // post index for variation
+  const variant = seed % 3; // 3 layout variants
 
-  // ── BACKGROUND: dark with geometric shapes ──
-  ctx.fillStyle = "#0a0a0f";
-  ctx.fillRect(0,0,W,H);
+  if(variant === 0) {
+    // ── VARIANT A: Diagonal split ──
+    ctx.fillStyle="#050510"; ctx.fillRect(0,0,W,H);
 
-  // Large circle — color accent, top right
-  ctx.beginPath();
-  ctx.arc(W+100, -100, 520, 0, Math.PI*2);
-  const circGrad = ctx.createRadialGradient(W+100,-100,0,W+100,-100,520);
-  circGrad.addColorStop(0, `rgba(${r},${g},${b},0.7)`);
-  circGrad.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = circGrad; ctx.fill();
+    // Left color panel (diagonal cut)
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(0,0); ctx.lineTo(W*0.55,0); ctx.lineTo(W*0.38,H); ctx.lineTo(0,H); ctx.closePath();
+    ctx.fillStyle=`rgb(${r},${g},${b})`; ctx.fill();
+    ctx.restore();
 
-  // Second circle — bottom left
-  ctx.beginPath(); ctx.arc(-60, H+60, 340, 0, Math.PI*2);
-  const circGrad2 = ctx.createRadialGradient(-60,H+60,0,-60,H+60,340);
-  circGrad2.addColorStop(0, `rgba(${r},${g},${b},0.4)`);
-  circGrad2.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle=circGrad2; ctx.fill();
+    // Dots grid on right side
+    ctx.fillStyle="rgba(255,255,255,0.06)";
+    for(let dx=W*0.5;dx<W;dx+=36) for(let dy=0;dy<H;dy+=36) {
+      ctx.beginPath(); ctx.arc(dx,dy,2,0,Math.PI*2); ctx.fill();
+    }
 
-  // Horizontal lines — decorative
-  ctx.strokeStyle = `rgba(${r},${g},${b},0.15)`; ctx.lineWidth=1;
-  for(let y=0;y<H;y+=54){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+    // Large number / decorative element
+    ctx.font=`900 420px Impact,'Arial Black',sans-serif`;
+    ctx.fillStyle=`rgba(${r},${g},${b},0.12)`;
+    ctx.textAlign="right";
+    ctx.fillText("0"+(((seed||0)%7)+1), W-30, H*0.75);
 
-  // ── LARGE COLOR BLOCK — left ──
-  ctx.fillStyle = `rgb(${r},${g},${b})`;
-  rRect(ctx, 50, 200, 18, H-400, 9);
-  ctx.fill();
-
-  // ── MAIN HEADLINE — large, left-aligned ──
-  if(text) {
-    const words = text.toUpperCase().split(" ");
-    const lines = [];
-    for(let i=0;i<words.length;i+=2) lines.push(words.slice(i,i+2).join(" "));
-    
-    let size = 150;
-    ctx.font = `900 ${size}px Impact,'Arial Black',sans-serif`;
-    while(size>50){
+    // Headline on colored panel
+    if(text) {
+      const words=text.split(" ");
+      const lines=[]; for(let i=0;i<words.length;i+=2) lines.push(words.slice(i,i+2).join(" "));
+      let size=130;
       ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`;
-      if(Math.max(...lines.map(l=>ctx.measureText(l).width)) <= W-160) break;
-      size-=4;
+      while(size>36){ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`;if(Math.max(...lines.map(l=>ctx.measureText(l).width))<=W*0.45-30)break;size-=4;}
+      ctx.fillStyle="#ffffff"; ctx.textAlign="left";
+      ctx.shadowColor="rgba(0,0,0,0.3)"; ctx.shadowBlur=8;
+      const lineH=size*0.95; const startY=H*0.2+size*0.85;
+      lines.forEach((ln,i)=>ctx.fillText(ln, 48, startY+i*lineH));
+      ctx.shadowBlur=0;
     }
-    ctx.fillStyle="#ffffff"; ctx.textAlign="left";
-    const lineH=size*0.95;
-    const startY=200+size*0.9;
-    lines.forEach((ln,i)=>ctx.fillText(ln, 96, startY+i*lineH));
-  }
 
-  // ── EXTENDED TEXT — body copy ──
-  if(caption) {
-    const bodySize = 32;
-    ctx.font = `300 ${bodySize}px Arial,sans-serif`;
-    ctx.fillStyle="rgba(255,255,255,0.75)";
-    ctx.textAlign="left";
-    const maxW = W-150;
-    const words = caption.split(" ");
-    const lines=[]; let line="";
-    for(const w of words){
-      const t=line+(line?" ":"")+w;
-      if(ctx.measureText(t).width>maxW){if(line)lines.push(line);line=w;}
-      else line=t;
-      if(lines.length>=4) break;
+    // Body text on dark right panel
+    if(caption) {
+      const sz=30; ctx.font=`300 ${sz}px Arial,sans-serif`;
+      ctx.fillStyle="rgba(255,255,255,0.72)"; ctx.textAlign="left";
+      const maxW=W*0.52; const words=caption.split(" ");
+      const lines=[]; let line="";
+      for(const w of words){
+        const t=line+(line?" ":"")+w;
+        if(ctx.measureText(t).width>maxW){if(line)lines.push(line);line=w;}else line=t;
+        if(lines.length>=5) break;
+      }
+      if(line&&lines.length<5) lines.push(line);
+      const bodyY=H-220;
+      lines.forEach((ln,i)=>ctx.fillText(ln, W*0.46, bodyY+i*(sz*1.5)));
     }
-    if(line&&lines.length<4) lines.push(line);
-    const bodyY = H-280;
-    lines.forEach((ln,i)=>ctx.fillText(ln, 96, bodyY+i*(bodySize*1.5)));
+
+    // Bottom bar
+    ctx.fillStyle="rgba(0,0,0,0.85)"; ctx.fillRect(0,H-60,W,60);
+    ctx.font="700 20px Arial"; ctx.fillStyle="#ffffff"; ctx.textAlign="right";
+    ctx.fillText("MY COMMUNITY MANAGER", W-40, H-20);
+
+  } else if(variant === 1) {
+    // ── VARIANT B: Horizontal stripes + massive type ──
+    ctx.fillStyle="#000000"; ctx.fillRect(0,0,W,H);
+
+    // Horizontal colored stripes
+    const stripes=[0.08,0.16,0.24,0.32,0.40,0.48,0.56,0.64,0.72,0.80,0.88,0.96];
+    stripes.forEach((y,i)=>{
+      ctx.fillStyle=i%2===0?`rgba(${r},${g},${b},0.08)`:"rgba(255,255,255,0.02)";
+      ctx.fillRect(0,H*y,W,H*0.08);
+    });
+
+    // Full-width color band
+    ctx.fillStyle=`rgb(${r},${g},${b})`;
+    ctx.fillRect(0,H*0.46,W,H*0.12);
+
+    // Big text across color band (inverted)
+    if(text) {
+      const words=text.split(" ");
+      let size=100;
+      ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`;
+      while(size>24&&ctx.measureText(text).width>W-80) size-=4;
+      ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`;
+      ctx.fillStyle="#000000"; ctx.textAlign="center";
+      ctx.fillText(text, W/2, H*0.46+H*0.12*0.68);
+    }
+
+    // Large decorative letter top
+    ctx.font=`900 380px Impact,'Arial Black',sans-serif`;
+    ctx.fillStyle=`rgba(${r},${g},${b},0.07)`; ctx.textAlign="center";
+    ctx.fillText(text ? text[0] : "M", W/2, H*0.4);
+
+    // Caption text bottom
+    if(caption) {
+      const sz=28; ctx.font=`400 ${sz}px Arial,sans-serif`;
+      ctx.fillStyle="rgba(255,255,255,0.65)"; ctx.textAlign="center";
+      const maxW=W-200; const words=caption.split(" ");
+      const lines=[]; let line="";
+      for(const w of words){const t=line+(line?" ":"")+w;if(ctx.measureText(t).width>maxW){if(line)lines.push(line);line=w;}else line=t;if(lines.length>=3)break;}
+      if(line&&lines.length<3)lines.push(line);
+      lines.forEach((ln,i)=>ctx.fillText(ln, W/2, H*0.72+i*(sz*1.5)));
+    }
+
+    ctx.font="700 18px Arial"; ctx.fillStyle=`rgba(${r},${g},${b},0.9)`; ctx.textAlign="left";
+    ctx.fillText("● MCM", 48, H-28);
+
+  } else {
+    // ── VARIANT C: Geometric shapes composition ──
+    ctx.fillStyle="#03020a"; ctx.fillRect(0,0,W,H);
+
+    // Background large circle
+    ctx.beginPath(); ctx.arc(W*0.5, H*0.42, W*0.38, 0, Math.PI*2);
+    ctx.strokeStyle=`rgba(${r},${g},${b},0.18)`; ctx.lineWidth=2; ctx.stroke();
+    ctx.beginPath(); ctx.arc(W*0.5, H*0.42, W*0.28, 0, Math.PI*2);
+    ctx.strokeStyle=`rgba(${r},${g},${b},0.12)`; ctx.lineWidth=1; ctx.stroke();
+
+    // Filled circle — color
+    ctx.beginPath(); ctx.arc(W*0.78, H*0.22, W*0.16, 0, Math.PI*2);
+    ctx.fillStyle=`rgb(${r},${g},${b})`; ctx.fill();
+
+    // Bottom-left rectangle
+    rRect(ctx, 0, H*0.72, W*0.42, H*0.28, 0);
+    ctx.fillStyle=`rgb(${r},${g},${b})`; ctx.fill();
+
+    // Corner brackets decorative
+    ctx.strokeStyle=`rgba(${r},${g},${b},0.5)`; ctx.lineWidth=3;
+    // top-left
+    ctx.beginPath(); ctx.moveTo(36,36); ctx.lineTo(36,100); ctx.moveTo(36,36); ctx.lineTo(100,36); ctx.stroke();
+    // bottom-right
+    ctx.beginPath(); ctx.moveTo(W-36,H-36); ctx.lineTo(W-36,H-100); ctx.moveTo(W-36,H-36); ctx.lineTo(W-100,H-36); ctx.stroke();
+
+    // Headline — large, white on dark
+    if(text) {
+      const words=text.split(" ");
+      const lines=[]; for(let i=0;i<words.length;i+=2) lines.push(words.slice(i,i+2).join(" "));
+      let size=138;
+      ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`;
+      while(size>36){ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`;if(Math.max(...lines.map(l=>ctx.measureText(l).width))<=W*0.8)break;size-=4;}
+      ctx.fillStyle="#ffffff"; ctx.textAlign="center";
+      const lH=size*0.95; const startY=H*0.18+size*0.85;
+      lines.forEach((ln,i)=>ctx.fillText(ln, W/2, startY+i*lH));
+    }
+
+    // Caption on colored rectangle (bottom-left)
+    if(caption) {
+      const sz=26; ctx.font=`400 ${sz}px Arial,sans-serif`;
+      ctx.fillStyle="rgba(255,255,255,0.85)"; ctx.textAlign="left";
+      const maxW=W*0.36; const words=caption.split(" ");
+      const lines=[]; let line="";
+      for(const w of words){const t=line+(line?" ":"")+w;if(ctx.measureText(t).width>maxW){if(line)lines.push(line);line=w;}else line=t;if(lines.length>=4)break;}
+      if(line&&lines.length<4)lines.push(line);
+      lines.forEach((ln,i)=>ctx.fillText(ln, 32, H*0.78+i*(sz*1.45)));
+    }
+
+    // White circle with brand initial on colored circle
+    ctx.beginPath(); ctx.arc(W*0.78, H*0.22, 36, 0, Math.PI*2);
+    ctx.fillStyle="rgba(255,255,255,0.15)"; ctx.fill();
+    ctx.font="700 26px Arial"; ctx.fillStyle="#fff"; ctx.textAlign="center";
+    ctx.fillText("M", W*0.78, H*0.22+9);
   }
-
-  // ── BOTTOM BAR ──
-  ctx.fillStyle=`rgba(${r},${g},${b},0.9)`;
-  ctx.fillRect(0,H-72,W,72);
-  ctx.font="700 22px Arial"; ctx.fillStyle="#ffffff"; ctx.textAlign="left";
-  ctx.fillText("MCM · MY COMMUNITY MANAGER", 48, H-27);
-
-  // Decorative corner elements
-  ctx.strokeStyle=`rgba(${r},${g},${b},0.5)`; ctx.lineWidth=2;
-  // top-left corner brackets
-  ctx.beginPath(); ctx.moveTo(38,38); ctx.lineTo(38,90); ctx.moveTo(38,38); ctx.lineTo(90,38); ctx.stroke();
-  // bottom-right
-  ctx.beginPath(); ctx.moveTo(W-38,H-82); ctx.lineTo(W-38,H-90-36); ctx.moveTo(W-38,H-82); ctx.lineTo(W-90,H-82); ctx.stroke();
 }
 
 // ════════════════════════════════════════════════════════════════
-// TEMPLATE 3 — FONDO GENERADO POR IA (según rubro)
-// Cada industria tiene su propio lenguaje visual, paleta y elementos gráficos
+// TEMPLATE 3 — FONDO GENERADO POR IA SEGÚN RUBRO
+// Cada industria tiene composición visual única, paleta propia,
+// elementos gráficos representativos y 2 sub-variantes.
 // ════════════════════════════════════════════════════════════════
 async function drawTemplate3(canvas, opt) {
   const ctx = canvas.getContext("2d");
@@ -346,192 +409,535 @@ async function drawTemplate3(canvas, opt) {
   const {r,g,b} = hexToRgb(opt.brandColor||"#6d28d9");
   const text = (opt.overlayText||"").replace(/[\*\_\#]/g,"").trim().toUpperCase();
   const industry = (opt.industry||"").toLowerCase();
+  const caption = (opt.caption||"");
+  const seed = opt.seed||0;
+  const subV = seed % 2; // sub-variant A or B
 
-  const isFood = /gastro|restaurante|pizza|cafe|comida|food|panaderia|heladeria|granja|organica/i.test(industry+opt.caption);
-  const isHealth = /salud|fitness|deporte|medic|bienestar|gym/i.test(industry);
-  const isRealEstate = /inmobil|construcci|arquitect|paisaj/i.test(industry);
-  const isTech = /tecnolog|software|digital|web|app/i.test(industry);
-  const isFashion = /moda|ropa|indument|fashion|belleza|estetica/i.test(industry);
+  // ── INDUSTRY DETECTION ──
+  const isFood      = /gastro|restaurante|pizza|cafe|cafeter|comida|food|panaderia|heladeria|granja|organica|cocina|chef|bar |bar$|bebida|fruta|verdura|carnicer|sushi|hamburgues/i.test(industry+caption);
+  const isHealth    = /salud|fitness|deporte|medic|bienestar|gym|nutricion|yoga|pilates|psicolog|odontolog|farmacia|clinica/i.test(industry);
+  const isRealEstate= /inmobil|construcci|arquitect|ingenieria civil|contratista/i.test(industry);
+  const isLandscape = /paisaj|jardin|plantas|vivero|botanica|florister/i.test(industry);
+  const isTech      = /tecnolog|software|digital|web|app|programac|desarroll|sistemas|startup|ia |inteligencia/i.test(industry);
+  const isFashion   = /moda|ropa|indument|fashion|calzado|accesorio/i.test(industry);
+  const isBeauty    = /belleza|estetica|peluquer|cosmet|spa|manicur|maquillaje/i.test(industry);
+  const isTourism   = /turismo|viajes|hotel|hospedaje|cabana|lodge|hostel|agencia de viaje/i.test(industry);
+  const isEducation = /educac|escuela|academia|instituto|universidad|capacitac|curso|coaching/i.test(industry);
+  const isRetail    = /retail|tienda|comercio|venta|negocio|kiosco|supermercado/i.test(industry);
+  const isPhoto     = /fotograf|video|audiovisual|produccion/i.test(industry);
+  const isConstruc  = /construcci|materiales|ferreteria|pinturer/i.test(industry);
 
-  // ── FOOD & GASTRONOMY: vapores, círculos cálidos, textura rugosa ──
+  // ────────────────────────────
+  // GASTRONOMÍA — cálido, textural, apetitoso
+  // ────────────────────────────
   if(isFood) {
-    // Deep warm background
-    ctx.fillStyle="#0d0500"; ctx.fillRect(0,0,W,H);
+    if(subV===0) {
+      // Dark moody kitchen — chiaroscuro
+      ctx.fillStyle="#080300"; ctx.fillRect(0,0,W,H);
 
-    // Main warm glow — center right (simula luz de cocina)
-    const glow1=ctx.createRadialGradient(W*0.75,H*0.35,0,W*0.75,H*0.35,W*0.55);
-    glow1.addColorStop(0,"rgba(200,80,0,0.55)");
-    glow1.addColorStop(0.5,"rgba(150,40,0,0.25)");
-    glow1.addColorStop(1,"rgba(0,0,0,0)");
-    ctx.fillStyle=glow1; ctx.fillRect(0,0,W,H);
+      // Main warm spot light — center
+      const spot=ctx.createRadialGradient(W*0.5,H*0.38,0,W*0.5,H*0.38,W*0.52);
+      spot.addColorStop(0,"rgba(220,100,0,0.48)");
+      spot.addColorStop(0.4,"rgba(160,50,0,0.22)");
+      spot.addColorStop(1,"rgba(0,0,0,0)");
+      ctx.fillStyle=spot; ctx.fillRect(0,0,W,H);
 
-    // Secondary amber glow — bottom
-    const glow2=ctx.createRadialGradient(W*0.4,H*0.85,0,W*0.4,H*0.85,W*0.4);
-    glow2.addColorStop(0,"rgba(220,140,0,0.3)");
-    glow2.addColorStop(1,"rgba(0,0,0,0)");
-    ctx.fillStyle=glow2; ctx.fillRect(0,0,W,H);
+      // Secondary warm glow bottom
+      const glow2=ctx.createRadialGradient(W*0.5,H,0,W*0.5,H,W*0.5);
+      glow2.addColorStop(0,"rgba(200,80,0,0.2)"); glow2.addColorStop(1,"rgba(0,0,0,0)");
+      ctx.fillStyle=glow2; ctx.fillRect(0,0,W,H);
 
-    // Plate circle — center right (evoca un plato)
-    ctx.beginPath(); ctx.arc(W*0.72,H*0.38,260,0,Math.PI*2);
-    ctx.strokeStyle="rgba(220,120,0,0.18)"; ctx.lineWidth=2; ctx.stroke();
-    ctx.beginPath(); ctx.arc(W*0.72,H*0.38,200,0,Math.PI*2);
-    ctx.strokeStyle="rgba(220,120,0,0.12)"; ctx.lineWidth=1; ctx.stroke();
-    ctx.beginPath(); ctx.arc(W*0.72,H*0.38,130,0,Math.PI*2);
-    ctx.strokeStyle="rgba(220,120,0,0.25)"; ctx.lineWidth=1.5; ctx.stroke();
+      // Plate circle composition — large
+      ctx.beginPath(); ctx.arc(W*0.5,H*0.38,W*0.3,0,Math.PI*2);
+      ctx.strokeStyle="rgba(255,160,40,0.25)"; ctx.lineWidth=2; ctx.stroke();
+      ctx.beginPath(); ctx.arc(W*0.5,H*0.38,W*0.22,0,Math.PI*2);
+      ctx.strokeStyle="rgba(255,160,40,0.15)"; ctx.lineWidth=1.5; ctx.stroke();
+      ctx.beginPath(); ctx.arc(W*0.5,H*0.38,W*0.12,0,Math.PI*2);
+      ctx.strokeStyle="rgba(255,160,40,0.3)"; ctx.lineWidth=1; ctx.stroke();
 
-    // Steam lines — vertical wavy (simula vapor)
-    ctx.strokeStyle="rgba(255,200,100,0.08)"; ctx.lineWidth=2;
-    [W*0.6, W*0.68, W*0.76, W*0.84].forEach((x,i)=>{
-      ctx.beginPath();
-      for(let y=H*0.6;y>H*0.1;y-=20){
-        const wave=Math.sin((y+i*40)*0.04)*12;
-        y===Math.round(H*0.6)?ctx.moveTo(x+wave,y):ctx.lineTo(x+wave,y);
-      }
-      ctx.stroke();
-    });
-
-    // Grain texture overlay
-    for(let i=0;i<800;i++){
-      const x=Math.random()*W, y=Math.random()*H;
-      ctx.fillStyle=`rgba(255,180,60,${Math.random()*0.04})`;
-      ctx.fillRect(x,y,1.5,1.5);
-    }
-
-  // ── HEALTH & FITNESS: energía, líneas de movimiento, verde ──
-  } else if(isHealth) {
-    ctx.fillStyle="#020d06"; ctx.fillRect(0,0,W,H);
-    const glow=ctx.createRadialGradient(W*0.5,H*0.4,0,W*0.5,H*0.4,W*0.65);
-    glow.addColorStop(0,"rgba(0,220,100,0.28)"); glow.addColorStop(1,"rgba(0,0,0,0)");
-    ctx.fillStyle=glow; ctx.fillRect(0,0,W,H);
-    // Speed lines
-    ctx.strokeStyle="rgba(0,200,80,0.07)"; ctx.lineWidth=1;
-    for(let i=0;i<20;i++){
-      const y=Math.random()*H;
-      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y+(Math.random()-0.5)*60); ctx.stroke();
-    }
-    // Heartbeat line
-    ctx.strokeStyle="rgba(0,230,100,0.4)"; ctx.lineWidth=3;
-    ctx.beginPath();
-    const pts=[0,H*0.5,W*0.2,H*0.5,W*0.3,H*0.5,W*0.35,H*0.25,W*0.4,H*0.65,W*0.45,H*0.5,W*0.55,H*0.5,W,H*0.5];
-    for(let i=0;i<pts.length;i+=2) i===0?ctx.moveTo(pts[i],pts[i+1]):ctx.lineTo(pts[i],pts[i+1]);
-    ctx.stroke();
-
-  // ── REAL ESTATE: plano arquitectónico, líneas precisas ──
-  } else if(isRealEstate) {
-    ctx.fillStyle="#04060f"; ctx.fillRect(0,0,W,H);
-    // Blueprint grid
-    ctx.strokeStyle="rgba(80,130,255,0.07)"; ctx.lineWidth=1;
-    for(let x=0;x<W;x+=54){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
-    for(let y=0;y<H;y+=54){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
-    // House silhouette — abstract line art
-    ctx.strokeStyle=`rgba(${r},${g},${b},0.35)`; ctx.lineWidth=2;
-    const hx=W*0.62, hy=H*0.28, hw=W*0.28, hh=H*0.3;
-    ctx.beginPath();
-    // roof
-    ctx.moveTo(hx,hy+hh*0.4); ctx.lineTo(hx+hw/2,hy); ctx.lineTo(hx+hw,hy+hh*0.4);
-    // walls
-    ctx.lineTo(hx+hw,hy+hh); ctx.lineTo(hx,hy+hh); ctx.lineTo(hx,hy+hh*0.4);
-    // door
-    ctx.moveTo(hx+hw*0.4,hy+hh); ctx.lineTo(hx+hw*0.4,hy+hh*0.7); ctx.lineTo(hx+hw*0.6,hy+hh*0.7); ctx.lineTo(hx+hw*0.6,hy+hh);
-    ctx.stroke();
-    const glow=ctx.createRadialGradient(W*0.72,H*0.44,0,W*0.72,H*0.44,W*0.4);
-    glow.addColorStop(0,`rgba(${r},${g},${b},0.2)`); glow.addColorStop(1,"rgba(0,0,0,0)");
-    ctx.fillStyle=glow; ctx.fillRect(0,0,W,H);
-
-  // ── TECH: circuito, nodos, cyan ──
-  } else if(isTech) {
-    ctx.fillStyle="#02040a"; ctx.fillRect(0,0,W,H);
-    // Circuit lines
-    ctx.strokeStyle="rgba(0,200,255,0.1)"; ctx.lineWidth=1;
-    const nodes=[[W*0.3,H*0.3],[W*0.6,H*0.25],[W*0.75,H*0.5],[W*0.5,H*0.65],[W*0.25,H*0.55]];
-    nodes.forEach(([x,y],i)=>{
-      nodes.forEach(([x2,y2],j)=>{
-        if(i<j){ ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x2,y2); ctx.stroke(); }
+      // Steam lines
+      ctx.strokeStyle="rgba(255,200,80,0.07)"; ctx.lineWidth=2;
+      [0.38,0.46,0.54,0.62].forEach((xr,i)=>{
+        ctx.beginPath();
+        for(let y=H*0.55;y>H*0.08;y-=18){
+          const wv=Math.sin((y+i*55)*0.05)*14;
+          y===Math.round(H*0.55)?ctx.moveTo(W*xr+wv,y):ctx.lineTo(W*xr+wv,y);
+        }
+        ctx.stroke();
       });
-      ctx.beginPath(); ctx.arc(x,y,6,0,Math.PI*2);
-      ctx.fillStyle="rgba(0,200,255,0.4)"; ctx.fill();
-    });
-    const glow=ctx.createRadialGradient(W*0.5,H*0.4,0,W*0.5,H*0.4,W*0.55);
-    glow.addColorStop(0,"rgba(0,180,255,0.18)"); glow.addColorStop(1,"rgba(0,0,0,0)");
-    ctx.fillStyle=glow; ctx.fillRect(0,0,W,H);
 
-  // ── FASHION: geometría elegante, diagonales, rosa/negro ──
+      // Grain
+      for(let i=0;i<600;i++){
+        ctx.fillStyle=`rgba(255,150,40,${Math.random()*0.035})`;
+        ctx.fillRect(Math.random()*W,Math.random()*H,1.5,1.5);
+      }
+    } else {
+      // Rustic warm — linen texture, earthy
+      ctx.fillStyle="#0c0600"; ctx.fillRect(0,0,W,H);
+      // Warm background gradient
+      const bg=ctx.createLinearGradient(0,0,W,H);
+      bg.addColorStop(0,"rgba(80,30,0,0.6)"); bg.addColorStop(1,"rgba(0,0,0,0)");
+      ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+      // Linen grid lines
+      ctx.strokeStyle="rgba(220,150,60,0.06)"; ctx.lineWidth=1;
+      for(let i=0;i<W;i+=24){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,H);ctx.stroke();}
+      for(let i=0;i<H;i+=24){ctx.beginPath();ctx.moveTo(0,i);ctx.lineTo(W,i);ctx.stroke();}
+      // Large fork & knife silhouette (abstract lines)
+      ctx.strokeStyle=`rgba(${r},${g},${b},0.22)`; ctx.lineWidth=4; ctx.lineCap="round";
+      // Fork
+      ctx.beginPath(); ctx.moveTo(W*0.72,H*0.1); ctx.lineTo(W*0.72,H*0.7); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(W*0.69,H*0.1); ctx.lineTo(W*0.69,H*0.35); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(W*0.75,H*0.1); ctx.lineTo(W*0.75,H*0.35); ctx.stroke();
+      // Knife
+      ctx.beginPath(); ctx.moveTo(W*0.8,H*0.1); ctx.lineTo(W*0.8,H*0.7); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(W*0.8,H*0.1); ctx.lineTo(W*0.84,H*0.28); ctx.lineTo(W*0.8,H*0.32); ctx.stroke();
+      ctx.lineCap="butt";
+      // Amber glow center
+      const spot=ctx.createRadialGradient(W*0.38,H*0.42,0,W*0.38,H*0.42,W*0.45);
+      spot.addColorStop(0,"rgba(200,90,10,0.35)"); spot.addColorStop(1,"rgba(0,0,0,0)");
+      ctx.fillStyle=spot; ctx.fillRect(0,0,W,H);
+    }
+
+  // ────────────────────────────
+  // SALUD & FITNESS
+  // ────────────────────────────
+  } else if(isHealth) {
+    if(subV===0) {
+      // Clean clinical — white/teal/green, energetic
+      ctx.fillStyle="#010d06"; ctx.fillRect(0,0,W,H);
+      // Energy burst center
+      const burst=ctx.createRadialGradient(W*0.5,H*0.42,0,W*0.5,H*0.42,W*0.55);
+      burst.addColorStop(0,"rgba(0,230,130,0.3)");
+      burst.addColorStop(0.5,"rgba(0,180,100,0.12)");
+      burst.addColorStop(1,"rgba(0,0,0,0)");
+      ctx.fillStyle=burst; ctx.fillRect(0,0,W,H);
+      // Dynamic diagonal lines (speed)
+      ctx.strokeStyle="rgba(0,220,120,0.07)"; ctx.lineWidth=1;
+      for(let i=-H;i<W+H;i+=28){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i+H,H);ctx.stroke();}
+      // Heartbeat line
+      ctx.strokeStyle="rgba(0,240,130,0.55)"; ctx.lineWidth=3; ctx.lineJoin="round";
+      ctx.beginPath();
+      const hbPts=[0,H*0.5, W*0.15,H*0.5, W*0.22,H*0.5, W*0.28,H*0.2, W*0.32,H*0.72, W*0.38,H*0.42, W*0.44,H*0.5, W*0.55,H*0.5, W,H*0.5];
+      for(let i=0;i<hbPts.length;i+=2) i===0?ctx.moveTo(hbPts[i],hbPts[i+1]):ctx.lineTo(hbPts[i],hbPts[i+1]);
+      ctx.stroke();
+      // Concentric health rings
+      [200,145,90].forEach((rad,i)=>{
+        ctx.beginPath(); ctx.arc(W*0.82,H*0.22,rad,0,Math.PI*2);
+        ctx.strokeStyle=`rgba(0,220,120,${0.2-i*0.05})`; ctx.lineWidth=1.5; ctx.stroke();
+      });
+    } else {
+      // Bold fitness — dark, muscular, red+black
+      ctx.fillStyle="#0a0003"; ctx.fillRect(0,0,W,H);
+      const glow=ctx.createRadialGradient(W*0.5,H*0.4,0,W*0.5,H*0.4,W*0.6);
+      glow.addColorStop(0,"rgba(220,0,60,0.22)"); glow.addColorStop(1,"rgba(0,0,0,0)");
+      ctx.fillStyle=glow; ctx.fillRect(0,0,W,H);
+      // Grid
+      ctx.strokeStyle="rgba(220,0,60,0.06)"; ctx.lineWidth=1;
+      for(let x=0;x<W;x+=48){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+      for(let y=0;y<H;y+=48){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+      // Diagonal accent stripe
+      ctx.save(); ctx.translate(W*0.5,H*0.5); ctx.rotate(Math.PI*-0.08);
+      ctx.fillStyle=`rgba(${r},${g},${b},0.15)`; ctx.fillRect(-W*0.6,-H*0.04,W*1.2,H*0.08);
+      ctx.restore();
+      // Dumbbell silhouette (abstract)
+      ctx.strokeStyle=`rgba(${r},${g},${b},0.3)`; ctx.lineWidth=5; ctx.lineCap="round";
+      ctx.beginPath(); ctx.moveTo(W*0.62,H*0.38); ctx.lineTo(W*0.86,H*0.38); ctx.stroke();
+      // weights
+      [[W*0.62,H*0.38,24],[W*0.86,H*0.38,24]].forEach(([cx,cy,rad])=>{
+        ctx.beginPath(); ctx.arc(cx,cy,rad,0,Math.PI*2);
+        ctx.strokeStyle=`rgba(${r},${g},${b},0.35)`; ctx.lineWidth=4; ctx.stroke();
+      });
+      ctx.lineCap="butt";
+    }
+
+  // ────────────────────────────
+  // PAISAJISMO & JARDINES
+  // ────────────────────────────
+  } else if(isLandscape) {
+    ctx.fillStyle="#020a02"; ctx.fillRect(0,0,W,H);
+    // Rich green atmosphere
+    const natGlow=ctx.createRadialGradient(W*0.5,H*0.3,0,W*0.5,H*0.3,W*0.65);
+    natGlow.addColorStop(0,"rgba(20,120,20,0.4)");
+    natGlow.addColorStop(0.5,"rgba(10,60,10,0.2)");
+    natGlow.addColorStop(1,"rgba(0,0,0,0)");
+    ctx.fillStyle=natGlow; ctx.fillRect(0,0,W,H);
+    // Organic circles (foliage)
+    const leaves=[
+      [W*0.2,H*0.2,120],[W*0.75,H*0.18,95],[W*0.9,H*0.45,70],
+      [W*0.1,H*0.55,85],[W*0.85,H*0.75,60],[W*0.3,H*0.8,75]
+    ];
+    leaves.forEach(([cx,cy,rad],i)=>{
+      ctx.beginPath(); ctx.arc(cx,cy,rad,0,Math.PI*2);
+      ctx.fillStyle=`rgba(${20+i*5},${80+i*8},${10+i*3},0.18)`; ctx.fill();
+      ctx.strokeStyle=`rgba(40,160,40,0.15)`; ctx.lineWidth=1; ctx.stroke();
+    });
+    // Thin branch lines
+    ctx.strokeStyle="rgba(60,120,20,0.2)"; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(W*0.5,H); ctx.lineTo(W*0.5,H*0.6);
+    ctx.lineTo(W*0.3,H*0.3); ctx.moveTo(W*0.5,H*0.6); ctx.lineTo(W*0.65,H*0.28);
+    ctx.moveTo(W*0.65,H*0.28); ctx.lineTo(W*0.78,H*0.16);
+    ctx.stroke();
+    // Sunray top
+    const sun=ctx.createRadialGradient(W*0.5,0,0,W*0.5,0,W*0.55);
+    sun.addColorStop(0,"rgba(150,220,50,0.22)"); sun.addColorStop(1,"rgba(0,0,0,0)");
+    ctx.fillStyle=sun; ctx.fillRect(0,0,W,H*0.6);
+
+  // ────────────────────────────
+  // INMOBILIARIA / CONSTRUCCIÓN
+  // ────────────────────────────
+  } else if(isRealEstate || isConstruc) {
+    if(subV===0) {
+      // Blueprint / plano arquitectónico
+      ctx.fillStyle="#020510"; ctx.fillRect(0,0,W,H);
+      const bpBg=ctx.createLinearGradient(0,0,W,H);
+      bpBg.addColorStop(0,"rgba(10,30,80,0.5)"); bpBg.addColorStop(1,"rgba(0,0,20,0)");
+      ctx.fillStyle=bpBg; ctx.fillRect(0,0,W,H);
+      // Blueprint grid
+      ctx.strokeStyle="rgba(80,140,255,0.1)"; ctx.lineWidth=1;
+      for(let x=0;x<W;x+=54){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+      for(let y=0;y<H;y+=54){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+      ctx.strokeStyle="rgba(80,140,255,0.04)"; ctx.lineWidth=0.5;
+      for(let x=0;x<W;x+=18){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+      for(let y=0;y<H;y+=18){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+      // Floor plan silhouette
+      ctx.strokeStyle=`rgba(${r},${g},${b},0.45)`; ctx.lineWidth=2;
+      const bx=W*0.22, by=H*0.18, bw=W*0.56, bh=H*0.44;
+      // Outer walls
+      ctx.strokeRect(bx,by,bw,bh);
+      // Inner rooms
+      ctx.beginPath(); ctx.moveTo(bx+bw*0.5,by); ctx.lineTo(bx+bw*0.5,by+bh*0.6); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(bx,by+bh*0.5); ctx.lineTo(bx+bw*0.5,by+bh*0.5); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(bx+bw*0.5,by+bh*0.35); ctx.lineTo(bx+bw,by+bh*0.35); ctx.stroke();
+      // Door arcs
+      ctx.beginPath(); ctx.arc(bx+bw*0.5,by+bh*0.5,22,Math.PI,Math.PI*1.5);
+      ctx.strokeStyle=`rgba(${r},${g},${b},0.3)`; ctx.stroke();
+      // Glow
+      const glow=ctx.createRadialGradient(W*0.5,H*0.4,0,W*0.5,H*0.4,W*0.42);
+      glow.addColorStop(0,`rgba(${r},${g},${b},0.15)`); glow.addColorStop(1,"rgba(0,0,0,0)");
+      ctx.fillStyle=glow; ctx.fillRect(0,0,W,H);
+    } else {
+      // Premium real estate — minimalist city silhouette
+      ctx.fillStyle="#040408"; ctx.fillRect(0,0,W,H);
+      const sky=ctx.createLinearGradient(0,0,0,H*0.6);
+      sky.addColorStop(0,`rgba(${r},${g},${b},0.18)`); sky.addColorStop(1,"rgba(0,0,0,0)");
+      ctx.fillStyle=sky; ctx.fillRect(0,0,W,H*0.6);
+      // City buildings silhouette
+      const buildings=[
+        [0.05,0.45,0.12,0.45],[0.18,0.28,0.1,0.62],[0.29,0.38,0.08,0.52],
+        [0.38,0.2,0.11,0.7],[0.5,0.32,0.09,0.58],[0.6,0.15,0.13,0.75],
+        [0.74,0.25,0.1,0.65],[0.85,0.42,0.09,0.48],[0.95,0.35,0.06,0.55]
+      ];
+      buildings.forEach(([x,h,w,bot])=>{
+        ctx.fillStyle=`rgba(${r},${g},${b},0.12)`;
+        ctx.fillRect(W*x, H*h, W*w, H*(bot-h));
+        ctx.strokeStyle=`rgba(${r},${g},${b},0.25)`; ctx.lineWidth=0.5;
+        ctx.strokeRect(W*x, H*h, W*w, H*(bot-h));
+        // Windows
+        for(let wy=H*h+8;wy<H*bot-8;wy+=20){
+          for(let wx=W*x+6;wx<W*(x+w)-6;wx+=14){
+            if(Math.random()>0.45){
+              ctx.fillStyle=`rgba(${r},${g},${b},0.3)`;
+              ctx.fillRect(wx,wy,6,10);
+            }
+          }
+        }
+      });
+      // Ground line
+      ctx.fillStyle=`rgba(${r},${g},${b},0.5)`; ctx.fillRect(0,H*0.72,W,2);
+    }
+
+  // ────────────────────────────
+  // TECNOLOGÍA / DIGITAL
+  // ────────────────────────────
+  } else if(isTech) {
+    if(subV===0) {
+      // Matrix/neural network
+      ctx.fillStyle="#00030a"; ctx.fillRect(0,0,W,H);
+      const techGlow=ctx.createRadialGradient(W*0.5,H*0.4,0,W*0.5,H*0.4,W*0.65);
+      techGlow.addColorStop(0,"rgba(0,160,255,0.22)"); techGlow.addColorStop(1,"rgba(0,0,0,0)");
+      ctx.fillStyle=techGlow; ctx.fillRect(0,0,W,H);
+      // Neural network nodes
+      const nodes=[];
+      for(let i=0;i<18;i++) nodes.push([Math.random()*W,Math.random()*H*0.85+H*0.05]);
+      // Connections
+      ctx.strokeStyle="rgba(0,180,255,0.08)"; ctx.lineWidth=1;
+      nodes.forEach(([x,y],i)=>nodes.forEach(([x2,y2],j)=>{
+        if(i<j&&Math.hypot(x2-x,y2-y)<W*0.38){ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x2,y2);ctx.stroke();}
+      }));
+      // Node dots
+      nodes.forEach(([x,y],i)=>{
+        const sz=i%3===0?10:i%3===1?6:4;
+        ctx.beginPath(); ctx.arc(x,y,sz,0,Math.PI*2);
+        ctx.fillStyle=`rgba(0,180,255,${0.3+i*0.02})`; ctx.fill();
+      });
+      // Binary rain (subtle)
+      ctx.font="10px 'Courier New',monospace"; ctx.fillStyle="rgba(0,180,255,0.07)";
+      for(let x=0;x<W;x+=20) for(let y=0;y<H;y+=18) ctx.fillText(Math.round(Math.random()).toString(),x,y);
+    } else {
+      // Dark UI / HUD style
+      ctx.fillStyle="#010208"; ctx.fillRect(0,0,W,H);
+      // Horizontal scan lines
+      ctx.strokeStyle="rgba(0,200,255,0.04)"; ctx.lineWidth=1;
+      for(let y=0;y<H;y+=4){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+      // Corner HUD frames
+      const hud=(x,y,w,h,c)=>{
+        ctx.strokeStyle=c; ctx.lineWidth=2;
+        const s=30;
+        ctx.beginPath();
+        ctx.moveTo(x+s,y);ctx.lineTo(x,y);ctx.lineTo(x,y+s); ctx.moveTo(x+w-s,y);ctx.lineTo(x+w,y);ctx.lineTo(x+w,y+s);
+        ctx.moveTo(x,y+h-s);ctx.lineTo(x,y+h);ctx.lineTo(x+s,y+h); ctx.moveTo(x+w,y+h-s);ctx.lineTo(x+w,y+h);ctx.lineTo(x+w-s,y+h);
+        ctx.stroke();
+      };
+      hud(60,60,W-120,H-120,`rgba(0,200,255,0.35)`);
+      hud(120,120,W-240,H-240,`rgba(0,200,255,0.15)`);
+      // Glowing line
+      ctx.strokeStyle="rgba(0,200,255,0.5)"; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(0,H*0.5); ctx.lineTo(W,H*0.5); ctx.stroke();
+      const lineGlow=ctx.createLinearGradient(0,H*0.5-12,0,H*0.5+12);
+      lineGlow.addColorStop(0,"rgba(0,200,255,0)"); lineGlow.addColorStop(0.5,"rgba(0,200,255,0.1)"); lineGlow.addColorStop(1,"rgba(0,200,255,0)");
+      ctx.fillStyle=lineGlow; ctx.fillRect(0,H*0.5-12,W,24);
+    }
+
+  // ────────────────────────────
+  // MODA
+  // ────────────────────────────
   } else if(isFashion) {
-    ctx.fillStyle="#0a0508"; ctx.fillRect(0,0,W,H);
-    // Diagonal pattern
-    ctx.strokeStyle="rgba(255,150,180,0.06)"; ctx.lineWidth=1;
-    for(let i=-H;i<W+H;i+=45){ ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i+H,H); ctx.stroke(); }
-    // Elegant circle
-    ctx.beginPath(); ctx.arc(W*0.65,H*0.4,200,0,Math.PI*2);
-    ctx.strokeStyle="rgba(255,100,150,0.2)"; ctx.lineWidth=1.5; ctx.stroke();
-    ctx.beginPath(); ctx.arc(W*0.65,H*0.4,150,0,Math.PI*2);
-    ctx.strokeStyle="rgba(255,100,150,0.1)"; ctx.lineWidth=1; ctx.stroke();
-    const glow=ctx.createRadialGradient(W*0.65,H*0.4,0,W*0.65,H*0.4,W*0.45);
-    glow.addColorStop(0,"rgba(255,80,140,0.22)"); glow.addColorStop(1,"rgba(0,0,0,0)");
-    ctx.fillStyle=glow; ctx.fillRect(0,0,W,H);
+    if(subV===0) {
+      // Minimal editorial — black/white/accent
+      ctx.fillStyle="#050305"; ctx.fillRect(0,0,W,H);
+      // Thin parallel diagonal lines
+      ctx.strokeStyle="rgba(255,255,255,0.04)"; ctx.lineWidth=1;
+      for(let i=-H;i<W+H;i+=22){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i+H,H);ctx.stroke();}
+      // Large white rectangle — editorial block
+      ctx.fillStyle="rgba(255,255,255,0.06)"; ctx.fillRect(W*0.55,0,W*0.45,H*0.58);
+      // Accent pink detail
+      ctx.fillStyle=`rgb(${r},${g},${b})`; ctx.fillRect(W*0.55,0,4,H*0.58);
+      // Circles — abstract fashion
+      ctx.beginPath(); ctx.arc(W*0.72,H*0.3,160,0,Math.PI*2);
+      ctx.strokeStyle="rgba(255,255,255,0.1)"; ctx.lineWidth=1; ctx.stroke();
+      ctx.beginPath(); ctx.arc(W*0.72,H*0.3,100,0,Math.PI*2);
+      ctx.strokeStyle="rgba(255,255,255,0.07)"; ctx.lineWidth=1; ctx.stroke();
+    } else {
+      // Luxury — gold/black
+      ctx.fillStyle="#060400"; ctx.fillRect(0,0,W,H);
+      const goldGlow=ctx.createRadialGradient(W*0.6,H*0.35,0,W*0.6,H*0.35,W*0.5);
+      goldGlow.addColorStop(0,"rgba(200,160,0,0.2)"); goldGlow.addColorStop(1,"rgba(0,0,0,0)");
+      ctx.fillStyle=goldGlow; ctx.fillRect(0,0,W,H);
+      // Gold horizontal lines
+      ctx.strokeStyle="rgba(200,160,0,0.12)"; ctx.lineWidth=1;
+      for(let y=0;y<H;y+=30){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+      // Diamond shapes
+      [[W*0.7,H*0.3,80],[W*0.82,H*0.18,45],[W*0.58,H*0.48,35]].forEach(([cx,cy,sz])=>{
+        ctx.save(); ctx.translate(cx,cy); ctx.rotate(Math.PI/4);
+        ctx.strokeStyle="rgba(200,160,0,0.3)"; ctx.lineWidth=1.5; ctx.strokeRect(-sz/2,-sz/2,sz,sz); ctx.restore();
+      });
+    }
 
-  // ── GENERIC PREMIUM ──
-  } else {
-    ctx.fillStyle="#07060f"; ctx.fillRect(0,0,W,H);
-    const glow=ctx.createRadialGradient(W*0.65,H*0.38,0,W*0.65,H*0.38,W*0.6);
-    glow.addColorStop(0,`rgba(${r},${g},${b},0.32)`); glow.addColorStop(1,"rgba(0,0,0,0)");
-    ctx.fillStyle=glow; ctx.fillRect(0,0,W,H);
-    ctx.strokeStyle=`rgba(${r},${g},${b},0.08)`; ctx.lineWidth=1;
-    for(let y=0;y<H;y+=60){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
-    // Decorative rings
-    [320,240,160].forEach((rad,i)=>{
-      ctx.beginPath(); ctx.arc(W*0.68,H*0.38,rad,0,Math.PI*2);
-      ctx.strokeStyle=`rgba(${r},${g},${b},${0.15-i*0.04})`; ctx.lineWidth=1.5; ctx.stroke();
+  // ────────────────────────────
+  // BELLEZA & ESTÉTICA
+  // ────────────────────────────
+  } else if(isBeauty) {
+    ctx.fillStyle="#0a0208"; ctx.fillRect(0,0,W,H);
+    const roseGlow=ctx.createRadialGradient(W*0.5,H*0.38,0,W*0.5,H*0.38,W*0.58);
+    roseGlow.addColorStop(0,"rgba(220,80,140,0.28)"); roseGlow.addColorStop(1,"rgba(0,0,0,0)");
+    ctx.fillStyle=roseGlow; ctx.fillRect(0,0,W,H);
+    // Petal circles — 5-petal composition
+    const petals=5;
+    for(let i=0;i<petals;i++){
+      const angle=(i/petals)*Math.PI*2 - Math.PI/2;
+      const px=W*0.5+Math.cos(angle)*W*0.22;
+      const py=H*0.38+Math.sin(angle)*H*0.22;
+      ctx.beginPath(); ctx.arc(px,py,W*0.12,0,Math.PI*2);
+      ctx.strokeStyle=`rgba(220,80,140,${0.18-i*0.02})`; ctx.lineWidth=1.5; ctx.stroke();
+    }
+    // Center
+    ctx.beginPath(); ctx.arc(W*0.5,H*0.38,W*0.07,0,Math.PI*2);
+    ctx.strokeStyle="rgba(220,80,140,0.35)"; ctx.lineWidth=1; ctx.stroke();
+    // Sparkles
+    for(let i=0;i<12;i++){
+      const angle=Math.random()*Math.PI*2, dist=W*(0.2+Math.random()*0.28);
+      const sx=W*0.5+Math.cos(angle)*dist, sy=H*0.38+Math.sin(angle)*dist;
+      ctx.fillStyle=`rgba(255,180,220,${0.15+Math.random()*0.2})`;
+      ctx.fillRect(sx-1,sy-6,2,12); ctx.fillRect(sx-6,sy-1,12,2);
+    }
+    // Thin horizontal lines
+    ctx.strokeStyle="rgba(220,80,140,0.05)"; ctx.lineWidth=1;
+    for(let y=0;y<H;y+=18){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+
+  // ────────────────────────────
+  // TURISMO
+  // ────────────────────────────
+  } else if(isTourism) {
+    if(subV===0) {
+      // Sky & horizon — travel mood
+      ctx.fillStyle="#020410"; ctx.fillRect(0,0,W,H);
+      // Sky gradient
+      const sky=ctx.createLinearGradient(0,0,0,H*0.55);
+      sky.addColorStop(0,"rgba(10,20,80,0.8)"); sky.addColorStop(0.5,"rgba(30,80,160,0.4)"); sky.addColorStop(1,"rgba(0,0,0,0)");
+      ctx.fillStyle=sky; ctx.fillRect(0,0,W,H*0.55);
+      // Stars
+      for(let i=0;i<80;i++){
+        const sx=Math.random()*W, sy=Math.random()*H*0.4;
+        const ss=Math.random()*2+0.5;
+        ctx.fillStyle=`rgba(255,255,255,${Math.random()*0.7+0.2})`;
+        ctx.fillRect(sx,sy,ss,ss);
+      }
+      // Moon
+      ctx.beginPath(); ctx.arc(W*0.78,H*0.12,38,0,Math.PI*2);
+      ctx.fillStyle="rgba(220,210,160,0.25)"; ctx.fill();
+      ctx.beginPath(); ctx.arc(W*0.84,H*0.1,34,0,Math.PI*2);
+      ctx.fillStyle="#020410"; ctx.fill();
+      // Horizon line
+      ctx.fillStyle=`rgba(${r},${g},${b},0.6)`; ctx.fillRect(0,H*0.52,W,2);
+      // Mountain silhouette
+      ctx.fillStyle="rgba(20,30,60,0.8)";
+      ctx.beginPath(); ctx.moveTo(0,H*0.52);
+      ctx.lineTo(W*0.12,H*0.28); ctx.lineTo(W*0.25,H*0.42); ctx.lineTo(W*0.38,H*0.18);
+      ctx.lineTo(W*0.52,H*0.38); ctx.lineTo(W*0.65,H*0.22); ctx.lineTo(W*0.78,H*0.45);
+      ctx.lineTo(W*0.9,H*0.3); ctx.lineTo(W,H*0.48); ctx.lineTo(W,H*0.52); ctx.closePath();
+      ctx.fill();
+    } else {
+      // Tropical — warm, ocean vibes
+      ctx.fillStyle="#020810"; ctx.fillRect(0,0,W,H);
+      const ocean=ctx.createLinearGradient(0,0,0,H);
+      ocean.addColorStop(0,"rgba(0,60,100,0.5)"); ocean.addColorStop(0.5,"rgba(0,100,80,0.3)"); ocean.addColorStop(1,"rgba(0,0,0,0)");
+      ctx.fillStyle=ocean; ctx.fillRect(0,0,W,H);
+      // Wave lines
+      ctx.strokeStyle="rgba(0,180,160,0.12)"; ctx.lineWidth=1.5;
+      [0.35,0.45,0.55,0.65,0.75].forEach((yr,i)=>{
+        ctx.beginPath();
+        for(let x=0;x<W;x+=20){
+          const yw=H*yr+Math.sin((x*0.02)+(i*1.2))*18;
+          x===0?ctx.moveTo(x,yw):ctx.lineTo(x,yw);
+        }
+        ctx.stroke();
+      });
+      // Sun
+      ctx.beginPath(); ctx.arc(W*0.72,H*0.18,55,0,Math.PI*2);
+      ctx.fillStyle="rgba(255,190,0,0.15)"; ctx.fill();
+      ctx.beginPath(); ctx.arc(W*0.72,H*0.18,38,0,Math.PI*2);
+      ctx.fillStyle="rgba(255,200,30,0.2)"; ctx.fill();
+      // Sun rays
+      for(let i=0;i<12;i++){
+        const angle=(i/12)*Math.PI*2;
+        ctx.beginPath(); ctx.moveTo(W*0.72+Math.cos(angle)*46,H*0.18+Math.sin(angle)*46);
+        ctx.lineTo(W*0.72+Math.cos(angle)*70,H*0.18+Math.sin(angle)*70);
+        ctx.strokeStyle="rgba(255,200,0,0.2)"; ctx.lineWidth=2; ctx.stroke();
+      }
+    }
+
+  // ────────────────────────────
+  // EDUCACIÓN
+  // ────────────────────────────
+  } else if(isEducation) {
+    ctx.fillStyle="#02030e"; ctx.fillRect(0,0,W,H);
+    const eduGlow=ctx.createRadialGradient(W*0.5,H*0.38,0,W*0.5,H*0.38,W*0.55);
+    eduGlow.addColorStop(0,`rgba(${r},${g},${b},0.22)`); eduGlow.addColorStop(1,"rgba(0,0,0,0)");
+    ctx.fillStyle=eduGlow; ctx.fillRect(0,0,W,H);
+    // Notebook lines
+    ctx.strokeStyle="rgba(255,255,255,0.05)"; ctx.lineWidth=1;
+    for(let y=H*0.18;y<H;y+=36){ctx.beginPath();ctx.moveTo(W*0.12,y);ctx.lineTo(W*0.88,y);ctx.stroke();}
+    // Red margin line
+    ctx.strokeStyle=`rgba(${r},${g},${b},0.35)`; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(W*0.18,H*0.1); ctx.lineTo(W*0.18,H*0.92); ctx.stroke();
+    // Atom model
+    ctx.strokeStyle=`rgba(${r},${g},${b},0.22)`; ctx.lineWidth=1.5;
+    [[0],[Math.PI/3],[Math.PI*2/3]].forEach(([angle])=>{
+      ctx.save(); ctx.translate(W*0.72,H*0.3); ctx.rotate(angle);
+      ctx.beginPath(); ctx.ellipse(0,0,W*0.14,W*0.06,0,0,Math.PI*2); ctx.stroke(); ctx.restore();
     });
+    ctx.beginPath(); ctx.arc(W*0.72,H*0.3,10,0,Math.PI*2);
+    ctx.fillStyle=`rgba(${r},${g},${b},0.4)`; ctx.fill();
+
+  // ────────────────────────────
+  // FOTOGRAFÍA / VIDEO
+  // ────────────────────────────
+  } else if(isPhoto) {
+    ctx.fillStyle="#040404"; ctx.fillRect(0,0,W,H);
+    // Lens flare glow
+    const lens=ctx.createRadialGradient(W*0.5,H*0.38,0,W*0.5,H*0.38,W*0.55);
+    lens.addColorStop(0,"rgba(255,255,255,0.12)"); lens.addColorStop(0.15,"rgba(255,220,100,0.08)");
+    lens.addColorStop(0.4,"rgba(100,100,255,0.05)"); lens.addColorStop(1,"rgba(0,0,0,0)");
+    ctx.fillStyle=lens; ctx.fillRect(0,0,W,H);
+    // Camera aperture — concentric polygons
+    const drawPoly=(cx,cy,r,sides,rot)=>{
+      ctx.beginPath();
+      for(let i=0;i<sides;i++){
+        const a=(i/sides)*Math.PI*2+rot;
+        i===0?ctx.moveTo(cx+Math.cos(a)*r,cy+Math.sin(a)*r):ctx.lineTo(cx+Math.cos(a)*r,cy+Math.sin(a)*r);
+      }
+      ctx.closePath();
+    };
+    [220,170,120,70].forEach((rad,i)=>{
+      drawPoly(W*0.5,H*0.36,rad,8,Math.PI/8*(i%2));
+      ctx.strokeStyle=`rgba(255,255,255,${0.08-i*0.015})`; ctx.lineWidth=1; ctx.stroke();
+    });
+    // Film strip lines top and bottom
+    ctx.fillStyle="rgba(255,255,255,0.08)"; ctx.fillRect(0,0,W,40); ctx.fillRect(0,H-40,W,40);
+    for(let x=20;x<W;x+=50){
+      ctx.fillStyle="rgba(0,0,0,0.5)"; ctx.fillRect(x,6,30,28); ctx.fillRect(x,H-34,30,28);
+    }
+
+  // ────────────────────────────
+  // GENERIC PREMIUM — fallback elegante
+  // ────────────────────────────
+  } else {
+    ctx.fillStyle="#05040e"; ctx.fillRect(0,0,W,H);
+    const gGlow=ctx.createRadialGradient(W*0.6,H*0.38,0,W*0.6,H*0.38,W*0.62);
+    gGlow.addColorStop(0,`rgba(${r},${g},${b},0.3)`); gGlow.addColorStop(1,"rgba(0,0,0,0)");
+    ctx.fillStyle=gGlow; ctx.fillRect(0,0,W,H);
+    // Subtle grid
+    ctx.strokeStyle=`rgba(${r},${g},${b},0.07)`; ctx.lineWidth=1;
+    for(let y=0;y<H;y+=54){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+    for(let x=0;x<W;x+=54){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+    // Decorative rings
+    [300,220,140].forEach((rad,i)=>{
+      ctx.beginPath(); ctx.arc(W*0.62,H*0.38,rad,0,Math.PI*2);
+      ctx.strokeStyle=`rgba(${r},${g},${b},${0.18-i*0.05})`; ctx.lineWidth=1.5; ctx.stroke();
+    });
+    // Cross accent
+    ctx.strokeStyle=`rgba(${r},${g},${b},0.2)`; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(W*0.62,H*0.38-160); ctx.lineTo(W*0.62,H*0.38+160); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(W*0.62-160,H*0.38); ctx.lineTo(W*0.62+160,H*0.38); ctx.stroke();
   }
 
-  // ── BOTTOM DARK GRADIENT (text area) ──
-  const botGrad=ctx.createLinearGradient(0,H*0.5,0,H);
-  botGrad.addColorStop(0,"rgba(0,0,0,0)"); botGrad.addColorStop(1,"rgba(0,0,0,0.92)");
-  ctx.fillStyle=botGrad; ctx.fillRect(0,H*0.5,W,H*0.5);
+  // ── COMMON: bottom dark gradient for text ──
+  const botGrad=ctx.createLinearGradient(0,H*0.52,0,H);
+  botGrad.addColorStop(0,"rgba(0,0,0,0)"); botGrad.addColorStop(0.4,"rgba(0,0,0,0.7)"); botGrad.addColorStop(1,"rgba(0,0,0,0.95)");
+  ctx.fillStyle=botGrad; ctx.fillRect(0,H*0.52,W,H*0.48);
 
-  // ── BRAND TAG top left ──
-  ctx.font="600 18px Arial"; ctx.fillStyle=`rgba(${r},${g},${b},0.9)`; ctx.textAlign="left";
-  ctx.fillText("● MCM", 58, 60);
+  // ── Brand tag — top ──
+  ctx.font="600 17px Arial"; ctx.fillStyle=`rgba(${r},${g},${b},0.9)`; ctx.textAlign="left";
+  ctx.fillText("● MCM", 52, 56);
 
-  // ── MAIN TEXT — bottom, massive with glow ──
+  // ── Main text — bottom, massive with brand glow ──
   if(text) {
     const words=text.split(" ");
-    const lines=[];
-    for(let i=0;i<words.length;i+=2) lines.push(words.slice(i,i+2).join(" "));
-
-    let size=130;
+    const lines=[]; for(let i=0;i<words.length;i+=2) lines.push(words.slice(i,i+2).join(" "));
+    let size=128;
     ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`;
-    while(size>40){
+    while(size>36){
       ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`;
-      if(Math.max(...lines.map(l=>ctx.measureText(l).width))<=W-116) break;
+      if(Math.max(...lines.map(l=>ctx.measureText(l).width))<=W-110) break;
       size-=4;
     }
-
-    // Fit vertically in bottom 45%
-    const availH=H*0.42;
-    const lH=size*0.95;
-    if(lines.length*lH>availH){ size=Math.max(40,Math.floor(availH/lines.length/0.95)); ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`; }
-
-    const lineH=size*0.95;
-    const totalH=lines.length*lineH;
-    const startY=H-80-totalH+size*0.85;
-
-    ctx.shadowColor=`rgba(${r},${g},${b},0.7)`; ctx.shadowBlur=28;
+    const availH=H*0.44; const lH=size*0.96;
+    if(lines.length*lH>availH){size=Math.max(36,Math.floor(availH/lines.length/0.96));ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`;}
+    const lineH=size*0.96; const totalH=lines.length*lineH;
+    const startY=H-72-totalH+size*0.85;
+    ctx.shadowColor=`rgba(${r},${g},${b},0.6)`; ctx.shadowBlur=24;
     ctx.fillStyle="#ffffff"; ctx.textAlign="left";
-    lines.forEach((ln,i)=>ctx.fillText(ln, 58, startY+i*lineH));
+    lines.forEach((ln,i)=>ctx.fillText(ln, 52, startY+i*lineH));
     ctx.shadowBlur=0;
-
-    // Color underline
-    ctx.fillStyle=`rgb(${r},${g},${b})`;
-    ctx.fillRect(58, startY+totalH+8, 160, 5);
+    // Accent line
+    ctx.fillStyle=`rgb(${r},${g},${b})`; ctx.fillRect(52, startY+totalH+8, 140, 5);
   }
 
-  ctx.font="500 16px Arial"; ctx.fillStyle="rgba(255,255,255,0.35)"; ctx.textAlign="right";
-  ctx.fillText("Imagen generada por IA", W-42, H-26);
+  ctx.font="500 15px Arial"; ctx.fillStyle="rgba(255,255,255,0.3)"; ctx.textAlign="right";
+  ctx.fillText("IA Visual", W-40, H-24);
 }
 
-// ── ROUTER ──
+// ── ROUTER — cada post rota entre los 3 templates ──
 async function drawPost(canvas, opt) {
   if(opt.style===1) return drawTemplate1(canvas, opt);
   if(opt.style===2) return drawTemplate2(canvas, opt);
@@ -587,7 +993,7 @@ function App() {
         {screen==="brand"    && <BrandScreen    brand={brand} saveBrand={saveBrand} showToast={showToast} onNext={()=>setScreen("library")} />}
         {screen==="library"  && <LibraryScreen  files={files} saveFiles={saveFiles} showToast={showToast} onNext={()=>setScreen("generate")} />}
         {screen==="generate" && <GenerateScreen brand={brand} files={files} posts={posts} savePosts={savePosts} showToast={showToast} onNext={()=>setScreen("schedule")} />}
-        {screen==="schedule" && <ScheduleScreen socials={socials} showToast={showToast} />}
+        {screen==="schedule" && <ScheduleScreen socials={socials} posts={posts} showToast={showToast} />}
       </div>
       {toast&&<div className={"toast "+toast.type}>{toast.msg}</div>}
     </div>
@@ -659,7 +1065,7 @@ function BrandScreen({brand,saveBrand,showToast,onNext}) {
           <span className="lbl">Color de marca</span>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
             <input type="color" value={form.color||"#6d28d9"} onChange={e=>upd("color",e.target.value)} style={{width:48,height:40,borderRadius:8,border:"1px solid var(--border)",cursor:"pointer",padding:4}} />
-            <span style={{fontSize:13,color:"var(--muted)"}}>Se usa en los fondos de las imágenes</span>
+            <span style={{fontSize:13,color:"var(--muted)"}}>Se usa en todos los diseños</span>
           </div>
         </div>
       </div>
@@ -679,8 +1085,7 @@ function LibraryScreen({files,saveFiles,showToast,onNext}) {
       type:f.type.startsWith("video")?"video":"image",
       preview:URL.createObjectURL(f),size:f.size,
     }));
-    const updated=[...files,...newFiles];
-    saveFiles(updated);
+    saveFiles([...files,...newFiles]);
     showToast(newFiles.length+" archivo(s) agregado(s)","ok");
   };
   const remove=(id)=>saveFiles(files.filter(f=>f.id!==id));
@@ -713,12 +1118,14 @@ function LibraryScreen({files,saveFiles,showToast,onNext}) {
 
 function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
   const [generating,setGenerating]=useState(false);
-  const [weekPosts,setWeekPosts]=useState([]); // 7 posts, each with 3 options
-  const [selections,setSelections]=useState({}); // {postIdx: optionIdx}
-  const [editing,setEditing]=useState(null); // {postIdx, optIdx}
+  const [weekPosts,setWeekPosts]=useState([]);
+  const [selections,setSelections]=useState({});
+  const [editing,setEditing]=useState(null);
   const [brief,setBrief]=useState("");
   const [progress,setProgress]=useState(0);
-  const STYLES=[{id:1,name:"Revista"},{id:2,name:"Impacto"},{id:3,name:"Cine"}];
+
+  // Template names for display
+  const TEMPLATE_NAMES={1:"📸 Foto Editorial",2:"🎨 Diseño Gráfico",3:"✨ IA Visual"};
 
   const generate=async()=>{
     if(!brand.name){showToast("Primero completá el perfil de tu marca","err");return;}
@@ -726,50 +1133,63 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
     if(imgs.length===0){showToast("Agregá al menos una imagen a tus archivos","err");return;}
     setGenerating(true); setWeekPosts([]); setSelections({}); setProgress(0);
 
-    const PROMPTS=[
-      "Genera un caption "+((brand.tone||"profesional"))+" sobre el trabajo/servicio que ofrece la empresa.",
-      "Genera un caption testimonial o de caso de exito relacionado con esta empresa.",
-      "Genera un caption educativo con un tip o consejo relacionado al rubro.",
-      "Genera un caption promocional con llamado a la accion.",
-      "Genera un caption que muestre el equipo humano o valores de la empresa.",
-      "Genera un caption con una pregunta para generar engagement.",
-      "Genera un caption emotivo o inspirador relacionado al rubro.",
+    const THEMES=[
+      "servicio principal y propuesta de valor",
+      "testimonio o caso de éxito de un cliente",
+      "tip o consejo educativo del rubro",
+      "promoción con llamado a la acción",
+      "equipo humano y valores de la empresa",
+      "pregunta para generar engagement",
+      "contenido emotivo o inspirador",
     ];
-    const base="Empresa: "+brand.name+". Rubro: "+(brand.industry||"")+". Descripcion: "+(brand.description||"")+". Cliente ideal: "+(brand.target||"")+". "+(brief?"Contexto: "+brief+". ":"")+"Tono: "+(brand.tone||"profesional")+". Incluye 5-6 hashtags. Solo el caption, sin explicaciones.";
+
+    const base=`Empresa: ${brand.name}. Rubro: ${brand.industry||""}. Descripción: ${brand.description||""}. Cliente ideal: ${brand.target||""}. ${brief?"Contexto: "+brief+". ":""}Tono: ${brand.tone||"profesional"}. Responde SOLO el caption, sin explicaciones, sin preamble. Incluye 5-6 hashtags relevantes al final.`;
 
     try{
       const allPosts=[];
       for(let i=0;i<7;i++){
         setProgress(i+1);
+
+        // Rotate images across posts
         const imgSrc=imgs[i%imgs.length].preview;
+
+        // Each post gets 3 captions (one per template style)
         const [cap1,cap2,cap3,overlayRaw]=await Promise.all([
-          generateText(PROMPTS[i]+base),
-          generateText(PROMPTS[i]+" Version mas cercana y coloquial. "+base),
-          generateText(PROMPTS[i]+" Version orientada a ventas y conversion. "+base),
-          generateText("Sos un director creativo de una agencia de marketing. Mirá esta situacion: la imagen de fondo muestra contenido relacionado a esta empresa: "+brand.name+" ("+brand.industry+"). El tema del post es: "+PROMPTS[i].slice(8,50)+". Escribi un texto MUY CORTO (exactamente 3 a 6 palabras) para superponer sobre esa imagen. Debe ser creativo, relacionado visualmente con el contenido de la imagen, impactante y memorable. Sin hashtags, sin emojis, sin puntuacion al final. Solo las palabras."),
+          generateText(`Escribe un caption ${brand.tone||"profesional"} sobre ${THEMES[i]} para ${brand.name} (${brand.industry}). ${base}`),
+          generateText(`Escribe un caption ${brand.tone||"profesional"} MÁS EXTENSO (2-3 oraciones) sobre ${THEMES[i]} para ${brand.name}. ${base}`),
+          generateText(`Escribe un caption ${brand.tone||"profesional"} orientado a ventas y conversión sobre ${THEMES[i]} para ${brand.name}. ${base}`),
+          generateText(`Sos director creativo. Escribe EXACTAMENTE 3-5 palabras impactantes en español para poner sobre una imagen de ${brand.name} (${brand.industry||""}) con el tema: "${THEMES[i]}". Solo las palabras, sin puntuación, sin hashtags, sin explicación.`),
         ]);
-        const overlayText=overlayRaw.trim().replace(/['"\*\_\#]/g,"").replace(/\s+/g," ").slice(0,45);
-        // Each template gets different image, text and caption
-        const imgs2=files.filter(f=>f.type==="image");
-        const img2=imgs2[(i+1)%imgs2.length]?.preview||imgSrc; // different photo for template 2 if available
+
+        const overlayText=overlayRaw.trim().replace(/['"*_#.!?,]/g,"").replace(/\s+/g," ").slice(0,40);
+
+        // POST i → Template style cycles: 0→T1, 1→T2, 2→T3, 3→T1, 4→T2, 5→T3, 6→T1
+        const styleForPost = (i % 3) + 1;
+        const styleNames={1:"Foto Editorial",2:"Diseño Gráfico",3:"IA Visual"};
+
         const options=[
-          // Template 1: foto del cliente + texto corto
-          {id:0,style:1,styleName:"Revista",caption:cap1,overlayText,imgSrc,
-           fontSize:56,fontColor:"#ffffff",fontFamily:"Impact",fontWeight:"900",
-           textBg:false,brandColor:brand.color||"#6d28d9",industry:brand.industry||""},
-          // Template 2: diseño gráfico puro, sin foto, texto extenso
-          {id:1,style:2,styleName:"Diseño",caption:cap2,overlayText,imgSrc:null,
-           fontSize:56,fontColor:"#ffffff",fontFamily:"Impact",fontWeight:"900",
-           textBg:false,brandColor:brand.color||"#6d28d9",industry:brand.industry||""},
-          // Template 3: fondo generado por IA según rubro
-          {id:2,style:3,styleName:"IA Visual",caption:cap3,overlayText,imgSrc:null,
-           fontSize:56,fontColor:"#ffffff",fontFamily:"Impact",fontWeight:"900",
-           textBg:false,brandColor:brand.color||"#6d28d9",industry:brand.industry||""},
+          // Option A: the rotating template for this post
+          {id:0, style:styleForPost, styleName:styleNames[styleForPost],
+           caption:cap1, overlayText, imgSrc,
+           fontSize:56, fontColor:"#ffffff", fontFamily:"Impact", fontWeight:"900",
+           textBg:false, brandColor:brand.color||"#6d28d9", industry:brand.industry||"",
+           seed:i},
+          // Option B: next template in rotation
+          {id:1, style:(styleForPost%3)+1, styleName:styleNames[(styleForPost%3)+1],
+           caption:cap2, overlayText, imgSrc,
+           fontSize:56, fontColor:"#ffffff", fontFamily:"Impact", fontWeight:"900",
+           textBg:false, brandColor:brand.color||"#6d28d9", industry:brand.industry||"",
+           seed:i+1},
+          // Option C: remaining template
+          {id:2, style:((styleForPost+1)%3)+1, styleName:styleNames[((styleForPost+1)%3)+1],
+           caption:cap3, overlayText, imgSrc,
+           fontSize:56, fontColor:"#ffffff", fontFamily:"Impact", fontWeight:"900",
+           textBg:false, brandColor:brand.color||"#6d28d9", industry:brand.industry||"",
+           seed:i+2},
         ];
-        allPosts.push({postIdx:i,label:"Post "+(i+1),theme:PROMPTS[i].slice(8,40)+"...",options});
+        allPosts.push({postIdx:i,label:"Post "+(i+1),theme:THEMES[i],options});
         setWeekPosts([...allPosts]);
       }
-      // Save selected posts
       const selectedArr=allPosts.map((p,i)=>({...p.options[0],postIdx:i,id:Date.now()+i}));
       savePosts(selectedArr);
       showToast("7 publicaciones generadas!","ok");
@@ -777,10 +1197,7 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
     finally{setGenerating(false);setProgress(0);}
   };
 
-  const selectOption=(postIdx,optIdx)=>{
-    setSelections(p=>({...p,[postIdx]:optIdx}));
-  };
-
+  const selectOption=(postIdx,optIdx)=>setSelections(p=>({...p,[postIdx]:optIdx}));
   const allSelected=weekPosts.length===7&&Object.keys(selections).length===7;
 
   return (
@@ -788,16 +1205,24 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
       <div style={{marginBottom:24,display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:12}}>
         <div>
           <h2 style={{fontSize:22,fontWeight:800,marginBottom:6}}>Crear publicaciones de la semana</h2>
-          <p style={{color:"var(--muted)",fontSize:14}}>La IA genera 7 posts con 3 opciones cada uno — elegís una por post.</p>
+          <p style={{color:"var(--muted)",fontSize:14}}>7 posts × 3 opciones cada uno — cada template es diferente.</p>
         </div>
         <button className="btn btn-primary" onClick={generate} disabled={generating}>
-          {generating?<><div className="spin"/>Generando post {progress}/7...</>:"✦ Generar semana completa"}
+          {generating?<><div className="spin"/>Generando {progress}/7...</>:"✦ Generar semana completa"}
         </button>
       </div>
 
       <div style={{marginBottom:20}}>
         <span className="lbl">Brief de la semana (opcional)</span>
         <input value={brief} onChange={e=>setBrief(e.target.value)} placeholder="Ej: Semana de lanzamiento, promo del mes, nuevo producto..." />
+      </div>
+
+      {/* Template legend */}
+      <div style={{display:"flex",gap:8,marginBottom:20,flexWrap:"wrap"}}>
+        {Object.entries(TEMPLATE_NAMES).map(([k,v])=>(
+          <div key={k} style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:8,padding:"5px 12px",fontSize:12,color:"var(--muted)"}}>{v}</div>
+        ))}
+        <div style={{fontSize:12,color:"var(--muted)",display:"flex",alignItems:"center"}}>← Todos diferentes entre sí</div>
       </div>
 
       {generating&&(
@@ -809,7 +1234,6 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
           <div style={{height:6,background:"var(--surface2)",borderRadius:6,overflow:"hidden"}}>
             <div style={{height:"100%",width:(progress/7*100)+"%",background:"linear-gradient(90deg,var(--accent),var(--accent2))",borderRadius:6,transition:"width .4s"}} />
           </div>
-          {weekPosts.length>0&&<div style={{fontSize:12,color:"var(--muted)",marginTop:8}}>Mostrando posts generados hasta ahora...</div>}
         </div>
       )}
 
@@ -819,9 +1243,9 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
             <div style={{width:28,height:28,borderRadius:8,background:"linear-gradient(135deg,var(--accent),var(--accent2))",display:"grid",placeItems:"center",fontSize:13,fontWeight:800,flexShrink:0}}>{pi+1}</div>
             <div>
               <div style={{fontWeight:700,fontSize:15}}>Post {pi+1}</div>
-              <div style={{fontSize:12,color:"var(--muted)",textTransform:"capitalize"}}>{post.theme}</div>
+              <div style={{fontSize:12,color:"var(--muted)"}}>{post.theme}</div>
             </div>
-            {selections[pi]!==undefined&&<div style={{marginLeft:"auto",fontSize:12,color:"var(--success)",background:"rgba(34,211,238,.1)",border:"1px solid rgba(34,211,238,.2)",borderRadius:20,padding:"3px 10px"}}>✓ Opción {selections[pi]+1} elegida</div>}
+            {selections[pi]!==undefined&&<div style={{marginLeft:"auto",fontSize:12,color:"var(--success)",background:"rgba(34,211,238,.1)",border:"1px solid rgba(34,211,238,.2)",borderRadius:20,padding:"3px 10px"}}>✓ Elegida</div>}
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
             {post.options.map((opt,oi)=>(
@@ -878,7 +1302,7 @@ function WeekPostCard({opt,postIdx,optIdx,selected,onSelect,onEdit}) {
     <div className={"post-option"+(selected?" selected":"")} style={{position:"relative"}}>
       <div className="post-canvas-wrap" onClick={onSelect}>
         <canvas ref={canvasRef} style={{width:"100%",height:"100%",display:"block"}} />
-        <div style={{position:"absolute",top:8,left:8,background:"rgba(0,0,0,.65)",borderRadius:6,padding:"3px 8px",fontSize:11,fontWeight:600}}>{opt.styleName}</div>
+        <div style={{position:"absolute",top:8,left:8,background:"rgba(0,0,0,.72)",borderRadius:6,padding:"3px 8px",fontSize:11,fontWeight:600}}>{opt.styleName}</div>
         {selected&&<div style={{position:"absolute",top:8,right:8,background:"var(--accent)",borderRadius:"50%",width:22,height:22,display:"grid",placeItems:"center",fontSize:12}}>✓</div>}
       </div>
       <div className="post-caption" onClick={onSelect}>{opt.caption}</div>
@@ -892,15 +1316,12 @@ function WeekPostCard({opt,postIdx,optIdx,selected,onSelect,onEdit}) {
   );
 }
 
-
-function PostOptionCard(){return null;}
-
 function EditorModal({opt,brand,onClose,onSave,showToast}) {
   const canvasRef=useRef();
-  const previewRef=useRef(); // preview div for drag
+  const previewRef=useRef();
   const [form,setForm]=useState({
     ...opt,
-    textBg: false,           // no background by default
+    textBg: opt.textBg||false,
     textX: opt.textX!==undefined?opt.textX:0.08,
     textY: opt.textY!==undefined?opt.textY:0.75,
     fontFamily: opt.fontFamily||"Impact",
@@ -911,40 +1332,21 @@ function EditorModal({opt,brand,onClose,onSave,showToast}) {
   const [dragging,setDragging]=useState(false);
   const upd=(k,v)=>setForm(p=>({...p,[k]:v}));
 
-  const FONTS=[
-    {id:"Arial",label:"Sans-Serif",sample:"Aa"},
-    {id:"Georgia",label:"Serif",sample:"Aa"},
-    {id:"'Courier New'",label:"Mono",sample:"Aa"},
-    {id:"Impact",label:"Impact",sample:"Aa"},
-    {id:"'Times New Roman'",label:"Times",sample:"Aa"},
-    {id:"Verdana",label:"Verdana",sample:"Aa"},
-  ];
-
   useEffect(()=>{if(canvasRef.current)drawPost(canvasRef.current,form);},[form]);
 
-  // Drag to position text
-  const handlePreviewMouseDown=(e)=>{
-    e.preventDefault();
-    setDragging(true);
-  };
-
+  const handlePreviewMouseDown=(e)=>{e.preventDefault();setDragging(true);};
   const handlePreviewMouseMove=(e)=>{
     if(!dragging)return;
     const rect=previewRef.current.getBoundingClientRect();
-    const x=Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width));
-    const y=Math.max(0,Math.min(1,(e.clientY-rect.top)/rect.height));
-    upd("textX",x);
-    upd("textY",y);
+    upd("textX",Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width)));
+    upd("textY",Math.max(0,Math.min(1,(e.clientY-rect.top)/rect.height)));
   };
-
   const handlePreviewMouseUp=()=>setDragging(false);
-
   const handlePreviewTouch=(e)=>{
     const t=e.touches[0];
     const rect=previewRef.current.getBoundingClientRect();
-    const x=Math.max(0,Math.min(1,(t.clientX-rect.left)/rect.width));
-    const y=Math.max(0,Math.min(1,(t.clientY-rect.top)/rect.height));
-    upd("textX",x); upd("textY",y);
+    upd("textX",Math.max(0,Math.min(1,(t.clientX-rect.left)/rect.width)));
+    upd("textY",Math.max(0,Math.min(1,(t.clientY-rect.top)/rect.height)));
   };
 
   const download=()=>{
@@ -971,59 +1373,40 @@ function EditorModal({opt,brand,onClose,onSave,showToast}) {
   return (
     <div className="editor-wrap">
       <div className="editor-box">
-        {/* LEFT: Draggable canvas preview */}
         <div style={{flex:"0 0 340px"}}>
           <div className="lbl">Preview — arrastrá el texto</div>
-          <div
-            ref={previewRef}
+          <div ref={previewRef}
             style={{borderRadius:12,overflow:"hidden",aspectRatio:"1",background:"var(--bg)",cursor:dragging?"grabbing":"crosshair",position:"relative",userSelect:"none"}}
-            onMouseDown={handlePreviewMouseDown}
-            onMouseMove={handlePreviewMouseMove}
-            onMouseUp={handlePreviewMouseUp}
-            onMouseLeave={handlePreviewMouseUp}
-            onTouchMove={handlePreviewTouch}
-          >
+            onMouseDown={handlePreviewMouseDown} onMouseMove={handlePreviewMouseMove}
+            onMouseUp={handlePreviewMouseUp} onMouseLeave={handlePreviewMouseUp}
+            onTouchMove={handlePreviewTouch}>
             <canvas ref={canvasRef} style={{width:"100%",height:"100%",display:"block",pointerEvents:"none"}} />
-            {/* Drag hint */}
-            <div style={{position:"absolute",bottom:8,left:0,right:0,textAlign:"center",fontSize:10,color:"rgba(255,255,255,.4)",pointerEvents:"none"}}>
-              Click para mover el texto
-            </div>
+            <div style={{position:"absolute",bottom:8,left:0,right:0,textAlign:"center",fontSize:10,color:"rgba(255,255,255,.4)",pointerEvents:"none"}}>Click para mover el texto</div>
           </div>
           <div style={{fontSize:10,color:"var(--muted)",textAlign:"center",marginTop:6}}>1080×1080px</div>
         </div>
 
-        {/* RIGHT: Controls */}
         <div style={{flex:1,minWidth:260,display:"flex",flexDirection:"column",gap:13,overflowY:"auto"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <h3 style={{fontSize:16,fontWeight:700}}>Editor de diseño</h3>
             <button onClick={onClose} style={{background:"var(--surface2)",border:"none",color:"var(--muted)",width:30,height:30,borderRadius:8,cursor:"pointer",fontSize:14}}>✕</button>
           </div>
 
-          {/* Texto */}
           <div>
             <span className="lbl">Texto sobre la imagen</span>
-            <input value={form.overlayText} onChange={e=>upd("overlayText",e.target.value)} placeholder="Máximo 6-8 palabras..." style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:10,color:"var(--text)",fontSize:13,padding:"10px 12px",width:"100%",outline:"none",fontFamily:"inherit"}} />
+            <input value={form.overlayText} onChange={e=>upd("overlayText",e.target.value)} placeholder="Máximo 5-6 palabras..." style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:10,color:"var(--text)",fontSize:13,padding:"10px 12px",width:"100%",outline:"none",fontFamily:"inherit"}} />
           </div>
 
-          {/* Caption */}
           <div>
             <span className="lbl">Caption del post</span>
             <textarea value={form.caption} onChange={e=>upd("caption",e.target.value)} rows={4}
               style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:10,color:"var(--text)",fontSize:12,padding:"10px 12px",width:"100%",outline:"none",fontFamily:"inherit",resize:"none"}} />
           </div>
 
-          {/* Fuente */}
           <div>
             <span className="lbl">Tipografía</span>
             <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
-              {[
-                {id:"Arial",label:"Sans-Serif"},
-                {id:"Georgia",label:"Serif"},
-                {id:"'Courier New'",label:"Mono"},
-                {id:"Impact",label:"Impact"},
-                {id:"'Times New Roman'",label:"Times"},
-                {id:"Verdana",label:"Verdana"},
-              ].map(f=>(
+              {[{id:"Arial",label:"Sans-Serif"},{id:"Georgia",label:"Serif"},{id:"'Courier New'",label:"Mono"},{id:"Impact",label:"Impact"},{id:"'Times New Roman'",label:"Times"},{id:"Verdana",label:"Verdana"}].map(f=>(
                 <button key={f.id} onClick={()=>upd("fontFamily",f.id)} className="btn"
                   style={{padding:"8px 6px",fontSize:11,flexDirection:"column",gap:2,
                     background:form.fontFamily===f.id?"rgba(109,40,217,.2)":"var(--surface2)",
@@ -1036,7 +1419,6 @@ function EditorModal({opt,brand,onClose,onSave,showToast}) {
             </div>
           </div>
 
-          {/* Peso de fuente */}
           <div>
             <span className="lbl">Peso</span>
             <div style={{display:"flex",gap:6}}>
@@ -1053,7 +1435,6 @@ function EditorModal({opt,brand,onClose,onSave,showToast}) {
             </div>
           </div>
 
-          {/* Tamaño y color */}
           <div style={{display:"flex",gap:12,alignItems:"flex-end"}}>
             <div style={{flex:1}}>
               <span className="lbl">Tamaño ({form.fontSize}px)</span>
@@ -1065,7 +1446,6 @@ function EditorModal({opt,brand,onClose,onSave,showToast}) {
             </div>
           </div>
 
-          {/* Fondo del texto */}
           <div>
             <button onClick={()=>upd("textBg",!form.textBg)} className="btn"
               style={{background:form.textBg?"rgba(109,40,217,.2)":"var(--surface2)",border:"1px solid "+(form.textBg?"var(--accent2)":"var(--border)"),color:form.textBg?"var(--accent2)":"var(--muted)",fontSize:12,padding:"8px 14px"}}>
@@ -1089,7 +1469,6 @@ function EditorModal({opt,brand,onClose,onSave,showToast}) {
   );
 }
 
-
 function PostMiniCard({post, postNum}) {
   const canvasRef = useRef();
   useEffect(()=>{ if(canvasRef.current && post) drawPost(canvasRef.current, post); },[post]);
@@ -1104,12 +1483,11 @@ function PostMiniCard({post, postNum}) {
   );
 }
 
-function ScheduleScreen({socials,showToast}) {
+function ScheduleScreen({socials,posts,showToast}) {
   const now = new Date();
   const [year,setYear]=useState(now.getFullYear());
   const [month,setMonth]=useState(now.getMonth());
   const [schedules,setSchedules]=useState(store.get("schedules")||{});
-  const [posts,setPosts]=useState(store.get("posts")||[]);
   const [selectedDate,setSelectedDate]=useState(null);
   const [showModal,setShowModal]=useState(false);
   const [modalData,setModalData]=useState({postNum:1,hour:"09:00",net:"instagram"});
@@ -1118,7 +1496,6 @@ function ScheduleScreen({socials,showToast}) {
 
   const MONTHS=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
   const DAYS_HEADER=["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
-  const HOURS=["07:00","08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00","19:00","20:00","21:00","22:00"];
 
   const saveSchedules=(s)=>{setSchedules(s);store.set("schedules",s);};
   const getDaysInMonth=(y,m)=>new Date(y,m+1,0).getDate();
@@ -1138,64 +1515,44 @@ function ScheduleScreen({socials,showToast}) {
 
   const assignPost=()=>{
     saveSchedules({...schedules,[selectedDate.key]:modalData});
-    setShowModal(false);
-    setDragPost(null);
+    setShowModal(false); setDragPost(null);
     showToast("Post #"+modalData.postNum+" — "+selectedDate.label+" "+modalData.hour,"ok");
   };
 
-  const removeSchedule=(key,e)=>{
-    if(e)e.stopPropagation();
-    const s={...schedules}; delete s[key]; saveSchedules(s);
-  };
+  const removeSchedule=(key,e)=>{if(e)e.stopPropagation();const s={...schedules};delete s[key];saveSchedules(s);};
 
   const daysInMonth=getDaysInMonth(year,month);
   const firstDay=getFirstDayOfMonth(year,month);
   const totalCells=Math.ceil((firstDay+daysInMonth)/7)*7;
   const scheduledCount=Object.keys(schedules).length;
-
-  // Get the 7 selected posts to show in panel
   const selectedPosts=posts.slice(0,7);
 
   return (
     <div style={{padding:"24px 28px",display:"flex",gap:20,height:"100%",minHeight:0}} className="fade-in">
-
-      {/* LEFT PANEL: Post thumbnails */}
       <div style={{width:200,flexShrink:0,display:"flex",flexDirection:"column",gap:8}}>
         <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:15,marginBottom:4}}>Mis publicaciones</div>
-        <div style={{fontSize:11,color:"var(--muted)",marginBottom:8,lineHeight:1.5}}>Hacé click en un día del calendario para asignar el post deseado.</div>
-
+        <div style={{fontSize:11,color:"var(--muted)",marginBottom:8,lineHeight:1.5}}>Hacé click en un post y luego en un día del calendario.</div>
         {selectedPosts.length===0?(
-          <div style={{color:"var(--muted)",fontSize:12,textAlign:"center",padding:"20px 0"}}>
-            Primero generá las publicaciones.
-          </div>
+          <div style={{color:"var(--muted)",fontSize:12,textAlign:"center",padding:"20px 0"}}>Primero generá las publicaciones.</div>
         ):(
           <div style={{display:"flex",flexDirection:"column",gap:10,overflowY:"auto"}}>
             {selectedPosts.map((post,i)=>(
-              <div key={i}
-                onClick={()=>setDragPost(i+1)}
-                style={{
-                  cursor:"pointer",
-                  outline:dragPost===i+1?"3px solid var(--accent2)":"none",
-                  borderRadius:12,
-                  transition:"all .15s",
-                  transform:dragPost===i+1?"scale(1.03)":"scale(1)",
-                }}>
+              <div key={i} onClick={()=>setDragPost(i+1)}
+                style={{cursor:"pointer",outline:dragPost===i+1?"3px solid var(--accent2)":"none",borderRadius:12,transition:"all .15s",transform:dragPost===i+1?"scale(1.03)":"scale(1)"}}>
                 <PostMiniCard post={post} postNum={i+1} />
               </div>
             ))}
           </div>
         )}
-
         {dragPost&&(
           <div style={{marginTop:8,background:"rgba(109,40,217,.15)",border:"1px solid var(--accent2)",borderRadius:10,padding:"10px",textAlign:"center"}}>
             <div style={{fontSize:12,color:"var(--accent2)",fontWeight:600}}>Post #{dragPost} seleccionado</div>
-            <div style={{fontSize:11,color:"var(--muted)",marginTop:3}}>Ahora hacé click en el día</div>
+            <div style={{fontSize:11,color:"var(--muted)",marginTop:3}}>Hacé click en el día</div>
             <button onClick={()=>setDragPost(null)} style={{background:"none",border:"none",color:"var(--error)",cursor:"pointer",fontSize:11,marginTop:4}}>Cancelar</button>
           </div>
         )}
       </div>
 
-      {/* RIGHT: Calendar */}
       <div style={{flex:1,minWidth:0,display:"flex",flexDirection:"column",gap:16}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <button onClick={prevMonth} className="btn btn-ghost" style={{padding:"7px 14px",fontSize:16}}>‹</button>
@@ -1216,7 +1573,6 @@ function ScheduleScreen({socials,showToast}) {
                 <div key={d} style={{textAlign:"center",fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:1,padding:"4px 0"}}>{d}</div>
               ))}
             </div>
-
             <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
               {Array.from({length:totalCells},(_,i)=>{
                 const day=i-firstDay+1;
@@ -1227,7 +1583,6 @@ function ScheduleScreen({socials,showToast}) {
                 const isPast=key&&key<todayKey;
                 const soc=sched&&socials.find(s=>s.id===sched.net);
                 const isClickable=isValid&&!isPast;
-
                 return (
                   <div key={i}
                     onClick={()=>{
@@ -1237,20 +1592,14 @@ function ScheduleScreen({socials,showToast}) {
                         setSelectedDate({day,key:k,label:day+" de "+MONTHS[month]+" "+year});
                         setModalData({postNum:dragPost,hour:"09:00",net:connected[0]?.id||"instagram"});
                         setShowModal(true);
-                      } else {
-                        openModal(day);
-                      }
+                      } else openModal(day);
                     }}
-                    style={{
-                      minHeight:72,borderRadius:10,padding:"7px 6px",
+                    style={{minHeight:72,borderRadius:10,padding:"7px 6px",
                       background:!isValid?"transparent":sched?"rgba(109,40,217,.18)":isPast?"rgba(255,255,255,.015)":dragPost?"rgba(109,40,217,.05)":"var(--surface2)",
                       border:!isValid?"none":"2px solid "+(isToday?"var(--accent2)":sched?"rgba(168,85,247,.5)":"var(--border)"),
-                      cursor:isClickable?"pointer":"default",
-                      opacity:isPast?0.35:1,
-                      transition:"all .15s",
+                      cursor:isClickable?"pointer":"default",opacity:isPast?0.35:1,transition:"all .15s",
                       display:"flex",flexDirection:"column",gap:3,
-                      boxShadow:dragPost&&isClickable?"0 0 0 2px rgba(168,85,247,.3) inset":"none",
-                    }}
+                      boxShadow:dragPost&&isClickable?"0 0 0 2px rgba(168,85,247,.3) inset":"none"}}
                     onMouseEnter={e=>{if(isClickable)e.currentTarget.style.borderColor="var(--accent2)";}}
                     onMouseLeave={e=>{if(isValid)e.currentTarget.style.borderColor=isToday?"var(--accent2)":sched?"rgba(168,85,247,.5)":"var(--border)";}}
                   >
@@ -1307,7 +1656,6 @@ function ScheduleScreen({socials,showToast}) {
         )}
       </div>
 
-      {/* Assign modal */}
       {showModal&&selectedDate&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.88)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:16,backdropFilter:"blur(16px)"}}>
           <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:18,padding:28,width:"100%",maxWidth:440}} className="fade-in">
