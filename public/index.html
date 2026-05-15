@@ -133,10 +133,37 @@ function rRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
+// Fallback texts so templates always look like real posts
+const FALLBACK_HEADLINES = ["CALIDAD QUE SE NOTA","TU MEJOR OPCION","HACEMOS LA DIFERENCIA","PARA VOS Y LOS TUYOS","EL SABOR DE SIEMPRE","EXPERIENCIA Y PASION","RESULTADOS REALES","COMENZAR HOY"];
+const FALLBACK_CAPTIONS = [
+  "Porque cada detalle importa. Vení a conocernos y descubrí por qué somos la mejor opción del mercado. #calidad #excelencia",
+  "Más de 10 años de experiencia nos respaldan. Tu confianza es nuestra mayor recompensa. #profesionalismo #confianza",
+  "Transformamos tu idea en realidad. Contactanos hoy y empezá el cambio que siempre quisiste. #innovacion #resultados",
+];
+
+function getFallbackText(opt, seed) {
+  const idx = (seed||0) % FALLBACK_HEADLINES.length;
+  return {
+    headline: opt.overlayText && opt.overlayText.trim() ? opt.overlayText.replace(/[\*\_\#]/g,"").trim().toUpperCase() : FALLBACK_HEADLINES[idx],
+    caption: opt.caption && opt.caption.trim() ? opt.caption : FALLBACK_CAPTIONS[idx % FALLBACK_CAPTIONS.length],
+    brandName: opt.brandName || "MCM",
+  };
+}
+
+function wrapText(ctx, text, maxW, maxLines) {
+  const words = text.split(" "); const lines = []; let line = "";
+  for(const w of words) {
+    const t = line + (line?" ":"") + w;
+    if(ctx.measureText(t).width > maxW) { if(line) lines.push(line); line = w; if(lines.length >= maxLines-1) { lines.push(words.slice(words.indexOf(w)).join(" ")); return lines; } }
+    else line = t;
+  }
+  if(line) lines.push(line); return lines;
+}
+
 // ════════════════════════════════════════════════════════════════
 // TEMPLATE 1 — FOTO EDITORIAL
-// Foto protagonista full bleed. Franja oscura top-left para el texto.
-// Estilo: revista premium internacional.
+// Foto protagonista. Bottom 40% cubierto con degradé oscuro + texto grande.
+// Texto SIEMPRE visible. Estilo: revista premium.
 // ════════════════════════════════════════════════════════════════
 async function drawTemplate1(canvas, opt) {
   const ctx = canvas.getContext("2d");
@@ -144,82 +171,77 @@ async function drawTemplate1(canvas, opt) {
   canvas.width=W; canvas.height=H;
   const {r,g,b} = hexToRgb(opt.brandColor||"#6d28d9");
   const bgImg = opt.imgSrc ? await loadImg(opt.imgSrc) : null;
-  const text = (opt.overlayText||"").replace(/[\*\_\#]/g,"").trim().toUpperCase();
+  const {headline, caption, brandName} = getFallbackText(opt, opt.seed);
 
-  // Full bleed photo
+  // ── FULL BLEED PHOTO ──
   if(bgImg) {
     coverImg(ctx, bgImg, 0, 0, W, H);
   } else {
-    const bg=ctx.createLinearGradient(0,0,W,H);
-    bg.addColorStop(0,`rgb(${r},${g},${b})`); bg.addColorStop(1,"#000");
+    // Rich gradient background if no photo
+    const bg = ctx.createLinearGradient(0,0,W,H);
+    bg.addColorStop(0,`rgb(${Math.min(r+40,255)},${Math.min(g+20,255)},${Math.min(b+60,255)})`);
+    bg.addColorStop(0.5,`rgb(${r},${g},${b})`);
+    bg.addColorStop(1,"#000");
     ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+    // Pattern overlay
+    ctx.strokeStyle="rgba(255,255,255,0.04)"; ctx.lineWidth=1;
+    for(let y=0;y<H;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
   }
 
-  // Dark overlay ONLY top-left triangle area (diagonal cut)
-  ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(0,0); ctx.lineTo(W*0.72,0); ctx.lineTo(0,H*0.72); ctx.closePath();
-  const triGrad = ctx.createLinearGradient(0,0,W*0.5,H*0.5);
-  triGrad.addColorStop(0,"rgba(0,0,0,0.82)");
-  triGrad.addColorStop(0.7,"rgba(0,0,0,0.55)");
-  triGrad.addColorStop(1,"rgba(0,0,0,0)");
-  ctx.fillStyle=triGrad; ctx.fill();
-  ctx.restore();
+  // ── BOTTOM GRADIENT — covers bottom 48% for text readability ──
+  const botGrad = ctx.createLinearGradient(0, H*0.42, 0, H);
+  botGrad.addColorStop(0,"rgba(0,0,0,0)");
+  botGrad.addColorStop(0.3,"rgba(0,0,0,0.7)");
+  botGrad.addColorStop(1,"rgba(0,0,0,0.96)");
+  ctx.fillStyle=botGrad; ctx.fillRect(0,H*0.42,W,H*0.58);
 
-  // Bottom gradient for watermark
-  const botGrad = ctx.createLinearGradient(0,H*0.82,0,H);
-  botGrad.addColorStop(0,"rgba(0,0,0,0)"); botGrad.addColorStop(1,"rgba(0,0,0,0.55)");
-  ctx.fillStyle=botGrad; ctx.fillRect(0,H*0.82,W,H*0.18);
+  // ── BRAND COLOR TOP BAR ──
+  ctx.fillStyle=`rgb(${r},${g},${b})`; ctx.fillRect(0,0,W,8);
 
-  // Brand color accent bar — left edge
-  ctx.fillStyle=`rgb(${r},${g},${b})`;
-  ctx.fillRect(0, 0, 10, H);
+  // ── BRAND LABEL top left ──
+  ctx.font="700 20px Arial,sans-serif";
+  ctx.fillStyle="#ffffff"; ctx.textAlign="left";
+  ctx.shadowColor="rgba(0,0,0,0.8)"; ctx.shadowBlur=8;
+  ctx.fillText("● "+brandName.toUpperCase(), 40, 52);
+  ctx.shadowBlur=0;
 
-  // Category label
-  ctx.font="700 17px Arial,sans-serif";
-  ctx.fillStyle=`rgb(${r},${g},${b})`;
-  ctx.textAlign="left";
-  ctx.fillText("▲  MCM", 42, 58);
+  // ── MAIN HEADLINE — bottom section, 2-3 words per line, HUGE ──
+  const words = headline.split(" ");
+  const lines = [];
+  for(let i=0;i<words.length;i+=2) lines.push(words.slice(i,i+2).join(" "));
 
-  // Main headline — diagonal layout, large
-  if(text) {
-    const words = text.split(" ");
-    // Group into lines of max 2 words
-    const lines = [];
-    for(let i=0;i<words.length;i+=2) lines.push(words.slice(i,i+2).join(" "));
-
-    let size = 148;
+  let size = 160;
+  ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`;
+  while(size > 48) {
     ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`;
-    // Shrink until fits in diagonal zone (max width shrinks diagonally)
-    while(size>40){
-      ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`;
-      const maxW = W*0.62 - 50;
-      if(Math.max(...lines.map(l=>ctx.measureText(l).width)) <= maxW) break;
-      size-=4;
-    }
-
-    const availH = H*0.56;
-    const lH = size*0.96;
-    if(lines.length*lH > availH) {
-      const ns = Math.max(36, Math.floor(availH/lines.length/0.96));
-      size = ns; ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`;
-    }
-
-    ctx.fillStyle="#ffffff"; ctx.textAlign="left";
-    ctx.shadowColor="rgba(0,0,0,0.5)"; ctx.shadowBlur=14;
-    const lineH = size*0.96;
-    const totalH = lines.length * lineH;
-    const startY = 90 + size*0.85;
-    lines.forEach((ln,i) => ctx.fillText(ln, 42, startY + i*lineH));
-    ctx.shadowBlur=0;
-
-    // Color accent line under last word
-    ctx.fillStyle=`rgb(${r},${g},${b})`;
-    ctx.fillRect(42, startY + totalH - lineH*0.1 + 14, Math.min(ctx.measureText(lines[lines.length-1]).width, 300), 6);
+    if(Math.max(...lines.map(l=>ctx.measureText(l).width)) <= W-100) break;
+    size -= 4;
   }
 
-  // Bottom-right: watermark
-  ctx.font="600 17px Arial"; ctx.fillStyle="rgba(255,255,255,0.6)"; ctx.textAlign="right";
+  const lineH = size * 0.92;
+  // Position: text occupies bottom zone, above caption
+  const captionH = 80; // space reserved for caption
+  const textZoneBottom = H - captionH - 40;
+  const totalTextH = lines.length * lineH;
+  const startY = textZoneBottom - totalTextH;
+
+  ctx.fillStyle="#ffffff"; ctx.textAlign="left";
+  ctx.shadowColor="rgba(0,0,0,0.9)"; ctx.shadowBlur=20;
+  lines.forEach((ln,i) => ctx.fillText(ln, 40, startY + i*lineH + size*0.85));
+  ctx.shadowBlur=0;
+
+  // ── COLOR ACCENT LINE under headline ──
+  ctx.fillStyle=`rgb(${r},${g},${b})`;
+  ctx.fillRect(40, startY + totalTextH + size*0.85 - lineH*0.15 + 8, 200, 6);
+
+  // ── CAPTION TEXT ──
+  ctx.font="400 28px Arial,sans-serif";
+  ctx.fillStyle="rgba(255,255,255,0.72)"; ctx.textAlign="left";
+  const shortCaption = caption.replace(/#\S+/g,"").trim().slice(0,80);
+  ctx.fillText(shortCaption + (caption.length>80?"…":""), 40, H-44);
+
+  // ── WATERMARK ──
+  ctx.font="600 18px Arial"; ctx.fillStyle=`rgba(${r},${g},${b},0.9)`; ctx.textAlign="right";
   ctx.fillText("MCM", W-36, H-28);
 }
 
