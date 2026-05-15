@@ -1320,6 +1320,11 @@ function EditorModal({opt,brand,onClose,onSave,showToast}) {
   const [showStickerPanel,setShowStickerPanel]=useState(false);
   const [activeStickerSet,setActiveStickerSet]=useState(0);
   const [activeSticker,setActiveSticker]=useState(null);
+  const [showLinkPanel,setShowLinkPanel]=useState(false);
+  const [showPollPanel,setShowPollPanel]=useState(false);
+  const [link,setLink]=useState(opt.link||"");
+  const [linkLabel,setLinkLabel]=useState(opt.linkLabel||"");
+  const [poll,setPoll]=useState(opt.poll||{question:"",options:["",""],active:false});
 
   const updForm=(k,v)=>setForm(p=>({...p,[k]:v}));
   const updText=(idx,k,v)=>setTexts(ts=>ts.map((t,i)=>i===idx?{...t,[k]:v}:t));
@@ -1393,7 +1398,15 @@ function EditorModal({opt,brand,onClose,onSave,showToast}) {
     try{
       const upRes=await fetch("/api/instagram?action=upload",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({imageBase64:canvas.toDataURL("image/png")})});
       const upData=await upRes.json(); if(!upData.success)throw new Error(upData.error);
-      const pubRes=await fetch("/api/instagram?action=publish",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({caption:form.caption,imageUrl:upData.url,format:format||"post"})});
+      const pubPayload={
+        caption: form.caption,
+        imageUrl: upData.url,
+        format: format||"post",
+        link: link||null,
+        linkLabel: linkLabel||null,
+        poll: poll.active&&poll.question ? poll : null,
+      };
+      const pubRes=await fetch("/api/instagram?action=publish",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(pubPayload)});
       const pubData=await pubRes.json(); if(!pubData.success)throw new Error(pubData.error);
       // Guardar en historial
       const hist=store.get("postHistory")||[];
@@ -1412,6 +1425,8 @@ function EditorModal({opt,brand,onClose,onSave,showToast}) {
       overlayText2:texts[1].text, text2X:texts[1].x, text2Y:texts[1].y,
       fontFamily2:texts[1].fontFamily, fontWeight2:texts[1].fontWeight, fontSize2:texts[1].fontSize, fontColor2:texts[1].fontColor, textBg2:texts[1].textBg,
       text2Visible:texts[1].visible,
+      link, linkLabel,
+      poll: poll.active ? poll : null,
     });
   };
 
@@ -1604,7 +1619,111 @@ function EditorModal({opt,brand,onClose,onSave,showToast}) {
             )}
           </div>
 
-          {pubMsg&&<div style={{background:pubMsg.ok?"#0d2b1f":"#1f0d0d",border:"1px solid "+(pubMsg.ok?"var(--success)":"var(--error)"),color:pubMsg.ok?"var(--success)":"var(--error)",padding:"8px 12px",borderRadius:8,fontSize:12,fontWeight:600}}>{pubMsg.text}</div>}
+          {/* ── LINK ── */}
+          <div style={{background:"var(--surface2)",borderRadius:10,padding:"9px 11px"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:showLinkPanel?10:0}}>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <span style={{fontSize:16}}>🔗</span>
+                <span style={{fontSize:12,fontWeight:600}}>Link</span>
+                {link&&<span style={{fontSize:10,color:"var(--success)",background:"rgba(34,211,238,.1)",border:"1px solid rgba(34,211,238,.2)",borderRadius:20,padding:"2px 7px"}}>Activo</span>}
+              </div>
+              <button onClick={()=>setShowLinkPanel(v=>!v)} className="btn btn-ghost" style={{fontSize:11,padding:"3px 9px"}}>
+                {showLinkPanel?"Cerrar":link?"Editar":"+ Agregar"}
+              </button>
+            </div>
+            {showLinkPanel&&(
+              <div className="fade-in" style={{display:"flex",flexDirection:"column",gap:8}}>
+                <div>
+                  <span className="lbl">URL de destino</span>
+                  <input value={link} onChange={e=>setLink(e.target.value)}
+                    placeholder="https://tusitio.com o @tuperfil"
+                    style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:8,color:"var(--text)",fontSize:12,padding:"8px 10px",width:"100%",outline:"none"}} />
+                </div>
+                <div>
+                  <span className="lbl">Texto del botón (opcional)</span>
+                  <input value={linkLabel} onChange={e=>setLinkLabel(e.target.value)}
+                    placeholder="Ej: Ver más, Comprar ahora, Visitanos..."
+                    style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:8,color:"var(--text)",fontSize:12,padding:"8px 10px",width:"100%",outline:"none"}} />
+                </div>
+                {link&&(
+                  <div style={{background:"rgba(34,211,238,.06)",border:"1px solid rgba(34,211,238,.15)",borderRadius:8,padding:"8px 10px",fontSize:11,color:"var(--muted)"}}>
+                    ℹ️ El link se agregará en la bio o como sticker de Historia según el formato de publicación.
+                  </div>
+                )}
+                {link&&<button onClick={()=>{setLink("");setLinkLabel("");}} style={{background:"none",border:"none",color:"var(--error)",fontSize:11,cursor:"pointer",alignSelf:"flex-start"}}>✕ Quitar link</button>}
+              </div>
+            )}
+          </div>
+
+          {/* ── ENCUESTA ── */}
+          <div style={{background:"var(--surface2)",borderRadius:10,padding:"9px 11px"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:showPollPanel?10:0}}>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <span style={{fontSize:16}}>📊</span>
+                <span style={{fontSize:12,fontWeight:600}}>Encuesta</span>
+                {poll.active&&<span style={{fontSize:10,color:"var(--warn)",background:"rgba(245,158,11,.1)",border:"1px solid rgba(245,158,11,.2)",borderRadius:20,padding:"2px 7px"}}>Activa</span>}
+              </div>
+              <button onClick={()=>setShowPollPanel(v=>!v)} className="btn btn-ghost" style={{fontSize:11,padding:"3px 9px"}}>
+                {showPollPanel?"Cerrar":poll.active?"Editar":"+ Crear"}
+              </button>
+            </div>
+            {showPollPanel&&(
+              <div className="fade-in" style={{display:"flex",flexDirection:"column",gap:8}}>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <button onClick={()=>setPoll(p=>({...p,active:!p.active}))} className="btn"
+                    style={{fontSize:11,padding:"5px 12px",background:poll.active?"rgba(245,158,11,.15)":"var(--surface2)",border:"1px solid "+(poll.active?"rgba(245,158,11,.5)":"var(--border)"),color:poll.active?"var(--warn)":"var(--muted)"}}>
+                    {poll.active?"✓ Encuesta ON":"○ Encuesta OFF"}
+                  </button>
+                  <span style={{fontSize:11,color:"var(--muted)"}}>Se publica como encuesta en Historia</span>
+                </div>
+                {poll.active&&(<>
+                  <div>
+                    <span className="lbl">Pregunta</span>
+                    <input value={poll.question} onChange={e=>setPoll(p=>({...p,question:e.target.value}))}
+                      placeholder="¿Cuál preferís?"
+                      style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:8,color:"var(--text)",fontSize:12,padding:"8px 10px",width:"100%",outline:"none"}} />
+                  </div>
+                  <div>
+                    <span className="lbl">Opciones ({poll.options.length}/5)</span>
+                    <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                      {poll.options.map((opt2,i)=>(
+                        <div key={i} style={{display:"flex",gap:5,alignItems:"center"}}>
+                          <span style={{fontSize:11,color:"var(--muted)",width:18,flexShrink:0,textAlign:"center"}}>{i+1}</span>
+                          <input value={opt2} onChange={e=>{const o=[...poll.options];o[i]=e.target.value;setPoll(p=>({...p,options:o}));}}
+                            placeholder={`Opción ${i+1}...`}
+                            style={{flex:1,background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:8,color:"var(--text)",fontSize:12,padding:"7px 10px",outline:"none"}} />
+                          {poll.options.length>2&&(
+                            <button onClick={()=>setPoll(p=>({...p,options:p.options.filter((_,j)=>j!==i)}))}
+                              style={{background:"none",border:"none",color:"var(--error)",cursor:"pointer",fontSize:13,flexShrink:0}}>✕</button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    {poll.options.length<5&&(
+                      <button onClick={()=>setPoll(p=>({...p,options:[...p.options,""]}))}
+                        style={{marginTop:6,background:"none",border:"1px dashed var(--border)",color:"var(--muted)",borderRadius:8,padding:"5px 12px",fontSize:11,cursor:"pointer",width:"100%"}}>
+                        + Agregar opción
+                      </button>
+                    )}
+                  </div>
+                  {/* Preview de encuesta */}
+                  {poll.question&&(
+                    <div style={{background:"rgba(255,255,255,.06)",borderRadius:12,padding:"12px",marginTop:4}}>
+                      <div style={{fontSize:11,color:"var(--muted)",marginBottom:8,textAlign:"center"}}>Vista previa</div>
+                      <div style={{fontSize:13,fontWeight:700,textAlign:"center",marginBottom:10,color:"var(--text)"}}>{poll.question}</div>
+                      <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                        {poll.options.filter(o=>o).map((o,i)=>(
+                          <div key={i} style={{background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:20,padding:"8px 14px",fontSize:12,color:"var(--text)",textAlign:"center"}}>
+                            {o}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>)}
+              </div>
+            )}
+          </div>
 
           {showFormatPicker&&(
             <div style={{background:"var(--surface2)",border:"1px solid var(--accent2)",borderRadius:12,padding:"11px",display:"flex",flexDirection:"column",gap:6}} className="fade-in">
