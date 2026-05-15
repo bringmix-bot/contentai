@@ -135,25 +135,26 @@ function rRect(ctx, x, y, w, h, r) {
 }
 
 // ════════════════════════════════════════════════════════════════
-// HELPER: dibuja el logo de marca en la esquina inferior derecha
-// Se llama desde los 3 templates si opt.showLogo===true y opt.logoBase64 existe
+// HELPER: dibuja el logo de marca en la posición/tamaño definidos por el usuario
+// opt.logoX, opt.logoY = fracción 0-1 del canvas (posición centro del logo)
+// opt.logoSize = fracción del ancho del canvas (default 0.15 = 15%)
 // ════════════════════════════════════════════════════════════════
 async function drawLogo(ctx, opt, W, H) {
   if(!opt.showLogo || !opt.logoBase64) return;
   const logoImg = await loadImg(opt.logoBase64);
   if(!logoImg) return;
-  const maxW=160, maxH=72;
-  const scale=Math.min(maxW/logoImg.width, maxH/logoImg.height, 1);
-  const lw=logoImg.width*scale, lh=logoImg.height*scale;
-  const px=W-lw-38, py=H-lh-28;
-  // Subtle dark pill behind logo for legibility on any background
+  // Tamaño: opt.logoSize es fracción del canvas (0.05 a 0.4), default 0.15
+  const sizeFrac = opt.logoSize||0.15;
+  const maxW = W * sizeFrac;
+  const maxH = H * sizeFrac;
+  const scale = Math.min(maxW/logoImg.width, maxH/logoImg.height);
+  const lw = logoImg.width*scale, lh = logoImg.height*scale;
+  // Posición: centro del logo en (logoX*W, logoY*H), default esquina inferior derecha
+  const cx = (opt.logoX!==undefined ? opt.logoX : 0.88) * W;
+  const cy = (opt.logoY!==undefined ? opt.logoY : 0.88) * H;
+  const px = cx - lw/2, py = cy - lh/2;
   ctx.save();
-  ctx.globalAlpha=0.55;
-  ctx.fillStyle="rgba(0,0,0,0.5)";
-  rRect(ctx, px-10, py-8, lw+20, lh+16, 10);
-  ctx.fill();
-  ctx.globalAlpha=1;
-  ctx.drawImage(logoImg, px, py, lw, lh);
+  ctx.drawImage(logoImg, px, py, lw, lh); // sin fondo, directo sobre la imagen
   ctx.restore();
 }
 
@@ -199,40 +200,39 @@ async function drawTemplate1(canvas, opt) {
   ctx.textAlign="left";
   ctx.fillText("■  PUBLICACIÓN", 56, 60);
 
-  // Main headline
+  // Main headline — respeta fuente/peso/tamaño/color del editor
   if(text) {
+    const ff = opt.fontFamily||"Impact,'Arial Black',sans-serif";
+    const fw = opt.fontWeight||"900";
+    const fc = opt.fontColor||"#ffffff";
+    // fontSize del form está en escala "perceptual" (12-120), lo mapeamos a canvas (1080px)
+    // 56 perceptual ≈ 148px canvas. Factor: 1080/500 * fontSize
+    const canvasSize = Math.round((opt.fontSize||56) * 1080/500);
     const words = text.split(" ");
     const lines = [];
     for(let i=0;i<words.length;i+=2) lines.push(words.slice(i,i+2).join(" "));
 
-    let size = 148;
-    ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`;
-    while(size>48){
-      ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`;
+    let size = canvasSize;
+    ctx.font=`${fw} ${size}px ${ff}`;
+    // Solo auto-reducir si desborda, nunca aumentar
+    while(size>40){
+      ctx.font=`${fw} ${size}px ${ff}`;
       if(Math.max(...lines.map(l=>ctx.measureText(l).width)) <= W-112) break;
       size-=4;
     }
 
-    const availH = H*0.44;
-    const lineH = size*0.95;
-    const totalH = lines.length*lineH;
-    if(totalH > availH) {
-      const newSize = Math.floor(availH/lines.length/0.95);
-      size = Math.max(40, newSize);
-      ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`;
-    }
-
-    ctx.fillStyle="#ffffff"; ctx.textAlign="left";
+    ctx.fillStyle=fc; ctx.textAlign="left";
     ctx.shadowColor="rgba(0,0,0,0.5)"; ctx.shadowBlur=16;
     const lH = size*0.95;
     const tH = lines.length*lH;
-    const startY = 88 + (availH-tH)/2 + size*0.85;
-    lines.forEach((ln,i)=>ctx.fillText(ln, 56, startY+i*lH));
+    // Posición Y: si el usuario arrastró el texto, usar textY; sino auto arriba
+    const posY = opt.textY!==undefined ? opt.textY*H : 0.15*H;
+    const posX = opt.textX!==undefined ? opt.textX*W : 56;
+    lines.forEach((ln,i)=>ctx.fillText(ln, posX, posY + size*0.85 + i*lH));
     ctx.shadowBlur=0;
 
-    // Underline accent
     ctx.fillStyle=`rgba(${r},${g},${b},0.85)`;
-    ctx.fillRect(56, startY+tH-lH*0.08+18, 200, 5);
+    ctx.fillRect(posX, posY + size*0.85 + tH + 10, 200, 5);
   }
 
   // Watermark MCM (solo si no hay logo)
@@ -283,23 +283,27 @@ async function drawTemplate2(canvas, opt) {
   rRect(ctx, 50, 200, 16, H-400, 8);
   ctx.fill();
 
-  // Main headline
+  // Main headline — respeta fuente del editor
   if(text) {
+    const ff = opt.fontFamily||"Impact,'Arial Black',sans-serif";
+    const fw = opt.fontWeight||"900";
+    const fc = opt.fontColor||"#ffffff";
+    const canvasSize = Math.round((opt.fontSize||56) * 1080/500);
     const words = text.toUpperCase().split(" ");
     const lines = [];
     for(let i=0;i<words.length;i+=2) lines.push(words.slice(i,i+2).join(" "));
-
-    let size = 148;
-    ctx.font = `900 ${size}px Impact,'Arial Black',sans-serif`;
-    while(size>48){
-      ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`;
+    let size = canvasSize;
+    ctx.font = `${fw} ${size}px ${ff}`;
+    while(size>40){
+      ctx.font=`${fw} ${size}px ${ff}`;
       if(Math.max(...lines.map(l=>ctx.measureText(l).width)) <= W-160) break;
       size-=4;
     }
-    ctx.fillStyle="#ffffff"; ctx.textAlign="left";
+    ctx.fillStyle=fc; ctx.textAlign="left";
+    const posX = opt.textX!==undefined ? opt.textX*W : 96;
+    const posY = opt.textY!==undefined ? opt.textY*H : 200;
     const lineH=size*0.95;
-    const startY=200+size*0.9;
-    lines.forEach((ln,i)=>ctx.fillText(ln, 96, startY+i*lineH));
+    lines.forEach((ln,i)=>ctx.fillText(ln, posX, posY + size*0.9 + i*lineH));
   }
 
   // Extended body text (caption preview)
@@ -507,35 +511,38 @@ async function drawTemplate3(canvas, opt) {
   ctx.fillStyle=barGrad;
   ctx.fillRect(0, 0, 6, H);
 
-  // ── TEXTO PRINCIPAL — lado izquierdo, vertical center ──
+  // ── TEXTO PRINCIPAL — lado izquierdo, respeta fuente del editor ──
   if(text) {
+    const ff = opt.fontFamily||"Impact,'Arial Black',sans-serif";
+    const fw = opt.fontWeight||"900";
+    const fc = opt.fontColor||"#ffffff";
+    const canvasSize = Math.round((opt.fontSize||56) * 1080/500);
     const words=text.split(" ");
     const lines=[];
     for(let i=0;i<words.length;i+=2) lines.push(words.slice(i,i+2).join(" "));
 
     const maxW = splitX - 100;
-    let size=118;
-    ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`;
+    let size=canvasSize;
+    ctx.font=`${fw} ${size}px ${ff}`;
     while(size>40){
-      ctx.font=`900 ${size}px Impact,'Arial Black',sans-serif`;
+      ctx.font=`${fw} ${size}px ${ff}`;
       if(Math.max(...lines.map(l=>ctx.measureText(l).width)) <= maxW) break;
       size-=4;
     }
 
     const lineH=size*0.96;
     const totalH=lines.length*lineH;
-    const startY = H/2 - totalH/2 + size*0.85;
+    const posX = opt.textX!==undefined ? Math.min(opt.textX*W, splitX-100) : 48;
+    const posY = opt.textY!==undefined ? opt.textY*H : H/2 - totalH/2;
 
-    // Text shadow
     ctx.shadowColor=`rgba(${r},${g},${b},0.6)`;
     ctx.shadowBlur=24;
-    ctx.fillStyle="#ffffff"; ctx.textAlign="left";
-    lines.forEach((ln,i)=>ctx.fillText(ln, 48, startY+i*lineH));
+    ctx.fillStyle=fc; ctx.textAlign="left";
+    lines.forEach((ln,i)=>ctx.fillText(ln, posX, posY + size*0.85 + i*lineH));
     ctx.shadowBlur=0;
 
-    // Underline
     ctx.fillStyle=`rgb(${r},${g},${b})`;
-    ctx.fillRect(48, startY+totalH+12, 140, 4);
+    ctx.fillRect(posX, posY + size*0.85 + totalH + 12, 140, 4);
   }
 
   // ── NOMBRE DE MARCA — arriba izquierda ──
@@ -1009,36 +1016,80 @@ function EditorModal({opt,brand,onClose,onSave,showToast}) {
   const previewRef=useRef();
   const [form,setForm]=useState({
     ...opt,
-    textBg: false,
+    textBg: opt.textBg||false,
     showLogo: opt.showLogo!==undefined?opt.showLogo:true,
     logoBase64: opt.logoBase64||brand?.logoBase64||null,
-    textX: opt.textX!==undefined?opt.textX:0.08,
+    logoX: opt.logoX!==undefined?opt.logoX:0.88,
+    logoY: opt.logoY!==undefined?opt.logoY:0.88,
+    logoSize: opt.logoSize!==undefined?opt.logoSize:0.15,
+    textX: opt.textX!==undefined?opt.textX:0.05,
     textY: opt.textY!==undefined?opt.textY:0.75,
     fontFamily: opt.fontFamily||"Impact",
     fontWeight: opt.fontWeight||"900",
+    fontSize: opt.fontSize||56,
+    fontColor: opt.fontColor||"#ffffff",
+    _customSize: true, // siempre respetar el fontSize del form
   });
   const [publishing,setPublishing]=useState(false);
   const [pubMsg,setPubMsg]=useState(null);
-  const [dragging,setDragging]=useState(false);
+  const [dragMode,setDragMode]=useState(null); // null | "text" | "logo" | "logo-resize"
   const [showFormatPicker,setShowFormatPicker]=useState(false);
-  const [igFormat,setIgFormat]=useState("post"); // "post" | "story" | "reel"
+  const [igFormat,setIgFormat]=useState("post");
   const upd=(k,v)=>setForm(p=>({...p,[k]:v}));
 
   useEffect(()=>{if(canvasRef.current)drawPost(canvasRef.current,form);},[form]);
 
-  const handlePreviewMouseDown=(e)=>{e.preventDefault();setDragging(true);};
-  const handlePreviewMouseMove=(e)=>{
-    if(!dragging)return;
+  // Detectar si el click está cerca del logo para decidir qué arrastrar
+  const getClickTarget=(e)=>{
     const rect=previewRef.current.getBoundingClientRect();
-    upd("textX",Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width)));
-    upd("textY",Math.max(0,Math.min(1,(e.clientY-rect.top)/rect.height)));
+    const fx=(e.clientX-rect.left)/rect.width;
+    const fy=(e.clientY-rect.top)/rect.height;
+    if(form.showLogo&&form.logoBase64){
+      const lx=form.logoX!==undefined?form.logoX:0.88;
+      const ly=form.logoY!==undefined?form.logoY:0.88;
+      const ls=form.logoSize||0.15;
+      const hitR=ls*0.6; // hit area generosa
+      // Esquina inferior derecha del logo = resize handle
+      const resizeX=lx+ls*0.4, resizeY=ly+ls*0.4;
+      if(Math.abs(fx-resizeX)<0.05&&Math.abs(fy-resizeY)<0.05) return "logo-resize";
+      if(Math.abs(fx-lx)<hitR&&Math.abs(fy-ly)<hitR) return "logo";
+    }
+    return "text";
   };
-  const handlePreviewMouseUp=()=>setDragging(false);
+
+  const handlePreviewMouseDown=(e)=>{
+    e.preventDefault();
+    setDragMode(getClickTarget(e));
+  };
+  const handlePreviewMouseMove=(e)=>{
+    if(!dragMode)return;
+    const rect=previewRef.current.getBoundingClientRect();
+    const fx=Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width));
+    const fy=Math.max(0,Math.min(1,(e.clientY-rect.top)/rect.height));
+    if(dragMode==="text"){
+      setForm(p=>({...p,textX:fx,textY:fy}));
+    } else if(dragMode==="logo"){
+      setForm(p=>({...p,logoX:fx,logoY:fy}));
+    } else if(dragMode==="logo-resize"){
+      const lx=form.logoX!==undefined?form.logoX:0.88;
+      const ly=form.logoY!==undefined?form.logoY:0.88;
+      const dist=Math.hypot(fx-lx,fy-ly)*2;
+      setForm(p=>({...p,logoSize:Math.max(0.05,Math.min(0.45,dist))}));
+    }
+  };
+  const handlePreviewMouseUp=()=>setDragMode(null);
   const handlePreviewTouch=(e)=>{
+    if(!dragMode)return;
     const t=e.touches[0];
     const rect=previewRef.current.getBoundingClientRect();
-    upd("textX",Math.max(0,Math.min(1,(t.clientX-rect.left)/rect.width)));
-    upd("textY",Math.max(0,Math.min(1,(t.clientY-rect.top)/rect.height)));
+    const fx=Math.max(0,Math.min(1,(t.clientX-rect.left)/rect.width));
+    const fy=Math.max(0,Math.min(1,(t.clientY-rect.top)/rect.height));
+    if(dragMode==="text") setForm(p=>({...p,textX:fx,textY:fy}));
+    else if(dragMode==="logo") setForm(p=>({...p,logoX:fx,logoY:fy}));
+  };
+  const handlePreviewTouchStart=(e)=>{
+    e.preventDefault();
+    setDragMode(getClickTarget(e.touches[0]));
   };
 
   const download=()=>{
@@ -1067,19 +1118,43 @@ function EditorModal({opt,brand,onClose,onSave,showToast}) {
     <div className="editor-wrap">
       <div className="editor-box">
         <div style={{flex:"0 0 340px"}}>
-          <div className="lbl">Preview — arrastrá el texto</div>
+          <div className="lbl">Preview — arrastrá texto{form.showLogo&&form.logoBase64?" o logo":""}</div>
           <div
             ref={previewRef}
-            style={{borderRadius:12,overflow:"hidden",aspectRatio:"1",background:"var(--bg)",cursor:dragging?"grabbing":"crosshair",position:"relative",userSelect:"none"}}
+            style={{borderRadius:12,overflow:"hidden",aspectRatio:"1",background:"var(--bg)",cursor:dragMode?"grabbing":"crosshair",position:"relative",userSelect:"none"}}
             onMouseDown={handlePreviewMouseDown}
             onMouseMove={handlePreviewMouseMove}
             onMouseUp={handlePreviewMouseUp}
             onMouseLeave={handlePreviewMouseUp}
+            onTouchStart={handlePreviewTouchStart}
             onTouchMove={handlePreviewTouch}
+            onTouchEnd={handlePreviewMouseUp}
           >
             <canvas ref={canvasRef} style={{width:"100%",height:"100%",display:"block",pointerEvents:"none"}} />
+            {/* Indicador de logo arrastrable */}
+            {form.showLogo&&form.logoBase64&&(
+              <div style={{
+                position:"absolute",
+                left:`${(form.logoX||0.88)*100}%`,
+                top:`${(form.logoY||0.88)*100}%`,
+                transform:"translate(-50%,-50%)",
+                pointerEvents:"none",
+              }}>
+                {/* Resize handle — esquina inferior derecha */}
+                <div style={{
+                  position:"absolute",
+                  bottom:`-${(form.logoSize||0.15)*50+8}%`,
+                  right:`-${(form.logoSize||0.15)*50+8}%`,
+                  width:12,height:12,
+                  background:"var(--accent2)",
+                  borderRadius:3,
+                  border:"2px solid #fff",
+                  cursor:"se-resize",
+                }} />
+              </div>
+            )}
             <div style={{position:"absolute",bottom:8,left:0,right:0,textAlign:"center",fontSize:10,color:"rgba(255,255,255,.4)",pointerEvents:"none"}}>
-              Click para mover el texto
+              {form.showLogo&&form.logoBase64?"Arrastrá texto o logo · Esquina del logo para redimensionar":"Click para mover el texto"}
             </div>
           </div>
           <div style={{fontSize:10,color:"var(--muted)",textAlign:"center",marginTop:6}}>1080×1080px</div>
@@ -1104,25 +1179,15 @@ function EditorModal({opt,brand,onClose,onSave,showToast}) {
 
           <div>
             <span className="lbl">Tipografía</span>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
-              {[
-                {id:"Arial",label:"Sans-Serif"},
-                {id:"Georgia",label:"Serif"},
-                {id:"'Courier New'",label:"Mono"},
-                {id:"Impact",label:"Impact"},
-                {id:"'Times New Roman'",label:"Times"},
-                {id:"Verdana",label:"Verdana"},
-              ].map(f=>(
-                <button key={f.id} onClick={()=>upd("fontFamily",f.id)} className="btn"
-                  style={{padding:"8px 6px",fontSize:11,flexDirection:"column",gap:2,
-                    background:form.fontFamily===f.id?"rgba(109,40,217,.2)":"var(--surface2)",
-                    border:"1px solid "+(form.fontFamily===f.id?"var(--accent2)":"var(--border)"),
-                    color:form.fontFamily===f.id?"var(--accent2)":"var(--muted)"}}>
-                  <span style={{fontSize:16,fontFamily:f.id,fontWeight:"bold"}}>Aa</span>
-                  <span>{f.label}</span>
-                </button>
-              ))}
-            </div>
+            <select value={form.fontFamily} onChange={e=>upd("fontFamily",e.target.value)}
+              style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:10,color:"var(--text)",fontSize:13,padding:"10px 12px",width:"100%",outline:"none",cursor:"pointer"}}>
+              <option value="Impact">Impact — DISPLAY</option>
+              <option value="Arial">Arial — Sans-Serif</option>
+              <option value="Georgia">Georgia — Serif</option>
+              <option value="'Courier New'">Courier New — Mono</option>
+              <option value="'Times New Roman'">Times New Roman — Clásica</option>
+              <option value="Verdana">Verdana — Legible</option>
+            </select>
           </div>
 
           <div>
@@ -1143,8 +1208,10 @@ function EditorModal({opt,brand,onClose,onSave,showToast}) {
 
           <div style={{display:"flex",gap:12,alignItems:"flex-end"}}>
             <div style={{flex:1}}>
-              <span className="lbl">Tamaño ({form.fontSize}px)</span>
-              <input type="range" min={20} max={110} value={form.fontSize} onChange={e=>upd("fontSize",+e.target.value)} style={{width:"100%",accentColor:"var(--accent)"}} />
+              <span className="lbl">Tamaño ({form.fontSize}px canvas = {Math.round(form.fontSize*1080/500)}px real)</span>
+              <input type="range" min={12} max={120} value={form.fontSize}
+                onChange={e=>setForm(p=>({...p,fontSize:+e.target.value,_customSize:true}))}
+                style={{width:"100%",accentColor:"var(--accent)"}} />
             </div>
             <div>
               <span className="lbl">Color</span>
