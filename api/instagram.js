@@ -1,137 +1,151 @@
+// api/instagram.js — handles upload, publish, AND stats
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") return res.status(200).end();
 
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  const action = req.query.action;
+  const TOKEN = process.env.META_PAGE_ACCESS_TOKEN;
+  const IG_ID = process.env.INSTAGRAM_ACCOUNT_ID || "17841400870249463";
 
-  const { action } = req.query;
-
-  const PAGE_ACCESS_TOKEN = process.env.META_PAGE_ACCESS_TOKEN;
-  const INSTAGRAM_ACCOUNT_ID = process.env.INSTAGRAM_ACCOUNT_ID;
-  const CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME;
-  const CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY;
-  const CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET;
-
-  // ── GET INSTAGRAM ACCOUNT INFO ──
-  if (action === 'account') {
+  // ── STATS ──────────────────────────────────────────────────────
+  if (action === "stats") {
     try {
-      const r = await fetch(
-        `https://graph.facebook.com/v19.0/${INSTAGRAM_ACCOUNT_ID}?fields=id,username,profile_picture_url,followers_count&access_token=${PAGE_ACCESS_TOKEN}`
+      // 1. Account basic info + follower count
+      const accountFields = "id,name,username,biography,profile_picture_url,followers_count,follows_count,media_count,website";
+      const accountRes = await fetch(
+        `https://graph.facebook.com/v19.0/${IG_ID}?fields=${accountFields}&access_token=${TOKEN}`
       );
-      const data = await r.json();
-      if (data.error) return res.status(400).json({ error: data.error.message });
-      return res.status(200).json({ success: true, account: data });
+      const account = await accountRes.json();
+      if (account.error) throw new Error(account.error.message);
+
+      // 2. Account insights (impressions, reach, profile_views, website_clicks, follower_count)
+      const insightMetrics = "impressions,reach,profile_views,website_clicks,follower_count";
+      const insightRes = await fetch(
+        `https://graph.facebook.com/v19.0/${IG_ID}/insights?metric=${insightMetrics}&period=days_28&access_token=${TOKEN}`
+      );
+      const insightData = await insightRes.json();
+      const insights = {};
+      if (insightData.data) {
+        insightData.data.forEach(m => {
+          const vals = m.values;
+          // Sum all values for the period
+          insights[m.name] = vals ? vals.reduce((s, v) => s + (v.value || 0), 0) : 0;
+        });
+      }
+
+      // 3. Recent media with individual post insights
+      const mediaFields = "id,caption,media_type,media_url,thumbnail_url,timestamp,like_count,comments_count,permalink";
+      const mediaRes = await fetch(
+        `https://graph.facebook.com/v19.0/${IG_ID}/media?fields=${mediaFields}&limit=12&access_token=${TOKEN}`
+      );
+      const mediaData = await mediaRes.json();
+      let posts = [];
+      if (mediaData.data) {
+        // Fetch insights for each post
+        const postInsightsPromises = mediaData.data.map(async post => {
+          try {
+            const metrics = post.media_type === "VIDEO"
+              ? "impressions,reach,plays,saved,shares"
+              : "impressions,reach,saved,shares";
+            const piRes = await fetch(
+              `https://graph.facebook.com/v19.0/${post.id}/insights?metric=${metrics}&access_token=${TOKEN}`
+            );
+            const piData = await piRes.json();
+            const pi = {};
+            if (piData.data) piData.data.forEach(m => { pi[m.name] = m.values?.[0]?.value || 0; });
+            return { ...post, ...pi };
+          } catch {
+            return post;
+          }
+        });
+        posts = await Promise.all(postInsightsPromises);
+      }
+
+      // 4. Calculate engagement rate
+      const totalInteractions = (posts.reduce((s, p) => s + (p.like_count || 0) + (p.comments_count || 0) + (p.saved || 0), 0));
+      const totalImpressions = posts.reduce((s, p) => s + (p.impressions || 0), 0);
+      const engagement_rate = totalImpressions > 0 ? totalInteractions / totalImpressions : 0;
+
+      // 5. Aggregate totals
+      const total_likes = posts.reduce((s, p) => s + (p.like_count || 0), 0);
+      const total_comments = posts.reduce((s, p) => s + (p.comments_count || 0), 0);
+      const total_shares = posts.reduce((s, p) => s + (p.shares || 0), 0);
+      const total_saves = posts.reduce((s, p) => s + (p.saved || 0), 0);
+
+      return res.status(200).json({
+        success: true,
+        account: {
+          ...account,
+          ...insights,
+          engagement_rate,
+          total_likes,
+          total_comments,
+          total_shares,
+          total_saves,
+        },
+        posts,
+      });
     } catch (e) {
-      return res.status(500).json({ error: e.message });
+      return res.status(500).json({ success: false, error: e.message });
     }
   }
 
-  // ── PUBLISH POST ──
-  if (action === 'publish' && req.method === 'POST') {
-    const { caption, imageUrl, scheduleTime } = req.body;
-
-    if (!caption) return res.status(400).json({ error: 'Se necesita un caption' });
-    if (!imageUrl) return res.status(400).json({ error: 'Se necesita una imagen' });
-
+  // ── UPLOAD to Cloudinary ───────────────────────────────────────
+  if (action === "upload") {
     try {
-      // Step 1: Create media container
-      const containerBody = new URLSearchParams({
-        image_url: imageUrl,
-        caption: caption,
-        access_token: PAGE_ACCESS_TOKEN,
+      const { imageBase64 } = req.body;
+      const CLOUD = process.env.CLOUDINARY_CLOUD_NAME;
+      const KEY = process.env.CLOUDINARY_API_KEY;
+      const SECRET = process.env.CLOUDINARY_API_SECRET;
+      const ts = Math.round(Date.now() / 1000);
+      const str = `timestamp=${ts}${SECRET}`;
+      const sig = await sha1(str);
+      const form = new FormData();
+      form.append("file", imageBase64);
+      form.append("timestamp", ts);
+      form.append("api_key", KEY);
+      form.append("signature", sig);
+      const r = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD}/image/upload`, { method: "POST", body: form });
+      const d = await r.json();
+      if (d.error) throw new Error(d.error.message);
+      return res.status(200).json({ success: true, url: d.secure_url });
+    } catch (e) {
+      return res.status(500).json({ success: false, error: e.message });
+    }
+  }
+
+  // ── PUBLISH to Instagram ───────────────────────────────────────
+  if (action === "publish") {
+    try {
+      const { caption, imageUrl, format } = req.body;
+      const mediaType = format === "reel" ? "REELS" : format === "story" ? "STORIES" : null;
+      const body = { image_url: imageUrl, caption, access_token: TOKEN };
+      if (mediaType) body.media_type = mediaType;
+      const createRes = await fetch(`https://graph.facebook.com/v19.0/${IG_ID}/media`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
       });
-
-      const containerRes = await fetch(
-        `https://graph.facebook.com/v19.0/${INSTAGRAM_ACCOUNT_ID}/media`,
-        { method: 'POST', body: containerBody }
-      );
-      const containerData = await containerRes.json();
-
-      if (containerData.error) {
-        return res.status(400).json({ error: `Error al crear container: ${containerData.error.message}` });
-      }
-
-      const containerId = containerData.id;
-
-      // Step 2: Wait for container to be ready
-      await new Promise(resolve => setTimeout(resolve, 3000));
-
-      // Check container status
-      const statusRes = await fetch(
-        `https://graph.facebook.com/v19.0/${containerId}?fields=status_code&access_token=${PAGE_ACCESS_TOKEN}`
-      );
-      const statusData = await statusRes.json();
-
-      if (statusData.status_code === 'ERROR') {
-        return res.status(400).json({ error: 'Error al procesar la imagen en Instagram' });
-      }
-
-      // Step 3: Publish the container
-      const publishBody = new URLSearchParams({
-        creation_id: containerId,
-        access_token: PAGE_ACCESS_TOKEN,
+      const createData = await createRes.json();
+      if (createData.error) throw new Error(createData.error.message);
+      const publishRes = await fetch(`https://graph.facebook.com/v19.0/${IG_ID}/media_publish`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ creation_id: createData.id, access_token: TOKEN })
       });
-
-      const publishRes = await fetch(
-        `https://graph.facebook.com/v19.0/${INSTAGRAM_ACCOUNT_ID}/media_publish`,
-        { method: 'POST', body: publishBody }
-      );
       const publishData = await publishRes.json();
-
-      if (publishData.error) {
-        return res.status(400).json({ error: `Error al publicar: ${publishData.error.message}` });
-      }
-
-      return res.status(200).json({
-        success: true,
-        postId: publishData.id,
-        message: '¡Post publicado en Instagram exitosamente!'
-      });
-
+      if (publishData.error) throw new Error(publishData.error.message);
+      return res.status(200).json({ success: true, id: publishData.id });
     } catch (e) {
-      return res.status(500).json({ error: e.message });
+      return res.status(500).json({ success: false, error: e.message });
     }
   }
 
-  // ── UPLOAD IMAGE TO CLOUDINARY ──
-  if (action === 'upload' && req.method === 'POST') {
-    const { imageBase64 } = req.body;
-    if (!imageBase64) return res.status(400).json({ error: 'Se necesita la imagen en base64' });
+  return res.status(400).json({ success: false, error: "Acción no reconocida: " + action });
+}
 
-    try {
-      const timestamp = Math.round(Date.now() / 1000);
-      const crypto = await import('crypto');
-      const signature = crypto.createHash('sha1')
-        .update(`timestamp=${timestamp}${CLOUDINARY_API_SECRET}`)
-        .digest('hex');
-
-      const formData = new URLSearchParams({
-        file: imageBase64,
-        timestamp: timestamp.toString(),
-        api_key: CLOUDINARY_API_KEY,
-        signature,
-      });
-
-      const uploadRes = await fetch(
-        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
-        { method: 'POST', body: formData }
-      );
-      const uploadData = await uploadRes.json();
-
-      if (uploadData.error) {
-        return res.status(400).json({ error: uploadData.error.message });
-      }
-
-      return res.status(200).json({
-        success: true,
-        url: uploadData.secure_url,
-        publicId: uploadData.public_id
-      });
-    } catch (e) {
-      return res.status(500).json({ error: e.message });
-    }
-  }
-
-  return res.status(400).json({ error: `Acción desconocida: ${action}` });
+async function sha1(str) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(str);
+  const hashBuffer = await crypto.subtle.digest("SHA-1", data);
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
 }
