@@ -989,40 +989,47 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
       for(let i=0;i<7;i++){
         setProgress(i+1);
         // ── SELECCIÓN DE IMAGEN POR BRIEF ──
-        // Estrategia: cada imagen recibe una puntuación de relevancia (0-10) 
-        // comparada directamente con el brief en un solo llamado Vision.
-        // Se elige la de mayor puntaje. Sin pasos intermedios que puedan fallar.
+        // Un solo llamado a la API con TODAS las imágenes + el brief.
+        // Claude las ve juntas y elige directamente el índice correcto.
         let imgSrc = imgs[i % imgs.length].preview;
         let imgMatchWarning = false;
 
-        if(postBrief && imgs.length > 1) {
+        if(postBrief && imgs.length > 0) {
           try {
-            setProgressMsg(`Post ${i+1}: analizando ${imgs.length} imágenes para "${postBrief}"...`);
-            const scores = await Promise.all(imgs.map(async (img, idx) => {
-              const parts = img.preview.split(",");
-              const b64 = parts[1];
-              const mtype = (parts[0]||"").split(";")[0].split(":")[1] || "image/jpeg";
-              if(!b64 || b64.length < 100) return { idx, score: 0 };
-              try {
-                const result = await generateTextWithImage(
-                  `El cliente quiere publicar sobre: "${postBrief}". ¿Esta imagen muestra ese tema o algo directamente relacionado? Respondé con UN SOLO número del 0 al 10 donde 0=sin relación, 10=perfectamente relacionado. Solo el número.`,
-                  b64, mtype
-                );
-                const score = parseInt(result.trim().replace(/\D/g,"")) || 0;
-                return { idx, score };
-              } catch { return { idx, score: 0 }; }
-            }));
+            setProgressMsg(`Post ${i+1}: buscando imagen de "${postBrief}" entre ${imgs.length} fotos...`);
 
-            // Elegir la imagen con mayor puntaje
-            const best = scores.reduce((a, b) => b.score > a.score ? b : a, { idx: i % imgs.length, score: 0 });
-            setProgressMsg(`Post ${i+1}: imagen seleccionada (relevancia ${best.score}/10) — generando texto...`);
-            if(best.score >= 4) {
-              imgSrc = imgs[best.idx].preview;
-            } else {
-              imgSrc = imgs[best.idx].preview;
+            // Preparar todas las imágenes como array de base64 válido
+            const imgData = imgs.map((img, idx) => {
+              const parts = img.preview.split(",");
+              const b64 = parts[1] || "";
+              const mtype = (parts[0]||"data:image/jpeg").split(";")[0].split(":")[1] || "image/jpeg";
+              return { idx, b64, mtype, valid: b64.length > 200 };
+            }).filter(d => d.valid);
+
+            if(imgData.length === 0) {
+              // Ninguna imagen tiene base64 válido — son blob URLs viejas
               imgMatchWarning = true;
+            } else {
+              // Llamado único con múltiples imágenes via endpoint dedicado
+              const r = await fetch("/api/select-image", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  brief: postBrief,
+                  images: imgData.map(d => ({ idx: d.idx, b64: d.b64, mtype: d.mtype }))
+                })
+              });
+              const d = await r.json();
+              if(d.success && d.chosenIdx >= 0 && d.chosenIdx < imgs.length) {
+                imgSrc = imgs[d.chosenIdx].preview;
+                setProgressMsg(`Post ${i+1}: ✓ imagen ${d.chosenIdx+1} elegida para "${postBrief}" — generando texto...`);
+              } else {
+                imgMatchWarning = true;
+                setProgressMsg(`Post ${i+1}: sin imagen exacta para "${postBrief}" — generando texto...`);
+              }
             }
           } catch(e) {
+            // Fallback silencioso
             imgSrc = imgs[i % imgs.length].preview;
           }
         } else {
