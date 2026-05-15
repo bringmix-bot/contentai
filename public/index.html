@@ -525,6 +525,7 @@ function App() {
     {id:"generate",icon:"✦",label:"Crear publicación",done:posts.length>0},
     {id:"schedule",icon:"📅",label:"Automatizar",done:false},
     {id:"history",icon:"📋",label:"Historial",done:false},
+    {id:"stats",icon:"📊",label:"Estadísticas",done:false},
   ];
 
   return (
@@ -556,6 +557,7 @@ function App() {
         {screen==="generate" && <GenerateScreen brand={brand} files={files} posts={posts} savePosts={savePosts} showToast={showToast} onNext={()=>setScreen("schedule")} />}
         {screen==="schedule" && <ScheduleScreen socials={socials} showToast={showToast} />}
         {screen==="history"  && <HistoryScreen  socials={socials} showToast={showToast} />}
+        {screen==="stats"    && <StatsScreen    socials={socials} showToast={showToast} />}
       </div>
       {toast&&<div className={"toast "+toast.type}>{toast.msg}</div>}
     </div>
@@ -978,7 +980,31 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
       const prefs=store.get("stylePrefs")||{};
       for(let i=0;i<7;i++){
         setProgress(i+1);
-        const imgSrc=imgs[i%imgs.length].preview;
+        // Elegir imagen relacionada al brief usando análisis IA
+        // Analiza las primeras 4 imágenes disponibles y elige la más relevante
+        let imgSrc = imgs[i % imgs.length].preview; // fallback
+        if(postBrief && imgs.length > 1) {
+          try {
+            const imgSample = imgs.slice(0, Math.min(4, imgs.length));
+            const imgDescPromises = imgSample.map((img, idx) => {
+              const b64 = img.preview.split(",")[1];
+              const mtype = img.preview.split(";")[0].split(":")[1] || "image/jpeg";
+              return generateTextWithImage(
+                `Describí en 1 oración muy corta qué se ve en esta imagen (objetos, personas, lugar, actividad). Solo la descripción, nada más.`,
+                b64, mtype
+              ).then(desc => ({ idx, desc: desc.trim() })).catch(() => ({ idx, desc: "" }));
+            });
+            const descriptions = await Promise.all(imgDescPromises);
+            const selectPrompt = `El cliente quiere un post sobre: "${postBrief}". Tenés estas imágenes disponibles:\n${descriptions.map(d => `Imagen ${d.idx + 1}: ${d.desc}`).join("\n")}\n¿Cuál imagen (número) es la más relevante para ese tema? Respondé SOLO con el número (1, 2, 3 o 4).`;
+            const choice = await generateText(selectPrompt);
+            const chosenIdx = parseInt(choice.trim()) - 1;
+            if(!isNaN(chosenIdx) && chosenIdx >= 0 && chosenIdx < imgSample.length) {
+              imgSrc = imgSample[chosenIdx].preview;
+            }
+          } catch(e) {
+            imgSrc = imgs[i % imgs.length].preview; // fallback silencioso
+          }
+        }
         const ctx=buildBrandContext(i);
         const slideCount=slideCounts[i]||1;
         const postBrief=briefs[i]||"";
@@ -1648,7 +1674,7 @@ function ScheduleScreen({socials,showToast}) {
   const selectedPosts=posts.slice(0,7);
 
   return (
-    <div style={{padding:"24px 28px",display:"flex",gap:20,height:"100%",minHeight:0}} className="fade-in">
+    <div style={{padding:"24px 28px",display:"flex",gap:20,minHeight:"calc(100vh - 64px)"}} className="fade-in">
       <div style={{width:200,flexShrink:0,display:"flex",flexDirection:"column",gap:8}}>
         <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:15,marginBottom:4}}>Mis publicaciones</div>
         <div style={{fontSize:11,color:"var(--muted)",marginBottom:8,lineHeight:1.5}}>Hacé click en un día del calendario para asignar.</div>
@@ -1915,6 +1941,212 @@ function HistoryScreen({socials,showToast}) {
             </div>
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
+// STATS SCREEN — Instagram Insights via API
+// ════════════════════════════════════════════════════════════════
+function StatsScreen({socials, showToast}) {
+  const [loading, setLoading] = useState(false);
+  const [stats, setStats] = useState(store.get("igStats") || null);
+  const [posts, setPosts] = useState(store.get("igStatsPosts") || []);
+  const [lastFetch, setLastFetch] = useState(store.get("igStatsDate") || null);
+  const [activeTab, setActiveTab] = useState("resumen");
+
+  const igConnected = socials.find(s => s.id === "instagram" && s.connected);
+
+  const fetchStats = async () => {
+    setLoading(true);
+    try {
+      const r = await fetch("/api/instagram?action=stats");
+      const d = await r.json();
+      if (!d.success) throw new Error(d.error || "Error al obtener estadísticas");
+      setStats(d.account);
+      setPosts(d.posts || []);
+      const now = new Date().toISOString();
+      setLastFetch(now);
+      store.set("igStats", d.account);
+      store.set("igStatsPosts", d.posts || []);
+      store.set("igStatsDate", now);
+      showToast("Estadísticas actualizadas ✓", "ok");
+    } catch(e) {
+      showToast("Error: " + e.message, "err");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatNum = (n) => {
+    if (!n && n !== 0) return "—";
+    if (n >= 1000000) return (n/1000000).toFixed(1) + "M";
+    if (n >= 1000) return (n/1000).toFixed(1) + "K";
+    return String(n);
+  };
+
+  const formatDate = (iso) => {
+    try { return new Date(iso).toLocaleDateString("es-AR", {day:"numeric", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit"}); }
+    catch { return iso; }
+  };
+
+  const StatCard = ({icon, label, value, sub, color}) => (
+    <div style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:14,padding:"18px 20px",display:"flex",flexDirection:"column",gap:6}}>
+      <div style={{display:"flex",alignItems:"center",gap:8}}>
+        <span style={{fontSize:22}}>{icon}</span>
+        <span style={{fontSize:12,color:"var(--muted)",fontWeight:500}}>{label}</span>
+      </div>
+      <div style={{fontSize:32,fontWeight:800,color:color||"var(--text)",fontFamily:"'Syne',sans-serif"}}>{formatNum(value)}</div>
+      {sub && <div style={{fontSize:11,color:"var(--muted)"}}>{sub}</div>}
+    </div>
+  );
+
+  return (
+    <div style={{padding:"32px 36px"}} className="fade-in">
+      <div style={{marginBottom:24,display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:12}}>
+        <div>
+          <h2 style={{fontSize:22,fontWeight:800,marginBottom:6}}>Estadísticas de Instagram</h2>
+          <p style={{color:"var(--muted)",fontSize:14}}>
+            {igConnected ? `Cuenta: ${igConnected.user}` : "Instagram no conectado"}
+            {lastFetch && <span style={{marginLeft:12,fontSize:12,color:"var(--muted)"}}>Última actualización: {formatDate(lastFetch)}</span>}
+          </p>
+        </div>
+        <button className="btn btn-primary" onClick={fetchStats} disabled={loading || !igConnected}>
+          {loading ? <><div className="spin"/>Cargando...</> : "↻ Actualizar stats"}
+        </button>
+      </div>
+
+      {!igConnected && (
+        <div className="card" style={{textAlign:"center",padding:"48px",color:"var(--muted)"}}>
+          <div style={{fontSize:40,marginBottom:12}}>📸</div>
+          <div style={{fontWeight:600,fontSize:16,marginBottom:8}}>Instagram no conectado</div>
+          <div style={{fontSize:13}}>Conectá Instagram en "Conectar redes" para ver las estadísticas.</div>
+        </div>
+      )}
+
+      {igConnected && !stats && !loading && (
+        <div className="card" style={{textAlign:"center",padding:"48px",color:"var(--muted)"}}>
+          <div style={{fontSize:40,marginBottom:12}}>📊</div>
+          <div style={{fontWeight:600,fontSize:16,marginBottom:8}}>Sin datos aún</div>
+          <div style={{fontSize:13,marginBottom:20}}>Presioná "Actualizar stats" para cargar las estadísticas de tu cuenta.</div>
+          <button className="btn btn-primary" onClick={fetchStats} disabled={loading}>
+            {loading ? <><div className="spin"/>Cargando...</> : "Cargar estadísticas"}
+          </button>
+        </div>
+      )}
+
+      {stats && (
+        <>
+          {/* Tabs */}
+          <div style={{display:"flex",gap:4,marginBottom:24,background:"var(--surface2)",borderRadius:12,padding:4,width:"fit-content"}}>
+            {[["resumen","Resumen"],["interaccion","Interacción"],["posts","Posts recientes"]].map(([id,label])=>(
+              <button key={id} onClick={()=>setActiveTab(id)}
+                style={{padding:"8px 18px",borderRadius:9,border:"none",cursor:"pointer",fontSize:13,fontWeight:600,
+                  background:activeTab===id?"var(--surface)":"transparent",
+                  color:activeTab===id?"var(--text)":"var(--muted)",
+                  boxShadow:activeTab===id?"0 1px 4px rgba(0,0,0,.3)":"none",transition:"all .2s"}}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* RESUMEN */}
+          {activeTab==="resumen" && (
+            <div className="fade-in">
+              {/* Perfil */}
+              <div style={{display:"flex",alignItems:"center",gap:16,marginBottom:24,background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:16,padding:"20px"}}>
+                {stats.profile_picture_url && (
+                  <img src={stats.profile_picture_url} alt="profile" style={{width:64,height:64,borderRadius:"50%",objectFit:"cover",border:"2px solid var(--accent2)"}} />
+                )}
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:800,fontSize:18,fontFamily:"'Syne',sans-serif"}}>{stats.name || igConnected.user}</div>
+                  <div style={{fontSize:13,color:"var(--muted)",marginTop:2}}>@{stats.username || "gonvinardell"}</div>
+                  {stats.biography && <div style={{fontSize:12,color:"var(--muted)",marginTop:6,lineHeight:1.5}}>{stats.biography}</div>}
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:24,fontWeight:800,color:"var(--accent2)",fontFamily:"'Syne',sans-serif"}}>{formatNum(stats.followers_count)}</div>
+                  <div style={{fontSize:11,color:"var(--muted)"}}>seguidores</div>
+                </div>
+              </div>
+
+              {/* Métricas principales */}
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:12,marginBottom:24}}>
+                <StatCard icon="👥" label="Seguidores" value={stats.followers_count} color="var(--accent2)" />
+                <StatCard icon="📤" label="Seguidos" value={stats.follows_count} />
+                <StatCard icon="🖼" label="Publicaciones" value={stats.media_count} />
+                <StatCard icon="👁" label="Visualizaciones (28d)" value={stats.impressions} color="var(--success)" />
+                <StatCard icon="👤" label="Cuentas alcanzadas" value={stats.reach} color="var(--success)" />
+                <StatCard icon="🔗" label="Visitas al perfil" value={stats.profile_views} />
+                <StatCard icon="📞" label="Clics en contacto" value={stats.website_clicks} />
+                <StatCard icon="➕" label="Nuevos seguidores" value={stats.follower_count} sub="últimos 28 días" color="#22c55e" />
+              </div>
+            </div>
+          )}
+
+          {/* INTERACCIÓN */}
+          {activeTab==="interaccion" && (
+            <div className="fade-in">
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:12,marginBottom:24}}>
+                <StatCard icon="❤️" label="Me gusta (total)" value={stats.total_likes} color="var(--pink)" />
+                <StatCard icon="💬" label="Comentarios (total)" value={stats.total_comments} color="var(--accent2)" />
+                <StatCard icon="🔁" label="Compartidos" value={stats.total_shares} />
+                <StatCard icon="🔖" label="Guardados" value={stats.total_saves} color="var(--success)" />
+                <StatCard icon="📊" label="Tasa de interacción" value={stats.engagement_rate ? (stats.engagement_rate * 100).toFixed(2) + "%" : null} color="var(--warn)" />
+              </div>
+
+              {/* Mejor hora para publicar */}
+              {stats.best_time && (
+                <div style={{background:"rgba(109,40,217,.1)",border:"1px solid rgba(168,85,247,.3)",borderRadius:14,padding:"16px 20px",marginBottom:16}}>
+                  <div style={{fontWeight:700,fontSize:14,marginBottom:4,color:"var(--accent2)"}}>⏰ Mejor hora para publicar</div>
+                  <div style={{fontSize:13,color:"var(--text)"}}>{stats.best_time}</div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* POSTS RECIENTES */}
+          {activeTab==="posts" && (
+            <div className="fade-in">
+              {posts.length === 0 ? (
+                <div style={{textAlign:"center",padding:"40px",color:"var(--muted)"}}>No hay posts recientes disponibles.</div>
+              ) : (
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:14}}>
+                  {posts.map((post, i) => (
+                    <div key={i} style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:14,overflow:"hidden"}}>
+                      {post.thumbnail_url || post.media_url ? (
+                        <img src={post.thumbnail_url || post.media_url} alt="post"
+                          style={{width:"100%",aspectRatio:"1",objectFit:"cover"}} />
+                      ) : (
+                        <div style={{width:"100%",aspectRatio:"1",background:"var(--surface)",display:"grid",placeItems:"center",fontSize:32}}>
+                          {post.media_type === "VIDEO" ? "🎬" : "🖼"}
+                        </div>
+                      )}
+                      <div style={{padding:"12px"}}>
+                        <div style={{fontSize:11,color:"var(--muted)",marginBottom:8}}>{formatDate(post.timestamp)}</div>
+                        {post.caption && <div style={{fontSize:11,color:"rgba(240,240,255,.65)",lineHeight:1.6,marginBottom:10,overflow:"hidden",display:"-webkit-box",WebkitLineClamp:3,WebkitBoxOrient:"vertical"}}>{post.caption}</div>}
+                        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
+                          {[
+                            {icon:"❤️",val:post.like_count,label:"Likes"},
+                            {icon:"💬",val:post.comments_count,label:"Comentarios"},
+                            {icon:"👁",val:post.impressions,label:"Visualizaciones"},
+                            {icon:"👤",val:post.reach,label:"Alcance"},
+                          ].map(({icon,val,label})=>(
+                            <div key={label} style={{textAlign:"center",background:"rgba(255,255,255,.04)",borderRadius:8,padding:"6px 4px"}}>
+                              <div style={{fontSize:14}}>{icon}</div>
+                              <div style={{fontSize:13,fontWeight:700}}>{formatNum(val)}</div>
+                              <div style={{fontSize:9,color:"var(--muted)"}}>{label}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
