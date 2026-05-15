@@ -81,12 +81,62 @@ select option{background:var(--surface)}
 const { useState, useRef, useEffect, useCallback } = React;
 
 // ════════════════════════════════════════════════════════════════
-// STORE — localStorage helpers
+// STORE — por usuario (cada cliente tiene sus datos separados)
 // ════════════════════════════════════════════════════════════════
 const store = {
-  get: k => { try { return JSON.parse(localStorage.getItem("mcm_"+k)); } catch { return null; } },
-  set: (k,v) => localStorage.setItem("mcm_"+k, JSON.stringify(v)),
+  uid: () => { try { return JSON.parse(localStorage.getItem("mcm_session"))?.uid||""; } catch { return ""; } },
+  key: k => { const u=store.uid(); return u ? `mcm_u_${u}_${k}` : `mcm_${k}`; },
+  get: k => { try { return JSON.parse(localStorage.getItem(store.key(k))); } catch { return null; } },
+  set: (k,v) => localStorage.setItem(store.key(k), JSON.stringify(v)),
+  // Globales (no por usuario)
+  getG: k => { try { return JSON.parse(localStorage.getItem("mcm_"+k)); } catch { return null; } },
+  setG: (k,v) => localStorage.setItem("mcm_"+k, JSON.stringify(v)),
 };
+
+// ════════════════════════════════════════════════════════════════
+// PLANES
+// ════════════════════════════════════════════════════════════════
+const PLANS = {
+  free:    { id:"free",    name:"Free",    price_ars:0,     price_usd:0,   posts:7,   redes:1, auto:false, carousel:false, stats:false, color:"#6b6b8a" },
+  pro:     { id:"pro",     name:"Pro",     price_ars:9900,  price_usd:9,   posts:30,  redes:3, auto:true,  carousel:true,  stats:false, color:"#6d28d9" },
+  premium: { id:"premium", name:"Premium", price_ars:19900, price_usd:19,  posts:999, redes:5, auto:true,  carousel:true,  stats:true,  color:"#ec4899" },
+};
+
+const PLAN_FEATURES = {
+  free:    ["7 posts para probar","1 red social","Editor de diseño","Templates básicos"],
+  pro:     ["30 posts por mes","3 redes sociales","Publicación automática","Carrusel de imágenes","Briefs individuales","Aprendizaje de estilo"],
+  premium: ["Posts ilimitados","5 redes sociales","Todo lo de Pro","Estadísticas avanzadas","Encuestas y links","Soporte prioritario"],
+};
+
+// ════════════════════════════════════════════════════════════════
+// AUTH HELPERS
+// ════════════════════════════════════════════════════════════════
+function getSession() {
+  try { return JSON.parse(localStorage.getItem("mcm_session"))||null; } catch { return null; }
+}
+function setSession(data) {
+  localStorage.setItem("mcm_session", JSON.stringify(data));
+}
+function clearSession() {
+  localStorage.removeItem("mcm_session");
+}
+function getAllUsers() {
+  try { return JSON.parse(localStorage.getItem("mcm_users"))||{}; } catch { return {}; }
+}
+function saveUser(uid, data) {
+  const users = getAllUsers();
+  users[uid] = {...(users[uid]||{}), ...data};
+  localStorage.setItem("mcm_users", JSON.stringify(users));
+}
+function getUser(uid) {
+  return getAllUsers()[uid]||null;
+}
+function hashPassword(pwd) {
+  // Simple hash para demo — en producción usar bcrypt en backend
+  let hash = 0;
+  for(let i=0;i<pwd.length;i++) { hash = ((hash<<5)-hash)+pwd.charCodeAt(i); hash|=0; }
+  return hash.toString(36);
+}
 
 // ════════════════════════════════════════════════════════════════
 // APRENDIZAJE — guarda preferencias de edición persistentes
@@ -503,15 +553,43 @@ const STICKER_SETS = [
 ];
 
 // ════════════════════════════════════════════════════════════════
-// APP ROOT
+// APP ROOT — maneja landing / auth / app principal
 // ════════════════════════════════════════════════════════════════
 function App() {
+  const [appMode, setAppMode] = useState(() => {
+    const s = getSession();
+    if(s && s.uid && getUser(s.uid)) return "app";
+    return "landing";
+  });
+  const [authMode, setAuthMode] = useState("login"); // login | register
+  const [session, setSessionState] = useState(getSession);
   const [screen, setScreen] = useState("connect");
   const [brand, setBrand] = useState(store.get("brand")||{});
   const [files, setFiles] = useState(store.get("files")||[]);
   const [posts, setPosts] = useState(store.get("posts")||[]);
   const [socials, setSocials] = useState(store.get("socials")||SOCIALS_DEFAULT);
   const [toast, showToast] = useToast();
+
+  const currentUser = session ? getUser(session.uid) : null;
+  const currentPlan = PLANS[currentUser?.plan||"free"];
+
+  const handleLogin = (uid, userData) => {
+    const s = { uid, email: userData.email, name: userData.name, ts: Date.now() };
+    setSession(s); setSessionState(s);
+    // Reload user data into state
+    setBrand(store.get("brand")||{});
+    setFiles(store.get("files")||[]);
+    setPosts(store.get("posts")||[]);
+    setSocials(store.get("socials")||SOCIALS_DEFAULT);
+    setAppMode("app");
+    setScreen("connect");
+  };
+
+  const handleLogout = () => {
+    clearSession(); setSessionState(null);
+    setBrand({}); setFiles([]); setPosts([]); setSocials(SOCIALS_DEFAULT);
+    setAppMode("landing"); setAuthMode("login");
+  };
 
   const saveBrand=(b)=>{setBrand(b);store.set("brand",b);};
   const saveFiles=(f)=>{setFiles(f);store.set("files",f);};
@@ -528,6 +606,32 @@ function App() {
     {id:"stats",icon:"📊",label:"Estadísticas",done:false},
   ];
 
+  // ── LANDING ──
+  if(appMode==="landing") return (
+    <>
+      <LandingPage
+        onLogin={()=>{setAppMode("auth");setAuthMode("login");}}
+        onRegister={()=>{setAppMode("auth");setAuthMode("register");}}
+      />
+      {toast&&<div className={"toast "+toast.type}>{toast.msg}</div>}
+    </>
+  );
+
+  // ── AUTH ──
+  if(appMode==="auth") return (
+    <>
+      <AuthScreen
+        mode={authMode}
+        setMode={setAuthMode}
+        onSuccess={handleLogin}
+        onBack={()=>setAppMode("landing")}
+        showToast={showToast}
+      />
+      {toast&&<div className={"toast "+toast.type}>{toast.msg}</div>}
+    </>
+  );
+
+  // ── APP PRINCIPAL ──
   return (
     <div className="app">
       <div className="sidebar">
@@ -535,31 +639,412 @@ function App() {
           <div className="logo-mark">M</div>
           <div><div className="logo-text">MCM</div><div className="logo-sub">COMMUNITY MANAGER</div></div>
         </div>
+        {/* Plan badge */}
+        <div style={{margin:"0 10px 12px",background:`rgba(${currentPlan.id==="premium"?"236,72,153":currentPlan.id==="pro"?"109,40,217":"107,107,138"},.15)`,border:`1px solid ${currentPlan.color}44`,borderRadius:8,padding:"5px 10px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <span style={{fontSize:11,fontWeight:700,color:currentPlan.color}}>Plan {currentPlan.name}</span>
+          <button onClick={()=>setScreen("plan")} style={{background:"none",border:"none",color:currentPlan.color,fontSize:10,cursor:"pointer",fontWeight:600}}>↑ Mejorar</button>
+        </div>
         <div className="nav-section">FLUJO</div>
         {steps.map(s=>(
-          <button key={s.id} className={"nav-item"+(screen===s.id?" active":"")} onClick={()=>setScreen(s.id)}>
+          <button key={s.id} className={"nav-item"+(screen===s.id?" active":"")} onClick={()=>{
+            // Bloquear stats si no es premium
+            if(s.id==="stats"&&!currentPlan.stats){showToast("Estadísticas disponibles en Plan Premium","info");return;}
+            setScreen(s.id);
+          }}>
             <div className={"step-dot"+(s.done?" done":screen===s.id?" active":"")} />
             <span>{s.icon}</span>{s.label}
+            {s.id==="stats"&&!currentPlan.stats&&<span style={{marginLeft:"auto",fontSize:9,color:"var(--muted)"}}>🔒</span>}
           </button>
         ))}
         <div style={{marginTop:"auto",padding:"12px 10px"}}>
-          <div style={{fontSize:11,color:"var(--muted)",marginBottom:6}}>Conectadas</div>
-          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          <div style={{fontSize:11,color:"var(--muted)",marginBottom:4}}>Conectadas</div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
             {socials.filter(s=>s.connected).map(s=><span key={s.id} title={s.name} style={{fontSize:16}}>{s.icon}</span>)}
             {!socials.some(s=>s.connected)&&<span style={{fontSize:11,color:"var(--muted)"}}>Ninguna</span>}
           </div>
+          <div style={{fontSize:11,color:"var(--muted)",marginBottom:4,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{currentUser?.email}</div>
+          <button onClick={handleLogout} style={{background:"none",border:"1px solid var(--border)",color:"var(--muted)",borderRadius:7,padding:"5px 10px",fontSize:11,cursor:"pointer",width:"100%"}}>Cerrar sesión</button>
         </div>
       </div>
       <div className="main">
         {screen==="connect"  && <ConnectScreen  socials={socials} saveSocials={saveSocials} showToast={showToast} onNext={()=>setScreen("brand")} />}
         {screen==="brand"    && <BrandScreen    brand={brand} saveBrand={saveBrand} showToast={showToast} onNext={()=>setScreen("library")} />}
         {screen==="library"  && <LibraryScreen  files={files} saveFiles={saveFiles} showToast={showToast} onNext={()=>setScreen("generate")} />}
-        {screen==="generate" && <GenerateScreen brand={brand} files={files} posts={posts} savePosts={savePosts} showToast={showToast} onNext={()=>setScreen("schedule")} />}
+        {screen==="generate" && <GenerateScreen brand={brand} files={files} posts={posts} savePosts={savePosts} showToast={showToast} onNext={()=>setScreen("schedule")} plan={currentPlan} />}
         {screen==="schedule" && <ScheduleScreen socials={socials} showToast={showToast} />}
         {screen==="history"  && <HistoryScreen  socials={socials} showToast={showToast} />}
         {screen==="stats"    && <StatsScreen    socials={socials} showToast={showToast} />}
+        {screen==="plan"     && <PlanScreen     currentPlan={currentPlan} user={currentUser} onUpgrade={(plan)=>{saveUser(session.uid,{plan});setSessionState({...session});showToast("Plan actualizado a "+PLANS[plan].name,"ok");setScreen("connect");}} showToast={showToast} />}
       </div>
       {toast&&<div className={"toast "+toast.type}>{toast.msg}</div>}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
+// LANDING PAGE
+// ════════════════════════════════════════════════════════════════
+function LandingPage({onLogin, onRegister}) {
+  const [billingARS, setBillingARS] = useState(true);
+
+  return (
+    <div style={{minHeight:"100vh",background:"var(--bg)",overflowX:"hidden"}}>
+
+      {/* NAV */}
+      <nav style={{position:"fixed",top:0,left:0,right:0,zIndex:100,background:"rgba(8,8,15,.9)",backdropFilter:"blur(20px)",borderBottom:"1px solid var(--border)",padding:"0 40px",height:64,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{width:34,height:34,background:"linear-gradient(135deg,var(--accent),var(--pink))",borderRadius:9,display:"grid",placeItems:"center",fontWeight:800,fontSize:14,color:"#fff",fontFamily:"'Syne',sans-serif"}}>M</div>
+          <div>
+            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:16,color:"var(--text)"}}>MCM</div>
+            <div style={{fontSize:9,color:"var(--muted)",letterSpacing:1}}>MY COMMUNITY MANAGER</div>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:12,alignItems:"center"}}>
+          <button onClick={onLogin} className="btn btn-ghost" style={{padding:"8px 20px",fontSize:13}}>Iniciar sesión</button>
+          <button onClick={onRegister} className="btn btn-primary" style={{padding:"8px 20px",fontSize:13}}>Empezar gratis</button>
+        </div>
+      </nav>
+
+      {/* HERO */}
+      <div style={{paddingTop:120,paddingBottom:80,textAlign:"center",padding:"140px 20px 80px",position:"relative",overflow:"hidden"}}>
+        {/* Background glow */}
+        <div style={{position:"absolute",top:"10%",left:"50%",transform:"translateX(-50%)",width:600,height:600,background:"radial-gradient(circle,rgba(109,40,217,.2) 0%,transparent 70%)",pointerEvents:"none"}} />
+        <div style={{position:"relative"}}>
+          <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(109,40,217,.15)",border:"1px solid rgba(168,85,247,.3)",borderRadius:20,padding:"6px 16px",fontSize:12,color:"var(--accent2)",marginBottom:24,fontWeight:600}}>
+            ✦ Powered by Claude AI — Anthropic
+          </div>
+          <h1 style={{fontFamily:"'Syne',sans-serif",fontSize:"clamp(36px,6vw,72px)",fontWeight:800,lineHeight:1.1,marginBottom:24,background:"linear-gradient(135deg,#fff 40%,var(--accent2))",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>
+            Tu Community Manager<br/>con Inteligencia Artificial
+          </h1>
+          <p style={{fontSize:"clamp(16px,2vw,20px)",color:"var(--muted)",maxWidth:600,margin:"0 auto 40px",lineHeight:1.7}}>
+            MCM genera, diseña y publica contenido para tus redes sociales automáticamente. Vos solo elegís, la IA hace el resto.
+          </p>
+          <div style={{display:"flex",gap:14,justifyContent:"center",flexWrap:"wrap"}}>
+            <button onClick={onRegister} className="btn btn-primary" style={{padding:"14px 32px",fontSize:16,borderRadius:12}}>
+              Empezar gratis →
+            </button>
+            <button onClick={onLogin} className="btn btn-ghost" style={{padding:"14px 32px",fontSize:16,borderRadius:12}}>
+              Ya tengo cuenta
+            </button>
+          </div>
+          <div style={{marginTop:20,fontSize:12,color:"var(--muted)"}}>Sin tarjeta de crédito · 7 posts gratis · Cancelá cuando quieras</div>
+        </div>
+      </div>
+
+      {/* FEATURES */}
+      <div style={{padding:"60px 40px",maxWidth:1100,margin:"0 auto"}}>
+        <h2 style={{fontFamily:"'Syne',sans-serif",fontSize:32,fontWeight:800,textAlign:"center",marginBottom:12}}>Todo lo que necesitás para tus redes</h2>
+        <p style={{textAlign:"center",color:"var(--muted)",marginBottom:48,fontSize:15}}>De la idea a la publicación en minutos</p>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:20}}>
+          {[
+            {icon:"🤖",title:"Generación con IA",desc:"Claude genera captions, frases y textos personalizados para tu marca y tu tono de comunicación."},
+            {icon:"🎨",title:"3 templates por post",desc:"Cada publicación viene con 3 diseños completamente distintos. Elegís el que más te gusta."},
+            {icon:"📸",title:"Selección inteligente de fotos",desc:"La IA analiza tus imágenes y elige la más relevante según el tema de cada post."},
+            {icon:"📅",title:"Calendario automático",desc:"Programá tus posts para la semana con un click. MCM publica en el día y hora que vos elegís."},
+            {icon:"📊",title:"Estadísticas de Instagram",desc:"Visualizaciones, alcance, engagement y métricas de cada post directo desde la API de Instagram."},
+            {icon:"✏️",title:"Editor completo",desc:"Mové textos, cambiá tipografías, agregá stickers, links y encuestas. Todo en tiempo real."},
+          ].map((f,i)=>(
+            <div key={i} style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:16,padding:"24px",transition:"border-color .2s"}}
+              onMouseEnter={e=>e.currentTarget.style.borderColor="rgba(168,85,247,.4)"}
+              onMouseLeave={e=>e.currentTarget.style.borderColor="var(--border)"}>
+              <div style={{fontSize:32,marginBottom:12}}>{f.icon}</div>
+              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16,marginBottom:8}}>{f.title}</div>
+              <div style={{fontSize:13,color:"var(--muted)",lineHeight:1.7}}>{f.desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* PRICING */}
+      <div style={{padding:"60px 40px",maxWidth:1000,margin:"0 auto"}} id="precios">
+        <h2 style={{fontFamily:"'Syne',sans-serif",fontSize:32,fontWeight:800,textAlign:"center",marginBottom:12}}>Planes y precios</h2>
+        <p style={{textAlign:"center",color:"var(--muted)",marginBottom:24,fontSize:15}}>Empezá gratis, escalá cuando quieras</p>
+
+        {/* Toggle ARS/USD */}
+        <div style={{display:"flex",justifyContent:"center",marginBottom:40}}>
+          <div style={{background:"var(--surface2)",borderRadius:12,padding:4,display:"flex",gap:4}}>
+            {[["ARS","🇦🇷 Argentina"],["USD","🌎 Internacional"]].map(([v,l])=>(
+              <button key={v} onClick={()=>setBillingARS(v==="ARS")}
+                style={{padding:"8px 20px",borderRadius:9,border:"none",cursor:"pointer",fontSize:13,fontWeight:600,
+                  background:(billingARS&&v==="ARS")||(!billingARS&&v==="USD")?"var(--surface)":"transparent",
+                  color:(billingARS&&v==="ARS")||(!billingARS&&v==="USD")?"var(--text)":"var(--muted)"}}>
+                {l}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:20}}>
+          {Object.values(PLANS).map((plan,i)=>(
+            <div key={plan.id} style={{background:"var(--surface)",border:`2px solid ${i===2?"var(--pink)":i===1?"var(--accent2)":"var(--border)"}`,borderRadius:20,padding:"32px 28px",position:"relative",transition:"transform .2s"}}
+              onMouseEnter={e=>e.currentTarget.style.transform="translateY(-4px)"}
+              onMouseLeave={e=>e.currentTarget.style.transform="translateY(0)"}>
+              {i===1&&<div style={{position:"absolute",top:-14,left:"50%",transform:"translateX(-50%)",background:"linear-gradient(135deg,var(--accent),var(--accent2))",borderRadius:20,padding:"4px 16px",fontSize:11,fontWeight:700,color:"#fff",whiteSpace:"nowrap"}}>MÁS POPULAR</div>}
+              {i===2&&<div style={{position:"absolute",top:-14,left:"50%",transform:"translateX(-50%)",background:"linear-gradient(135deg,var(--pink),#f43f5e)",borderRadius:20,padding:"4px 16px",fontSize:11,fontWeight:700,color:"#fff",whiteSpace:"nowrap"}}>TODO INCLUIDO</div>}
+              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,marginBottom:6,color:plan.color}}>{plan.name}</div>
+              <div style={{marginBottom:20}}>
+                {plan.price_ars===0 ? (
+                  <span style={{fontSize:40,fontWeight:800,fontFamily:"'Syne',sans-serif"}}>Gratis</span>
+                ) : billingARS ? (
+                  <div>
+                    <span style={{fontSize:40,fontWeight:800,fontFamily:"'Syne',sans-serif"}}>ARS ${plan.price_ars.toLocaleString()}</span>
+                    <span style={{fontSize:13,color:"var(--muted)"}}>/mes</span>
+                  </div>
+                ) : (
+                  <div>
+                    <span style={{fontSize:40,fontWeight:800,fontFamily:"'Syne',sans-serif"}}>USD ${plan.price_usd}</span>
+                    <span style={{fontSize:13,color:"var(--muted)"}}>/mes</span>
+                  </div>
+                )}
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:28}}>
+                {PLAN_FEATURES[plan.id].map((f,j)=>(
+                  <div key={j} style={{display:"flex",alignItems:"center",gap:8,fontSize:13,color:"var(--muted)"}}>
+                    <span style={{color:plan.color,fontWeight:700,fontSize:16}}>✓</span>{f}
+                  </div>
+                ))}
+              </div>
+              <button onClick={onRegister} className="btn" style={{width:"100%",padding:"12px",fontSize:14,fontWeight:700,
+                background:i===0?"var(--surface2)":i===1?"linear-gradient(135deg,var(--accent),var(--accent2))":"linear-gradient(135deg,var(--pink),#f43f5e)",
+                color:"#fff",border:i===0?"1px solid var(--border)":"none",borderRadius:10}}>
+                {i===0?"Empezar gratis":"Contratar ahora"}
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* FOOTER */}
+      <footer style={{borderTop:"1px solid var(--border)",padding:"32px 40px",textAlign:"center",color:"var(--muted)",fontSize:13}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:12}}>
+          <div style={{width:26,height:26,background:"linear-gradient(135deg,var(--accent),var(--pink))",borderRadius:7,display:"grid",placeItems:"center",fontWeight:800,fontSize:11,color:"#fff"}}>M</div>
+          <span style={{fontFamily:"'Syne',sans-serif",fontWeight:800}}>MCM — My Community Manager</span>
+        </div>
+        <p>© 2026 MCM · Todos los derechos reservados</p>
+      </footer>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
+// AUTH SCREEN — Login + Registro
+// ════════════════════════════════════════════════════════════════
+function AuthScreen({mode, setMode, onSuccess, onBack, showToast}) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [company, setCompany] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    if(!email||!password){showToast("Completá email y contraseña","err");return;}
+    if(mode==="register"&&!name){showToast("Ingresá tu nombre","err");return;}
+    if(password.length<6){showToast("La contraseña debe tener al menos 6 caracteres","err");return;}
+    setLoading(true);
+    await new Promise(r=>setTimeout(r,600)); // simula request
+
+    const users = getAllUsers();
+    const uid = btoa(email).replace(/[^a-z0-9]/gi,"").slice(0,16);
+
+    if(mode==="login") {
+      const user = Object.values(users).find(u=>u.email===email);
+      if(!user||user.passwordHash!==hashPassword(password)){
+        showToast("Email o contraseña incorrectos","err"); setLoading(false); return;
+      }
+      showToast("Bienvenido/a de nuevo, "+user.name+"!","ok");
+      onSuccess(user.uid, user);
+    } else {
+      if(Object.values(users).find(u=>u.email===email)){
+        showToast("Ya existe una cuenta con ese email","err"); setLoading(false); return;
+      }
+      const newUser = { uid, email, name, company, passwordHash: hashPassword(password), plan:"free", createdAt: Date.now() };
+      saveUser(uid, newUser);
+      showToast("Cuenta creada! Bienvenido/a, "+name+"!","ok");
+      onSuccess(uid, newUser);
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{minHeight:"100vh",background:"var(--bg)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:20,position:"relative"}}>
+      {/* Background glow */}
+      <div style={{position:"fixed",top:"20%",left:"50%",transform:"translateX(-50%)",width:500,height:500,background:"radial-gradient(circle,rgba(109,40,217,.15) 0%,transparent 70%)",pointerEvents:"none"}} />
+
+      <button onClick={onBack} style={{position:"absolute",top:24,left:24,background:"none",border:"none",color:"var(--muted)",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",gap:6}}>
+        ← Volver
+      </button>
+
+      <div style={{width:"100%",maxWidth:420,position:"relative"}}>
+        {/* Logo */}
+        <div style={{textAlign:"center",marginBottom:32}}>
+          <div style={{width:48,height:48,background:"linear-gradient(135deg,var(--accent),var(--pink))",borderRadius:14,display:"grid",placeItems:"center",fontWeight:800,fontSize:20,color:"#fff",fontFamily:"'Syne',sans-serif",margin:"0 auto 12px"}}>M</div>
+          <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22}}>MCM</div>
+          <div style={{fontSize:13,color:"var(--muted)",marginTop:4}}>
+            {mode==="login"?"Iniciá sesión en tu cuenta":"Creá tu cuenta gratis"}
+          </div>
+        </div>
+
+        {/* Card */}
+        <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:20,padding:"32px"}}>
+          <div style={{display:"flex",gap:4,background:"var(--surface2)",borderRadius:12,padding:4,marginBottom:24}}>
+            {[["login","Iniciar sesión"],["register","Registrarse"]].map(([m,l])=>(
+              <button key={m} onClick={()=>setMode(m)}
+                style={{flex:1,padding:"9px",borderRadius:9,border:"none",cursor:"pointer",fontSize:13,fontWeight:600,
+                  background:mode===m?"var(--surface)":"transparent",
+                  color:mode===m?"var(--text)":"var(--muted)"}}>
+                {l}
+              </button>
+            ))}
+          </div>
+
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            {mode==="register"&&(
+              <div>
+                <span className="lbl">Nombre completo</span>
+                <input value={name} onChange={e=>setName(e.target.value)} placeholder="Juan García" />
+              </div>
+            )}
+            {mode==="register"&&(
+              <div>
+                <span className="lbl">Empresa (opcional)</span>
+                <input value={company} onChange={e=>setCompany(e.target.value)} placeholder="La Josefa S.A." />
+              </div>
+            )}
+            <div>
+              <span className="lbl">Email</span>
+              <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="tu@email.com" />
+            </div>
+            <div>
+              <span className="lbl">Contraseña</span>
+              <input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Mínimo 6 caracteres"
+                onKeyDown={e=>e.key==="Enter"&&handleSubmit()} />
+            </div>
+
+            <button onClick={handleSubmit} disabled={loading} className="btn btn-primary" style={{width:"100%",padding:"13px",fontSize:15,borderRadius:12,marginTop:4}}>
+              {loading?<><div className="spin"/>Procesando...</>:mode==="login"?"Iniciar sesión →":"Crear cuenta gratis →"}
+            </button>
+          </div>
+
+          {mode==="register"&&(
+            <div style={{marginTop:16,fontSize:11,color:"var(--muted)",textAlign:"center",lineHeight:1.6}}>
+              Al registrarte aceptás los Términos de Servicio y la Política de Privacidad. Plan Free incluye 7 posts para probar.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
+// PLAN SCREEN — Gestión de membresía + pago
+// ════════════════════════════════════════════════════════════════
+function PlanScreen({currentPlan, user, onUpgrade, showToast}) {
+  const [billingARS, setBillingARS] = useState(true);
+  const [paying, setPaying] = useState(null);
+
+  const handlePay = async (planId) => {
+    if(planId===currentPlan.id){showToast("Ya estás en este plan","info");return;}
+    if(planId==="free"){onUpgrade("free");return;}
+    setPaying(planId);
+    try {
+      const plan = PLANS[planId];
+      const amount = billingARS ? plan.price_ars : plan.price_usd;
+      const currency = billingARS ? "ARS" : "USD";
+      const r = await fetch("/api/payment?action=create", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ planId, amount, currency, email: user.email, name: user.name, uid: user.uid })
+      });
+      const d = await r.json();
+      if(!d.success) throw new Error(d.error);
+      if(d.initPoint) {
+        window.open(d.initPoint, "_blank");
+        showToast("Redirigiendo a "+( billingARS?"MercadoPago":"Stripe")+"...","info");
+        // En producción el webhook actualiza el plan automáticamente
+        // Por ahora simulamos la confirmación
+        setTimeout(()=>{
+          onUpgrade(planId);
+          showToast("Plan "+PLANS[planId].name+" activado!","ok");
+        }, 3000);
+      }
+    } catch(e) {
+      // Si el endpoint no existe aún, simular el upgrade
+      showToast("Procesando pago... (modo demo)","info");
+      setTimeout(()=>{ onUpgrade(planId); showToast("Plan "+PLANS[planId].name+" activado!","ok"); },1500);
+    }
+    setPaying(null);
+  };
+
+  return (
+    <div style={{padding:"32px 36px",maxWidth:920}} className="fade-in">
+      <div style={{marginBottom:28}}>
+        <h2 style={{fontSize:22,fontWeight:800,marginBottom:6}}>Planes y membresía</h2>
+        <p style={{color:"var(--muted)",fontSize:14}}>
+          Plan actual: <strong style={{color:currentPlan.color}}>{currentPlan.name}</strong>
+          {user?.createdAt&&<span style={{marginLeft:12,fontSize:12,color:"var(--muted)"}}>Cuenta desde {new Date(user.createdAt).toLocaleDateString("es-AR")}</span>}
+        </p>
+      </div>
+
+      {/* Toggle */}
+      <div style={{display:"flex",gap:4,background:"var(--surface2)",borderRadius:12,padding:4,width:"fit-content",marginBottom:28}}>
+        {[["ARS","🇦🇷 Pagar en ARS (MercadoPago)"],["USD","🌎 Pagar en USD/USDT (Stripe)"]].map(([v,l])=>(
+          <button key={v} onClick={()=>setBillingARS(v==="ARS")}
+            style={{padding:"8px 16px",borderRadius:9,border:"none",cursor:"pointer",fontSize:12,fontWeight:600,
+              background:(billingARS&&v==="ARS")||(!billingARS&&v==="USD")?"var(--surface)":"transparent",
+              color:(billingARS&&v==="ARS")||(!billingARS&&v==="USD")?"var(--text)":"var(--muted)"}}>
+            {l}
+          </button>
+        ))}
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",gap:16}}>
+        {Object.values(PLANS).map((plan,i)=>{
+          const isCurrent = plan.id===currentPlan.id;
+          const isDowngrade = ["free","pro","premium"].indexOf(plan.id) < ["free","pro","premium"].indexOf(currentPlan.id);
+          return (
+            <div key={plan.id} style={{background:"var(--surface2)",border:`2px solid ${isCurrent?plan.color:"var(--border)"}`,borderRadius:16,padding:"24px",position:"relative"}}>
+              {isCurrent&&<div style={{position:"absolute",top:-12,left:"50%",transform:"translateX(-50%)",background:plan.color,borderRadius:20,padding:"3px 12px",fontSize:11,fontWeight:700,color:"#fff",whiteSpace:"nowrap"}}>TU PLAN ACTUAL</div>}
+              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20,color:plan.color,marginBottom:4}}>{plan.name}</div>
+              <div style={{marginBottom:16}}>
+                {plan.price_ars===0 ? (
+                  <span style={{fontSize:32,fontWeight:800,fontFamily:"'Syne',sans-serif"}}>Gratis</span>
+                ) : billingARS ? (
+                  <div><span style={{fontSize:32,fontWeight:800,fontFamily:"'Syne',sans-serif"}}>ARS ${plan.price_ars.toLocaleString()}</span><span style={{fontSize:12,color:"var(--muted)"}}>/mes</span></div>
+                ) : (
+                  <div><span style={{fontSize:32,fontWeight:800,fontFamily:"'Syne',sans-serif"}}>USD ${plan.price_usd}</span><span style={{fontSize:12,color:"var(--muted)"}}>/mes</span></div>
+                )}
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:20}}>
+                {PLAN_FEATURES[plan.id].map((f,j)=>(
+                  <div key={j} style={{display:"flex",alignItems:"center",gap:7,fontSize:12,color:"var(--muted)"}}>
+                    <span style={{color:plan.color,fontWeight:700}}>✓</span>{f}
+                  </div>
+                ))}
+              </div>
+              <button onClick={()=>handlePay(plan.id)} disabled={isCurrent||paying===plan.id} className="btn"
+                style={{width:"100%",padding:"10px",fontSize:13,fontWeight:700,borderRadius:10,
+                  background:isCurrent?"var(--surface)":i===0?"var(--surface2)":i===1?"linear-gradient(135deg,var(--accent),var(--accent2))":"linear-gradient(135deg,var(--pink),#f43f5e)",
+                  color:isCurrent?"var(--muted)":"#fff",
+                  border:isCurrent?"1px solid var(--border)":i===0?"1px solid var(--border)":"none",
+                  opacity:isCurrent?0.7:1}}>
+                {paying===plan.id?<><div className="spin"/>Procesando...</>:
+                 isCurrent?"Plan actual":
+                 isDowngrade?"Cambiar a "+plan.name:
+                 plan.id==="free"?"Bajar a Free":"Contratar "+plan.name}
+              </button>
+              {!isCurrent&&!isDowngrade&&plan.price_ars>0&&(
+                <div style={{fontSize:10,color:"var(--muted)",textAlign:"center",marginTop:8}}>
+                  {billingARS?"Pago via MercadoPago · Suscripción mensual":"Pago via Stripe · Suscripción mensual"}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{marginTop:24,background:"rgba(109,40,217,.08)",border:"1px solid rgba(168,85,247,.2)",borderRadius:12,padding:"14px 18px",fontSize:12,color:"var(--muted)",lineHeight:1.7}}>
+        💳 <strong style={{color:"var(--text)"}}>Pagos seguros:</strong> Argentina vía MercadoPago (tarjeta, transferencia, Mercado Crédito). Internacional vía Stripe (VISA, Mastercard, USDT). Las suscripciones se renuevan automáticamente cada 30 días. Podés cancelar en cualquier momento.
+      </div>
     </div>
   );
 }
