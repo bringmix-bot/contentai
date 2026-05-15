@@ -119,10 +119,48 @@ export default async function handler(req, res) {
   // ── PUBLISH to Instagram ───────────────────────────────────────
   if (action === "publish") {
     try {
-      const { caption, imageUrl, format } = req.body;
+      const { caption, imageUrl, format, link, linkLabel, poll } = req.body;
+
+      // For Stories with poll sticker — use Stories-specific endpoint
+      if (format === "story" && poll && poll.active && poll.question) {
+        // Create story with poll sticker
+        const storyBody = {
+          image_url: imageUrl,
+          media_type: "STORIES",
+          access_token: TOKEN,
+          story_stickers: JSON.stringify({
+            poll_sticker: {
+              question: poll.question,
+              options: poll.options.filter(o => o).slice(0, 5),
+            }
+          }),
+        };
+        if (link) storyBody.link = link;
+        const createRes = await fetch(`https://graph.facebook.com/v19.0/${IG_ID}/media`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(storyBody)
+        });
+        const createData = await createRes.json();
+        if (createData.error) throw new Error(createData.error.message);
+        const publishRes = await fetch(`https://graph.facebook.com/v19.0/${IG_ID}/media_publish`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ creation_id: createData.id, access_token: TOKEN })
+        });
+        const publishData = await publishRes.json();
+        if (publishData.error) throw new Error(publishData.error.message);
+        return res.status(200).json({ success: true, id: publishData.id });
+      }
+
+      // Standard post / reel
       const mediaType = format === "reel" ? "REELS" : format === "story" ? "STORIES" : null;
-      const body = { image_url: imageUrl, caption, access_token: TOKEN };
+      // Append link to caption if provided (for feed posts, link goes in caption or bio)
+      const fullCaption = link
+        ? `${caption}\n\n🔗 ${linkLabel || "Ver más"}: ${link}`
+        : caption;
+
+      const body = { image_url: imageUrl, caption: fullCaption, access_token: TOKEN };
       if (mediaType) body.media_type = mediaType;
+
       const createRes = await fetch(`https://graph.facebook.com/v19.0/${IG_ID}/media`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
       });
