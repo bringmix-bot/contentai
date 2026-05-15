@@ -7,7 +7,7 @@
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&display=swap" rel="stylesheet"/>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -685,27 +685,277 @@ function App() {
 // LANDING PAGE
 // ════════════════════════════════════════════════════════════════
 function LandingPage({onLogin, onRegister}) {
-  const [billingARS, setBillingARS] = useState(false);
+  const [billingARS, setBillingARS] = useState(true); // Argentina primero
   const [usdRate, setUsdRate] = useState(null);
   const [loadingRate, setLoadingRate] = useState(false);
 
-  // Tipo de cambio oficial BCRA en tiempo real
   useEffect(()=>{
-    if(!billingARS) return;
-    if(usdRate) return; // ya cargado
     setLoadingRate(true);
-    fetch("https://api.exchangerate-api.com/v4/latest/USD")
-      .then(r=>r.json())
-      .then(d=>{ setUsdRate(d.rates?.ARS||1200); })
-      .catch(()=>{
-        // Fallback: Dolarito API (argentina)
-        fetch("https://dolarapi.com/v1/dolares/oficial")
-          .then(r=>r.json())
-          .then(d=>setUsdRate(d.venta||1200))
-          .catch(()=>setUsdRate(1200));
-      })
+    fetch("https://dolarapi.com/v1/dolares/oficial")
+      .then(r=>r.json()).then(d=>setUsdRate(d.venta||1200))
+      .catch(()=>fetch("https://api.exchangerate-api.com/v4/latest/USD")
+        .then(r=>r.json()).then(d=>setUsdRate(d.rates?.ARS||1200))
+        .catch(()=>setUsdRate(1200)))
       .finally(()=>setLoadingRate(false));
-  },[billingARS]);
+  },[]);
+
+  const arsPrice=(usd)=>usdRate?Math.round(usd*usdRate).toLocaleString("es-AR"):"...";
+
+  // Fuentes: Bricolage Grotesque para headlines, DM Sans para cuerpo
+  const HF = "'Bricolage Grotesque', 'Syne', sans-serif";
+  const BF = "'DM Sans', 'Inter', sans-serif";
+
+  const planOrder = billingARS
+    ? [PLANS.free, PLANS.pro, PLANS.premium]
+    : [PLANS.free, PLANS.pro, PLANS.premium];
+
+  return (
+    <div style={{minHeight:"100vh",background:"#ffffff",color:"#0f0f1a",fontFamily:BF,overflowX:"hidden"}}>
+
+      {/* Dot grid background — solo en el hero */}
+      <style>{`
+        .hero-dot-bg {
+          background-color: #ffffff;
+          background-image: radial-gradient(#d4c8f0 1px, transparent 1px);
+          background-size: 28px 28px;
+        }
+        .landing-btn-primary {
+          background: linear-gradient(135deg, #6d28d9, #9333ea);
+          color: white;
+          border: none;
+          padding: 14px 32px;
+          border-radius: 12px;
+          font-size: 16px;
+          font-weight: 600;
+          cursor: pointer;
+          font-family: ${BF};
+          box-shadow: 0 4px 20px rgba(109,40,217,.3);
+          transition: all .2s;
+        }
+        .landing-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(109,40,217,.4); }
+        .landing-btn-ghost {
+          background: transparent;
+          color: #4a4a6a;
+          border: 1.5px solid #e0daf5;
+          padding: 14px 32px;
+          border-radius: 12px;
+          font-size: 16px;
+          font-weight: 500;
+          cursor: pointer;
+          font-family: ${BF};
+          transition: all .2s;
+        }
+        .landing-btn-ghost:hover { border-color: #9333ea; color: #6d28d9; background: #f5f0ff; }
+        .feature-card {
+          background: #fafafa;
+          border: 1px solid #f0eeff;
+          border-radius: 20px;
+          padding: 28px;
+          transition: all .25s;
+        }
+        .feature-card:hover { background: #fff; box-shadow: 0 8px 32px rgba(109,40,217,.08); transform: translateY(-3px); border-color: #d4c4f5; }
+        .plan-card {
+          background: #fff;
+          border: 1.5px solid #ede8fb;
+          border-radius: 24px;
+          padding: 36px 28px;
+          transition: all .25s;
+        }
+        .plan-card:hover { box-shadow: 0 12px 40px rgba(109,40,217,.1); transform: translateY(-4px); }
+      `}</style>
+
+      {/* NAV */}
+      <nav style={{position:"fixed",top:0,left:0,right:0,zIndex:200,background:"rgba(255,255,255,0.94)",backdropFilter:"blur(20px)",borderBottom:"1px solid #f0eeff",padding:"0 clamp(20px,5vw,64px)",height:68,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{width:36,height:36,background:"linear-gradient(135deg,#6d28d9,#ec4899)",borderRadius:10,display:"grid",placeItems:"center",fontWeight:800,fontSize:16,color:"#fff",flexShrink:0,fontFamily:HF}}>M</div>
+          <span style={{fontFamily:HF,fontWeight:700,fontSize:18,color:"#0f0f1a",letterSpacing:"-0.3px"}}>MCM</span>
+        </div>
+        <div style={{display:"flex",gap:10,alignItems:"center"}}>
+          <button onClick={onLogin} className="landing-btn-ghost" style={{padding:"9px 22px",fontSize:14}}>Iniciar sesión</button>
+          <button onClick={onRegister} className="landing-btn-primary" style={{padding:"9px 22px",fontSize:14}}>Empezar gratis</button>
+        </div>
+      </nav>
+
+      {/* HERO */}
+      <div className="hero-dot-bg" style={{paddingTop:68,minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",position:"relative"}}>
+        {/* Fade out dot grid en los bordes */}
+        <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 80% 60% at 50% 40%, transparent 30%, rgba(255,255,255,.95) 100%)",pointerEvents:"none"}} />
+        {/* Blob decorativo */}
+        <div style={{position:"absolute",top:"15%",right:"8%",width:340,height:340,background:"radial-gradient(circle,rgba(147,51,234,.1) 0%,transparent 70%)",pointerEvents:"none"}} />
+        <div style={{position:"absolute",bottom:"15%",left:"5%",width:260,height:260,background:"radial-gradient(circle,rgba(236,72,153,.07) 0%,transparent 70%)",pointerEvents:"none"}} />
+
+        <div style={{position:"relative",zIndex:1,textAlign:"center",maxWidth:820,padding:"60px clamp(20px,5vw,40px)"}}>
+          <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(109,40,217,.07)",border:"1px solid rgba(109,40,217,.18)",borderRadius:24,padding:"7px 18px",fontSize:12,color:"#7c3aed",marginBottom:32,fontWeight:600,letterSpacing:"0.4px",fontFamily:BF}}>
+            ✦ Community Manager con IA · Powered by Claude
+          </div>
+
+          <h1 style={{fontFamily:HF,fontSize:"clamp(44px,7vw,88px)",fontWeight:800,lineHeight:1.02,marginBottom:24,letterSpacing:"-3px",color:"#0f0f1a"}}>
+            Publicá más.<br/>
+            Trabajá <span style={{background:"linear-gradient(135deg,#6d28d9,#ec4899)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>menos.</span>
+          </h1>
+
+          <p style={{fontSize:"clamp(17px,2vw,21px)",color:"#6060a0",maxWidth:540,margin:"0 auto 40px",lineHeight:1.65,fontWeight:400,fontFamily:BF}}>
+            MCM genera, diseña y publica tu contenido en redes sociales automáticamente. La IA hace el trabajo pesado.
+          </p>
+
+          <div style={{display:"flex",gap:14,justifyContent:"center",flexWrap:"wrap",marginBottom:48}}>
+            <button onClick={onRegister} className="landing-btn-primary">Empezar gratis →</button>
+            <button onClick={onLogin} className="landing-btn-ghost">Ya tengo cuenta</button>
+          </div>
+
+          <p style={{fontSize:13,color:"#a0a0c0",fontFamily:BF}}>Sin tarjeta de crédito · 7 posts gratis · Cancelá cuando quieras</p>
+
+          {/* Social proof bar */}
+          <div style={{display:"flex",justifyContent:"center",marginTop:52,gap:0,flexWrap:"wrap",borderTop:"1px solid #f0eeff",paddingTop:32}}>
+            {[
+              {n:"7 posts",d:"para empezar gratis"},
+              {n:"3 diseños",d:"por publicación"},
+              {n:"IA Vision",d:"selección de imágenes"},
+              {n:"Auto-post",d:"en Instagram"},
+            ].map(({n,d},i,arr)=>(
+              <div key={i} style={{padding:"0 32px",borderLeft:i>0?"1px solid #f0eeff":"none",textAlign:"center"}}>
+                <div style={{fontSize:22,fontWeight:800,color:"#6d28d9",letterSpacing:"-0.5px",fontFamily:HF}}>{n}</div>
+                <div style={{fontSize:12,color:"#a0a0c0",marginTop:3,fontFamily:BF}}>{d}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* FEATURES */}
+      <div style={{background:"#fff",padding:"100px clamp(20px,5vw,64px)"}}>
+        <div style={{maxWidth:1100,margin:"0 auto"}}>
+          <div style={{textAlign:"center",marginBottom:56}}>
+            <div style={{display:"inline-block",background:"#f5f0ff",color:"#7c3aed",borderRadius:20,padding:"5px 16px",fontSize:12,fontWeight:600,marginBottom:16,letterSpacing:"0.5px",fontFamily:BF}}>FUNCIONALIDADES</div>
+            <h2 style={{fontFamily:HF,fontSize:"clamp(32px,4vw,52px)",fontWeight:800,color:"#0f0f1a",letterSpacing:"-1.5px",marginBottom:14}}>Todo en un solo lugar</h2>
+            <p style={{color:"#7070a0",fontSize:17,fontFamily:BF,fontWeight:400}}>De la idea a la publicación en minutos</p>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(310px,1fr))",gap:18}}>
+            {[
+              {icon:"🤖",title:"Generación con IA",desc:"Claude AI crea captions y textos personalizados para tu marca, tono y audiencia específica.",accent:"#6d28d9"},
+              {icon:"🎨",title:"3 diseños por post",desc:"Revista editorial, diseño gráfico puro e IA Visual. Tres opciones completamente distintas.",accent:"#9333ea"},
+              {icon:"📸",title:"Fotos inteligentes",desc:"Vision AI analiza todas tus fotos y elige la más relevante para cada brief automáticamente.",accent:"#ec4899"},
+              {icon:"📅",title:"Calendario automático",desc:"Programá posts para toda la semana. MCM publica solo en el día y hora exactos que elegís.",accent:"#6d28d9"},
+              {icon:"📊",title:"Estadísticas reales",desc:"Visualizaciones, alcance y engagement directo desde la API oficial de Instagram.",accent:"#9333ea"},
+              {icon:"✏️",title:"Editor completo",desc:"Textos arrastrables, stickers, links, encuestas y cambio de imagen de fondo en tiempo real.",accent:"#ec4899"},
+            ].map((f,i)=>(
+              <div key={i} className="feature-card">
+                <div style={{width:46,height:46,borderRadius:14,background:`${f.accent}12`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,marginBottom:16}}>{f.icon}</div>
+                <div style={{fontFamily:HF,fontWeight:700,fontSize:17,color:"#0f0f1a",marginBottom:8,letterSpacing:"-0.3px"}}>{f.title}</div>
+                <div style={{fontSize:14,color:"#7070a0",lineHeight:1.7,fontFamily:BF,fontWeight:400}}>{f.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* PRICING — Argentina primero */}
+      <div style={{background:"#fafafa",padding:"100px clamp(20px,5vw,64px)"}}>
+        <div style={{maxWidth:1020,margin:"0 auto"}}>
+          <div style={{textAlign:"center",marginBottom:48}}>
+            <div style={{display:"inline-block",background:"#f5f0ff",color:"#7c3aed",borderRadius:20,padding:"5px 16px",fontSize:12,fontWeight:600,marginBottom:16,letterSpacing:"0.5px",fontFamily:BF}}>PRECIOS</div>
+            <h2 style={{fontFamily:HF,fontSize:"clamp(32px,4vw,52px)",fontWeight:800,color:"#0f0f1a",letterSpacing:"-1.5px",marginBottom:14}}>Simple y transparente</h2>
+            <p style={{color:"#7070a0",fontSize:17,fontFamily:BF,fontWeight:400}}>Empezá gratis, escalá cuando quieras</p>
+          </div>
+
+          {/* Toggle — Argentina primero */}
+          <div style={{display:"flex",justifyContent:"center",marginBottom:40}}>
+            <div style={{background:"#fff",borderRadius:16,padding:5,display:"inline-flex",gap:4,boxShadow:"0 2px 16px rgba(109,40,217,.1)",border:"1px solid #ede8fb"}}>
+              {[
+                ["ARS","🇦🇷 Argentina (ARS · BCRA)"],
+                ["USD","🌎 Internacional (USD)"],
+              ].map(([v,l])=>(
+                <button key={v} onClick={()=>setBillingARS(v==="ARS")}
+                  style={{padding:"10px 22px",borderRadius:12,border:"none",cursor:"pointer",fontSize:13,fontWeight:600,fontFamily:BF,transition:"all .2s",
+                    background:(billingARS&&v==="ARS")||(!billingARS&&v==="USD")?"linear-gradient(135deg,#6d28d9,#9333ea)":"transparent",
+                    color:(billingARS&&v==="ARS")||(!billingARS&&v==="USD")?"#fff":"#7070a0"}}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {billingARS&&usdRate&&(
+            <div style={{textAlign:"center",marginBottom:28}}>
+              <span style={{display:"inline-flex",alignItems:"center",gap:6,background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:20,padding:"5px 16px",fontSize:12,color:"#16a34a",fontWeight:600,fontFamily:BF}}>
+                💱 Tipo de cambio oficial BCRA: 1 USD = ARS {usdRate?.toLocaleString("es-AR")}
+              </span>
+            </div>
+          )}
+
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(290px,1fr))",gap:20}}>
+            {[PLANS.free, PLANS.pro, PLANS.premium].map((plan,i)=>(
+              <div key={plan.id} className="plan-card" style={{
+                border:`1.5px solid ${i===2?"#ec4899":i===1?"#6d28d9":"#ede8fb"}`,
+                boxShadow:i===1?"0 8px 40px rgba(109,40,217,.12)":i===2?"0 8px 40px rgba(236,72,153,.08)":"none",
+                position:"relative",
+              }}>
+                {i===1&&<div style={{position:"absolute",top:-14,left:"50%",transform:"translateX(-50%)",background:"linear-gradient(135deg,#6d28d9,#9333ea)",borderRadius:20,padding:"5px 18px",fontSize:11,fontWeight:700,color:"#fff",whiteSpace:"nowrap",boxShadow:"0 4px 14px rgba(109,40,217,.35)",fontFamily:BF}}>MÁS POPULAR</div>}
+                {i===2&&<div style={{position:"absolute",top:-14,left:"50%",transform:"translateX(-50%)",background:"linear-gradient(135deg,#ec4899,#f43f5e)",borderRadius:20,padding:"5px 18px",fontSize:11,fontWeight:700,color:"#fff",whiteSpace:"nowrap",boxShadow:"0 4px 14px rgba(236,72,153,.35)",fontFamily:BF}}>TODO INCLUIDO</div>}
+
+                <div style={{fontFamily:HF,fontWeight:800,fontSize:24,color:i===0?"#4a4a6a":plan.color,marginBottom:6,letterSpacing:"-0.5px"}}>{plan.name}</div>
+
+                <div style={{marginBottom:24,paddingBottom:24,borderBottom:"1px solid #f5f0ff"}}>
+                  {plan.price_usd===0 ? (
+                    <div><span style={{fontFamily:HF,fontSize:48,fontWeight:800,color:"#0f0f1a",letterSpacing:"-2px"}}>Gratis</span></div>
+                  ) : billingARS ? (
+                    <div>
+                      <div style={{fontSize:12,color:"#a0a0c0",marginBottom:4,fontFamily:BF}}>Equivale a USD {plan.price_usd}/mes</div>
+                      <div style={{display:"flex",alignItems:"baseline",gap:4}}>
+                        <span style={{fontFamily:HF,fontSize:38,fontWeight:800,color:"#0f0f1a",letterSpacing:"-1.5px"}}>
+                          {loadingRate?"...":"$"+arsPrice(plan.price_usd)}
+                        </span>
+                        <span style={{fontSize:14,color:"#a0a0c0",fontFamily:BF}}> ARS/mes</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{display:"flex",alignItems:"baseline",gap:4}}>
+                      <span style={{fontFamily:HF,fontSize:48,fontWeight:800,color:"#0f0f1a",letterSpacing:"-2px"}}>USD {plan.price_usd}</span>
+                      <span style={{fontSize:14,color:"#a0a0c0",fontFamily:BF}}>/mes</span>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{display:"flex",flexDirection:"column",gap:11,marginBottom:28}}>
+                  {PLAN_FEATURES[plan.id].map((feat,j)=>(
+                    <div key={j} style={{display:"flex",alignItems:"center",gap:10,fontSize:14,color:"#404060",fontFamily:BF,fontWeight:400}}>
+                      <div style={{width:20,height:20,borderRadius:"50%",background:i===0?"#f0eeff":`${plan.color}15`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                        <span style={{color:i===0?"#7070a0":plan.color,fontSize:11,fontWeight:700}}>✓</span>
+                      </div>
+                      {feat}
+                    </div>
+                  ))}
+                </div>
+
+                <button onClick={onRegister} style={{width:"100%",padding:"14px",fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:BF,borderRadius:14,border:"none",
+                  background:i===0?"#f5f0ff":i===1?"linear-gradient(135deg,#6d28d9,#9333ea)":"linear-gradient(135deg,#ec4899,#f43f5e)",
+                  color:i===0?"#6d28d9":"#fff",
+                  boxShadow:i===1?"0 4px 18px rgba(109,40,217,.3)":i===2?"0 4px 18px rgba(236,72,153,.3)":"none",transition:"all .2s"}}
+                  onMouseEnter={e=>{if(i>0)e.currentTarget.style.transform="translateY(-1px)";}}
+                  onMouseLeave={e=>e.currentTarget.style.transform="translateY(0)"}>
+                  {i===0?"Empezar gratis →":"Contratar "+plan.name+" →"}
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <p style={{textAlign:"center",marginTop:24,fontSize:13,color:"#a0a0c0",fontFamily:BF}}>
+            💳 Argentina: MercadoPago · Internacional: Stripe · Cancelá cuando quieras · Precios ARS según tipo de cambio oficial BCRA
+          </p>
+        </div>
+      </div>
+
+      {/* FOOTER */}
+      <footer style={{background:"#0f0f1a",padding:"44px clamp(20px,5vw,64px)",display:"flex",flexDirection:"column",alignItems:"center",gap:14}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{width:32,height:32,background:"linear-gradient(135deg,#6d28d9,#ec4899)",borderRadius:9,display:"grid",placeItems:"center",fontWeight:800,fontSize:14,color:"#fff",fontFamily:HF}}>M</div>
+          <span style={{fontFamily:HF,fontWeight:700,fontSize:16,color:"#e0d8f8",letterSpacing:"-0.3px"}}>MCM — My Community Manager</span>
+        </div>
+        <p style={{color:"#4a4a6a",fontSize:13,fontFamily:BF,textAlign:"center"}}>© 2026 MCM · Powered by Claude AI · Precios ARS al tipo de cambio oficial BCRA</p>
+      </footer>
+    </div>
+  );
+}
 
   const arsPrice = (usd) => {
     if(!usdRate) return "...";
