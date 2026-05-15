@@ -981,16 +981,40 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
         const imgSrc=imgs[i%imgs.length].preview;
         const ctx=buildBrandContext(i);
         const slideCount=slideCounts[i]||1;
+        const postBrief=briefs[i]||"";
 
-        const overlayPrompt=`Sos un director creativo de publicidad. Empresa: ${brand.name} (${brand.industry||""}). ${OVERLAY_CONTEXTS[i]} Escribí un texto de EXACTAMENTE 3 a 5 palabras para superponer sobre esa imagen. Debe ser poético, impactante y directamente relacionado con lo que se ve en la imagen. Sin hashtags, sin emojis, sin signos de puntuación. Solo las palabras.`;
+        // Base del prompt de overlay — contexto visual único por post
+        const overlayBase=`Sos un director creativo de publicidad. Empresa: ${brand.name} (${brand.industry||""}). ${OVERLAY_CONTEXTS[i]}`;
+        const briefNote=postBrief?` El cliente pidió específicamente: "${postBrief}".`:"";
 
-        const [cap1,cap2,cap3,overlayRaw]=await Promise.all([
+        // 3 overlay texts completamente distintos, uno por template
+        // T1 (Revista): relacionado con la foto real del cliente y el tema del post
+        const overlayPrompt1=`${overlayBase}${briefNote} Escribí un texto de EXACTAMENTE 3 a 5 palabras para superponer sobre una FOTO REAL del negocio. Debe evocar lo que se ve en la imagen. Sin hashtags, sin emojis, sin puntuación. Solo las palabras.`;
+        // T2 (Diseño): frase poderosa de impacto visual, más tipográfica
+        const overlayPrompt2=`${overlayBase}${briefNote} Escribí una frase de EXACTAMENTE 3 a 5 palabras para un diseño gráfico sin foto. Debe ser un titular de impacto, bold, que llame la atención solo con tipografía. Sin hashtags, sin emojis, sin puntuación. Solo las palabras. Que sea DIFERENTE a cualquier otra frase que hayas escrito para este post.`;
+        // T3 (IA Visual): directamente ligado al brief del cliente
+        const overlayPrompt3=postBrief
+          ? `${overlayBase} El cliente pidió específicamente: "${postBrief}". Escribí un texto de EXACTAMENTE 3 a 5 palabras que resuma la IDEA CENTRAL de ese brief. Debe ser la frase principal del diseño. Sin hashtags, sin emojis, sin puntuación. Solo las palabras.`
+          : `${overlayBase} Escribí un texto de EXACTAMENTE 3 a 5 palabras para un fondo visual generado por IA. Que sea diferente, más creativo y conceptual que las otras opciones. Sin hashtags, sin emojis, sin puntuación. Solo las palabras.`;
+
+        // Caption para T3: si hay brief, responde directamente a él
+        const cap3Prompt=postBrief
+          ? `Sos un community manager experto. El cliente pidió un post que hable de: "${postBrief}". Redactá un caption para Instagram que desarrolle exactamente esa idea para la empresa: ${brand.name} (${brand.industry||""}). ${ctx} El caption debe abordar directamente el tema del brief con profundidad y creatividad.`
+          : PROMPTS[i]+" Versión orientada a ventas y conversión. "+ctx;
+
+        const [cap1,cap2,cap3,raw1,raw2,raw3]=await Promise.all([
           generateText(PROMPTS[i]+ctx),
           generateText(PROMPTS[i]+" Versión más cercana y coloquial. "+ctx),
-          generateText(PROMPTS[i]+" Versión orientada a ventas y conversión. "+ctx),
-          generateText(overlayPrompt),
+          generateText(cap3Prompt),
+          generateText(overlayPrompt1),
+          generateText(overlayPrompt2),
+          generateText(overlayPrompt3),
         ]);
-        const overlayText=overlayRaw.trim().replace(/['"\*\_\#\.\,\!\?]/g,"").replace(/\s+/g," ").slice(0,40);
+
+        const cleanOverlay=(raw)=>raw.trim().replace(/['"\*\_\#\.\,\!\?]/g,"").replace(/\s+/g," ").slice(0,40);
+        const overlayText1=cleanOverlay(raw1);
+        const overlayText2=cleanOverlay(raw2);
+        const overlayText3=cleanOverlay(raw3);
 
         // Para carrusel: generar múltiples slides (misma opción pero diferentes imágenes)
         const makeCarouselSlides=(count,baseImgSrc)=>{
@@ -1016,11 +1040,11 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
         };
 
         const options=[
-          {id:0,style:1,styleName:"Revista",caption:cap1,overlayText,imgSrc,...baseOpt,
+          {id:0,style:1,styleName:"Revista",caption:cap1,overlayText:overlayText1,imgSrc,...baseOpt,
            slideCount, slides: slideCount>1?makeCarouselSlides(slideCount,imgSrc):null},
-          {id:1,style:2,styleName:"Diseño",caption:cap2,overlayText,imgSrc:null,...baseOpt,
+          {id:1,style:2,styleName:"Diseño",caption:cap2,overlayText:overlayText2,imgSrc:null,...baseOpt,
            slideCount, slides: null},
-          {id:2,style:3,styleName:"IA Visual",caption:cap3,overlayText,imgSrc:null,...baseOpt,
+          {id:2,style:3,styleName:"IA Visual",caption:cap3,overlayText:overlayText3,imgSrc:null,...baseOpt,
            slideCount, slides: null},
         ];
         allPosts.push({postIdx:i,label:"Post "+(i+1),theme:PROMPTS[i].slice(8,40)+"...",options,slideCount});
