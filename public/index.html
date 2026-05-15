@@ -63,8 +63,8 @@ select option{background:var(--surface)}
 .post-canvas-wrap{aspect-ratio:1;background:var(--bg);overflow:hidden}
 /* MEJORA 3: caption visible completo */
 .post-caption{padding:12px;font-size:11px;color:var(--muted);line-height:1.65;max-height:none;overflow:visible;border-top:1px solid var(--border)}
-.editor-wrap{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(20px)}
-.editor-box{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:24px;width:100%;max-width:980px;max-height:92vh;overflow-y:auto;display:flex;gap:24px;flex-wrap:wrap}
+.editor-wrap{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.88);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(20px);overflow-y:auto}
+.editor-box{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:24px;width:100%;max-width:980px;max-height:92vh;overflow-y:auto;display:flex;gap:24px;flex-wrap:wrap;margin:auto}
 .toast{position:fixed;bottom:24px;right:24px;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:500;z-index:9999;display:flex;align-items:center;gap:8px;max-width:340px;animation:fadeIn .3s ease}
 .toast.ok{background:#0d2b1f;border:1px solid var(--success);color:var(--success)}
 .toast.err{background:#1f0d0d;border:1px solid var(--error);color:var(--error)}
@@ -1048,10 +1048,7 @@ function EditorModal({opt,brand,onClose,onSave,showToast}) {
       const lx=form.logoX!==undefined?form.logoX:0.88;
       const ly=form.logoY!==undefined?form.logoY:0.88;
       const ls=form.logoSize||0.15;
-      const hitR=ls*0.6; // hit area generosa
-      // Esquina inferior derecha del logo = resize handle
-      const resizeX=lx+ls*0.4, resizeY=ly+ls*0.4;
-      if(Math.abs(fx-resizeX)<0.05&&Math.abs(fy-resizeY)<0.05) return "logo-resize";
+      const hitR=ls*0.65;
       if(Math.abs(fx-lx)<hitR&&Math.abs(fy-ly)<hitR) return "logo";
     }
     return "text";
@@ -1070,11 +1067,6 @@ function EditorModal({opt,brand,onClose,onSave,showToast}) {
       setForm(p=>({...p,textX:fx,textY:fy}));
     } else if(dragMode==="logo"){
       setForm(p=>({...p,logoX:fx,logoY:fy}));
-    } else if(dragMode==="logo-resize"){
-      const lx=form.logoX!==undefined?form.logoX:0.88;
-      const ly=form.logoY!==undefined?form.logoY:0.88;
-      const dist=Math.hypot(fx-lx,fy-ly)*2;
-      setForm(p=>({...p,logoSize:Math.max(0.05,Math.min(0.45,dist))}));
     }
   };
   const handlePreviewMouseUp=()=>setDragMode(null);
@@ -1131,7 +1123,7 @@ function EditorModal({opt,brand,onClose,onSave,showToast}) {
             onTouchEnd={handlePreviewMouseUp}
           >
             <canvas ref={canvasRef} style={{width:"100%",height:"100%",display:"block",pointerEvents:"none"}} />
-            {/* Indicador de logo arrastrable */}
+            {/* Indicador de logo arrastrable - solo posición, sin handle de resize */}
             {form.showLogo&&form.logoBase64&&(
               <div style={{
                 position:"absolute",
@@ -1139,19 +1131,11 @@ function EditorModal({opt,brand,onClose,onSave,showToast}) {
                 top:`${(form.logoY||0.88)*100}%`,
                 transform:"translate(-50%,-50%)",
                 pointerEvents:"none",
-              }}>
-                {/* Resize handle — esquina inferior derecha */}
-                <div style={{
-                  position:"absolute",
-                  bottom:`-${(form.logoSize||0.15)*50+8}%`,
-                  right:`-${(form.logoSize||0.15)*50+8}%`,
-                  width:12,height:12,
-                  background:"var(--accent2)",
-                  borderRadius:3,
-                  border:"2px solid #fff",
-                  cursor:"se-resize",
-                }} />
-              </div>
+                width:8,height:8,
+                borderRadius:"50%",
+                background:"var(--accent2)",
+                boxShadow:"0 0 0 3px rgba(168,85,247,0.4)",
+              }} />
             )}
             <div style={{position:"absolute",bottom:8,left:0,right:0,textAlign:"center",fontSize:10,color:"rgba(255,255,255,.4)",pointerEvents:"none"}}>
               {form.showLogo&&form.logoBase64?"Arrastrá texto o logo · Esquina del logo para redimensionar":"Click para mover el texto"}
@@ -1230,11 +1214,22 @@ function EditorModal({opt,brand,onClose,onSave,showToast}) {
           <div>
             {form.logoBase64
               ? (
-                <button onClick={()=>upd("showLogo",!form.showLogo)} className="btn"
-                  style={{background:form.showLogo?"rgba(109,40,217,.2)":"var(--surface2)",border:"1px solid "+(form.showLogo?"var(--accent2)":"var(--border)"),color:form.showLogo?"var(--accent2)":"var(--muted)",fontSize:12,padding:"8px 14px",gap:10}}>
-                  <img src={form.logoBase64} alt="logo" style={{width:20,height:20,objectFit:"contain",borderRadius:3,background:"rgba(255,255,255,0.1)"}} />
-                  {form.showLogo?"✓ Logo: visible":"○ Logo: oculto"}
-                </button>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  <button onClick={()=>upd("showLogo",!form.showLogo)} className="btn"
+                    style={{background:form.showLogo?"rgba(109,40,217,.2)":"var(--surface2)",border:"1px solid "+(form.showLogo?"var(--accent2)":"var(--border)"),color:form.showLogo?"var(--accent2)":"var(--muted)",fontSize:12,padding:"8px 14px",gap:10,alignSelf:"flex-start"}}>
+                    <img src={form.logoBase64} alt="logo" style={{width:20,height:20,objectFit:"contain",borderRadius:3,background:"rgba(255,255,255,0.1)"}} />
+                    {form.showLogo?"✓ Logo: visible":"○ Logo: oculto"}
+                  </button>
+                  {form.showLogo&&(
+                    <div>
+                      <span className="lbl">Tamaño del logo ({Math.round((form.logoSize||0.15)*100)}%)</span>
+                      <input type="range" min={5} max={45} value={Math.round((form.logoSize||0.15)*100)}
+                        onChange={e=>upd("logoSize", +e.target.value/100)}
+                        style={{width:"100%",accentColor:"var(--accent)"}} />
+                      <div style={{fontSize:10,color:"var(--muted)",marginTop:4}}>Arrastrá el logo en el preview para moverlo</div>
+                    </div>
+                  )}
+                </div>
               )
               : (
                 <div style={{fontSize:12,color:"var(--muted)",padding:"8px 0"}}>
