@@ -7,7 +7,7 @@
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -97,9 +97,9 @@ const store = {
 // PLANES
 // ════════════════════════════════════════════════════════════════
 const PLANS = {
-  free:    { id:"free",    name:"Free",    price_ars:0,     price_usd:0,   posts:7,   redes:1, auto:false, carousel:false, stats:false, color:"#6b6b8a" },
-  pro:     { id:"pro",     name:"Pro",     price_ars:9900,  price_usd:9,   posts:30,  redes:3, auto:true,  carousel:true,  stats:false, color:"#6d28d9" },
-  premium: { id:"premium", name:"Premium", price_ars:19900, price_usd:19,  posts:999, redes:5, auto:true,  carousel:true,  stats:true,  color:"#ec4899" },
+  free:    { id:"free",    name:"Free",    price_usd:0,  posts:7,   redes:1, auto:false, carousel:false, stats:false, color:"#6b6b8a" },
+  pro:     { id:"pro",     name:"Pro",     price_usd:33, posts:30,  redes:3, auto:true,  carousel:true,  stats:false, color:"#6d28d9" },
+  premium: { id:"premium", name:"Premium", price_usd:60, posts:999, redes:5, auto:true,  carousel:true,  stats:true,  color:"#ec4899" },
 };
 
 const PLAN_FEATURES = {
@@ -685,142 +685,229 @@ function App() {
 // LANDING PAGE
 // ════════════════════════════════════════════════════════════════
 function LandingPage({onLogin, onRegister}) {
-  const [billingARS, setBillingARS] = useState(true);
+  const [billingARS, setBillingARS] = useState(false);
+  const [usdRate, setUsdRate] = useState(null);
+  const [loadingRate, setLoadingRate] = useState(false);
+
+  // Tipo de cambio oficial BCRA en tiempo real
+  useEffect(()=>{
+    if(!billingARS) return;
+    if(usdRate) return; // ya cargado
+    setLoadingRate(true);
+    fetch("https://api.exchangerate-api.com/v4/latest/USD")
+      .then(r=>r.json())
+      .then(d=>{ setUsdRate(d.rates?.ARS||1200); })
+      .catch(()=>{
+        // Fallback: Dolarito API (argentina)
+        fetch("https://dolarapi.com/v1/dolares/oficial")
+          .then(r=>r.json())
+          .then(d=>setUsdRate(d.venta||1200))
+          .catch(()=>setUsdRate(1200));
+      })
+      .finally(()=>setLoadingRate(false));
+  },[billingARS]);
+
+  const arsPrice = (usd) => {
+    if(!usdRate) return "...";
+    return Math.round(usd * usdRate).toLocaleString("es-AR");
+  };
+
+  const LF = "'Plus Jakarta Sans', 'Inter', sans-serif"; // fuente liviana landing
 
   return (
-    <div style={{minHeight:"100vh",background:"var(--bg)",overflowX:"hidden"}}>
+    <div style={{minHeight:"100vh",background:"#f8f7ff",color:"#1a1a2e",fontFamily:LF,overflowX:"hidden"}}>
 
       {/* NAV */}
-      <nav style={{position:"fixed",top:0,left:0,right:0,zIndex:100,background:"rgba(8,8,15,.9)",backdropFilter:"blur(20px)",borderBottom:"1px solid var(--border)",padding:"0 40px",height:64,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+      <nav style={{position:"fixed",top:0,left:0,right:0,zIndex:100,background:"rgba(248,247,255,0.92)",backdropFilter:"blur(20px)",borderBottom:"1px solid rgba(109,40,217,.1)",padding:"0 clamp(20px,5vw,60px)",height:68,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <div style={{width:34,height:34,background:"linear-gradient(135deg,var(--accent),var(--pink))",borderRadius:9,display:"grid",placeItems:"center",fontWeight:800,fontSize:14,color:"#fff",fontFamily:"'Syne',sans-serif"}}>M</div>
+          <div style={{width:36,height:36,background:"linear-gradient(135deg,#6d28d9,#ec4899)",borderRadius:10,display:"grid",placeItems:"center",fontWeight:800,fontSize:15,color:"#fff",flexShrink:0}}>M</div>
           <div>
-            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:16,color:"var(--text)"}}>MCM</div>
-            <div style={{fontSize:9,color:"var(--muted)",letterSpacing:1}}>MY COMMUNITY MANAGER</div>
+            <div style={{fontWeight:700,fontSize:17,color:"#1a1a2e",letterSpacing:"-0.3px"}}>MCM</div>
+            <div style={{fontSize:9,color:"#9090b0",letterSpacing:"1.5px",fontWeight:500}}>MY COMMUNITY MANAGER</div>
           </div>
         </div>
-        <div style={{display:"flex",gap:12,alignItems:"center"}}>
-          <button onClick={onLogin} className="btn btn-ghost" style={{padding:"8px 20px",fontSize:13}}>Iniciar sesión</button>
-          <button onClick={onRegister} className="btn btn-primary" style={{padding:"8px 20px",fontSize:13}}>Empezar gratis</button>
+        <div style={{display:"flex",gap:10,alignItems:"center"}}>
+          <button onClick={onLogin} style={{padding:"9px 22px",borderRadius:10,border:"1.5px solid rgba(109,40,217,.25)",background:"transparent",color:"#6d28d9",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:LF,transition:"all .2s"}}
+            onMouseEnter={e=>{e.currentTarget.style.background="rgba(109,40,217,.06)";}}
+            onMouseLeave={e=>{e.currentTarget.style.background="transparent";}}>
+            Iniciar sesión
+          </button>
+          <button onClick={onRegister} style={{padding:"9px 22px",borderRadius:10,border:"none",background:"linear-gradient(135deg,#6d28d9,#a855f7)",color:"#fff",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:LF,boxShadow:"0 4px 14px rgba(109,40,217,.3)"}}>
+            Empezar gratis
+          </button>
         </div>
       </nav>
 
       {/* HERO */}
-      <div style={{paddingTop:120,paddingBottom:80,textAlign:"center",padding:"140px 20px 80px",position:"relative",overflow:"hidden"}}>
-        {/* Background glow */}
-        <div style={{position:"absolute",top:"10%",left:"50%",transform:"translateX(-50%)",width:600,height:600,background:"radial-gradient(circle,rgba(109,40,217,.2) 0%,transparent 70%)",pointerEvents:"none"}} />
-        <div style={{position:"relative"}}>
-          <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(109,40,217,.15)",border:"1px solid rgba(168,85,247,.3)",borderRadius:20,padding:"6px 16px",fontSize:12,color:"var(--accent2)",marginBottom:24,fontWeight:600}}>
-            ✦ Powered by Claude AI — Anthropic
+      <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:"100px clamp(20px,5vw,60px) 60px",position:"relative",overflow:"hidden"}}>
+        {/* Fondo suave con formas geométricas */}
+        <div style={{position:"absolute",inset:0,background:"linear-gradient(160deg,#f8f7ff 0%,#f0ebff 40%,#fce7f3 100%)",zIndex:0}} />
+        <div style={{position:"absolute",top:"5%",right:"5%",width:400,height:400,background:"radial-gradient(circle,rgba(168,85,247,.12) 0%,transparent 70%)",zIndex:0}} />
+        <div style={{position:"absolute",bottom:"10%",left:"3%",width:300,height:300,background:"radial-gradient(circle,rgba(236,72,153,.08) 0%,transparent 70%)",zIndex:0}} />
+        {/* Círculo decorativo */}
+        <div style={{position:"absolute",top:"15%",right:"10%",width:180,height:180,borderRadius:"50%",border:"1.5px solid rgba(109,40,217,.12)",zIndex:0}} />
+        <div style={{position:"absolute",top:"20%",right:"13%",width:100,height:100,borderRadius:"50%",border:"1.5px solid rgba(168,85,247,.15)",zIndex:0}} />
+
+        <div style={{position:"relative",zIndex:1,textAlign:"center",maxWidth:780}}>
+          <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(109,40,217,.08)",border:"1px solid rgba(109,40,217,.2)",borderRadius:24,padding:"7px 18px",fontSize:12,color:"#6d28d9",marginBottom:28,fontWeight:600,letterSpacing:"0.3px"}}>
+            ✦ Powered by Claude AI · Anthropic
           </div>
-          <h1 style={{fontFamily:"'Syne',sans-serif",fontSize:"clamp(36px,6vw,72px)",fontWeight:800,lineHeight:1.1,marginBottom:24,background:"linear-gradient(135deg,#fff 40%,var(--accent2))",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>
-            Tu Community Manager<br/>con Inteligencia Artificial
+          <h1 style={{fontSize:"clamp(38px,5.5vw,68px)",fontWeight:800,lineHeight:1.08,marginBottom:22,letterSpacing:"-1.5px",color:"#1a1a2e"}}>
+            Tu Community Manager<br/>
+            <span style={{background:"linear-gradient(135deg,#6d28d9,#ec4899)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>
+              con Inteligencia Artificial
+            </span>
           </h1>
-          <p style={{fontSize:"clamp(16px,2vw,20px)",color:"var(--muted)",maxWidth:600,margin:"0 auto 40px",lineHeight:1.7}}>
-            MCM genera, diseña y publica contenido para tus redes sociales automáticamente. Vos solo elegís, la IA hace el resto.
+          <p style={{fontSize:"clamp(16px,1.8vw,19px)",color:"#6060a0",maxWidth:580,margin:"0 auto 36px",lineHeight:1.75,fontWeight:400}}>
+            MCM genera, diseña y publica contenido para tus redes sociales de forma automática. Vos solo elegís, la IA hace el resto.
           </p>
-          <div style={{display:"flex",gap:14,justifyContent:"center",flexWrap:"wrap"}}>
-            <button onClick={onRegister} className="btn btn-primary" style={{padding:"14px 32px",fontSize:16,borderRadius:12}}>
+          <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
+            <button onClick={onRegister} style={{padding:"15px 34px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#6d28d9,#a855f7)",color:"#fff",fontSize:16,fontWeight:700,cursor:"pointer",fontFamily:LF,boxShadow:"0 6px 24px rgba(109,40,217,.35)",transition:"transform .2s"}}
+              onMouseEnter={e=>e.currentTarget.style.transform="translateY(-2px)"}
+              onMouseLeave={e=>e.currentTarget.style.transform="translateY(0)"}>
               Empezar gratis →
             </button>
-            <button onClick={onLogin} className="btn btn-ghost" style={{padding:"14px 32px",fontSize:16,borderRadius:12}}>
+            <button onClick={onLogin} style={{padding:"15px 34px",borderRadius:12,border:"1.5px solid rgba(109,40,217,.25)",background:"white",color:"#6d28d9",fontSize:16,fontWeight:600,cursor:"pointer",fontFamily:LF,transition:"all .2s"}}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor="rgba(109,40,217,.5)";e.currentTarget.style.boxShadow="0 2px 12px rgba(109,40,217,.1)";}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor="rgba(109,40,217,.25)";e.currentTarget.style.boxShadow="none";}}>
               Ya tengo cuenta
             </button>
           </div>
-          <div style={{marginTop:20,fontSize:12,color:"var(--muted)"}}>Sin tarjeta de crédito · 7 posts gratis · Cancelá cuando quieras</div>
+          <p style={{marginTop:18,fontSize:12,color:"#a0a0c0",fontWeight:400}}>Sin tarjeta de crédito · 7 posts gratis · Cancelá cuando quieras</p>
+
+          {/* Stats bar */}
+          <div style={{display:"flex",gap:0,justifyContent:"center",marginTop:48,flexWrap:"wrap"}}>
+            {[["7 posts","para empezar gratis"],["3 templates","por publicación"],["IA + Vision","selección de imágenes"],["Auto-publish","en Instagram"]].map(([n,d],i,arr)=>(
+              <div key={i} style={{padding:"16px 28px",borderLeft:i>0?"1px solid rgba(109,40,217,.12)":"none",textAlign:"center"}}>
+                <div style={{fontSize:20,fontWeight:800,color:"#6d28d9",letterSpacing:"-0.5px"}}>{n}</div>
+                <div style={{fontSize:12,color:"#9090b0",marginTop:2,fontWeight:400}}>{d}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* FEATURES */}
-      <div style={{padding:"60px 40px",maxWidth:1100,margin:"0 auto"}}>
-        <h2 style={{fontFamily:"'Syne',sans-serif",fontSize:32,fontWeight:800,textAlign:"center",marginBottom:12}}>Todo lo que necesitás para tus redes</h2>
-        <p style={{textAlign:"center",color:"var(--muted)",marginBottom:48,fontSize:15}}>De la idea a la publicación en minutos</p>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:20}}>
-          {[
-            {icon:"🤖",title:"Generación con IA",desc:"Claude genera captions, frases y textos personalizados para tu marca y tu tono de comunicación."},
-            {icon:"🎨",title:"3 templates por post",desc:"Cada publicación viene con 3 diseños completamente distintos. Elegís el que más te gusta."},
-            {icon:"📸",title:"Selección inteligente de fotos",desc:"La IA analiza tus imágenes y elige la más relevante según el tema de cada post."},
-            {icon:"📅",title:"Calendario automático",desc:"Programá tus posts para la semana con un click. MCM publica en el día y hora que vos elegís."},
-            {icon:"📊",title:"Estadísticas de Instagram",desc:"Visualizaciones, alcance, engagement y métricas de cada post directo desde la API de Instagram."},
-            {icon:"✏️",title:"Editor completo",desc:"Mové textos, cambiá tipografías, agregá stickers, links y encuestas. Todo en tiempo real."},
-          ].map((f,i)=>(
-            <div key={i} style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:16,padding:"24px",transition:"border-color .2s"}}
-              onMouseEnter={e=>e.currentTarget.style.borderColor="rgba(168,85,247,.4)"}
-              onMouseLeave={e=>e.currentTarget.style.borderColor="var(--border)"}>
-              <div style={{fontSize:32,marginBottom:12}}>{f.icon}</div>
-              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16,marginBottom:8}}>{f.title}</div>
-              <div style={{fontSize:13,color:"var(--muted)",lineHeight:1.7}}>{f.desc}</div>
-            </div>
-          ))}
+      <div style={{padding:"80px clamp(20px,5vw,60px)",background:"#fff"}}>
+        <div style={{maxWidth:1100,margin:"0 auto"}}>
+          <div style={{textAlign:"center",marginBottom:52}}>
+            <div style={{display:"inline-block",background:"rgba(109,40,217,.08)",color:"#6d28d9",borderRadius:20,padding:"5px 16px",fontSize:12,fontWeight:600,marginBottom:14,letterSpacing:"0.5px"}}>FEATURES</div>
+            <h2 style={{fontSize:"clamp(28px,4vw,42px)",fontWeight:800,color:"#1a1a2e",letterSpacing:"-0.8px",marginBottom:12}}>Todo lo que necesitás para tus redes</h2>
+            <p style={{color:"#6060a0",fontSize:16,fontWeight:400}}>De la idea a la publicación en minutos</p>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:20}}>
+            {[
+              {icon:"🤖",title:"Generación con IA",desc:"Claude genera captions y textos personalizados para tu marca, tu tono y tu audiencia.",color:"#6d28d9"},
+              {icon:"🎨",title:"3 templates por post",desc:"Cada publicación viene con 3 diseños distintos. Revista, diseño gráfico e IA Visual.",color:"#a855f7"},
+              {icon:"📸",title:"Selección inteligente de fotos",desc:"Vision AI analiza tus imágenes y elige la más relevante para cada post según el brief.",color:"#ec4899"},
+              {icon:"📅",title:"Calendario automático",desc:"Programá tus posts para la semana. MCM publica solo en el día y hora exactos.",color:"#6d28d9"},
+              {icon:"📊",title:"Estadísticas de Instagram",desc:"Visualizaciones, alcance, engagement y métricas por post desde la API oficial.",color:"#a855f7"},
+              {icon:"✏️",title:"Editor sin límites",desc:"Mové textos, cambiá fuentes, agregá stickers, links y encuestas en tiempo real.",color:"#ec4899"},
+            ].map((f,i)=>(
+              <div key={i} style={{background:"#f8f7ff",borderRadius:18,padding:"26px",border:"1px solid rgba(109,40,217,.08)",transition:"all .2s",cursor:"default"}}
+                onMouseEnter={e=>{e.currentTarget.style.background="#fff";e.currentTarget.style.boxShadow="0 8px 32px rgba(109,40,217,.1)";e.currentTarget.style.transform="translateY(-3px)";}}
+                onMouseLeave={e=>{e.currentTarget.style.background="#f8f7ff";e.currentTarget.style.boxShadow="none";e.currentTarget.style.transform="translateY(0)";}}>
+                <div style={{width:44,height:44,borderRadius:12,background:`linear-gradient(135deg,${f.color}22,${f.color}11)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,marginBottom:14}}>{f.icon}</div>
+                <div style={{fontWeight:700,fontSize:16,color:"#1a1a2e",marginBottom:8,letterSpacing:"-0.2px"}}>{f.title}</div>
+                <div style={{fontSize:14,color:"#6060a0",lineHeight:1.7,fontWeight:400}}>{f.desc}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* PRICING */}
-      <div style={{padding:"60px 40px",maxWidth:1000,margin:"0 auto"}} id="precios">
-        <h2 style={{fontFamily:"'Syne',sans-serif",fontSize:32,fontWeight:800,textAlign:"center",marginBottom:12}}>Planes y precios</h2>
-        <p style={{textAlign:"center",color:"var(--muted)",marginBottom:24,fontSize:15}}>Empezá gratis, escalá cuando quieras</p>
+      <div style={{padding:"80px clamp(20px,5vw,60px)",background:"linear-gradient(180deg,#f8f7ff 0%,#f0ebff 100%)"}}>
+        <div style={{maxWidth:1000,margin:"0 auto"}}>
+          <div style={{textAlign:"center",marginBottom:48}}>
+            <div style={{display:"inline-block",background:"rgba(109,40,217,.08)",color:"#6d28d9",borderRadius:20,padding:"5px 16px",fontSize:12,fontWeight:600,marginBottom:14,letterSpacing:"0.5px"}}>PRECIOS</div>
+            <h2 style={{fontSize:"clamp(28px,4vw,42px)",fontWeight:800,color:"#1a1a2e",letterSpacing:"-0.8px",marginBottom:12}}>Planes y precios</h2>
+            <p style={{color:"#6060a0",fontSize:16,fontWeight:400}}>Empezá gratis, escalá cuando quieras</p>
+          </div>
 
-        {/* Toggle ARS/USD */}
-        <div style={{display:"flex",justifyContent:"center",marginBottom:40}}>
-          <div style={{background:"var(--surface2)",borderRadius:12,padding:4,display:"flex",gap:4}}>
-            {[["ARS","🇦🇷 Argentina"],["USD","🌎 Internacional"]].map(([v,l])=>(
-              <button key={v} onClick={()=>setBillingARS(v==="ARS")}
-                style={{padding:"8px 20px",borderRadius:9,border:"none",cursor:"pointer",fontSize:13,fontWeight:600,
-                  background:(billingARS&&v==="ARS")||(!billingARS&&v==="USD")?"var(--surface)":"transparent",
-                  color:(billingARS&&v==="ARS")||(!billingARS&&v==="USD")?"var(--text)":"var(--muted)"}}>
-                {l}
-              </button>
+          {/* Toggle ARS/USD */}
+          <div style={{display:"flex",justifyContent:"center",marginBottom:40}}>
+            <div style={{background:"white",borderRadius:14,padding:5,display:"flex",gap:4,boxShadow:"0 2px 12px rgba(109,40,217,.1)",border:"1px solid rgba(109,40,217,.1)"}}>
+              {[["USD","🌎 USD · Internacional"],["ARS","🇦🇷 ARS · Argentina (BCRA)"]].map(([v,l])=>(
+                <button key={v} onClick={()=>setBillingARS(v==="ARS")}
+                  style={{padding:"9px 20px",borderRadius:10,border:"none",cursor:"pointer",fontSize:13,fontWeight:600,fontFamily:LF,
+                    background:(billingARS&&v==="ARS")||(!billingARS&&v==="USD")?"linear-gradient(135deg,#6d28d9,#a855f7)":"transparent",
+                    color:(billingARS&&v==="ARS")||(!billingARS&&v==="USD")?"#fff":"#6060a0",transition:"all .2s"}}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {billingARS&&loadingRate&&<div style={{textAlign:"center",color:"#6060a0",fontSize:13,marginBottom:20}}>Cargando tipo de cambio oficial...</div>}
+          {billingARS&&usdRate&&<div style={{textAlign:"center",color:"#6d28d9",fontSize:12,fontWeight:600,marginBottom:20,background:"rgba(109,40,217,.06)",border:"1px solid rgba(109,40,217,.15)",borderRadius:8,padding:"6px 16px",display:"inline-block",margin:"0 auto 24px",display:"flex",justifyContent:"center"}}>
+            💱 Tipo de cambio oficial BCRA: 1 USD = ARS {usdRate?.toLocaleString("es-AR")}
+          </div>}
+
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:20,marginTop:billingARS&&usdRate?0:0}}>
+            {Object.values(PLANS).map((plan,i)=>(
+              <div key={plan.id} style={{background:"#fff",border:`2px solid ${i===2?"#ec4899":i===1?"#6d28d9":"#e5e5f0"}`,borderRadius:22,padding:"32px 28px",position:"relative",transition:"transform .2s,box-shadow .2s",boxShadow:i===1?"0 8px 32px rgba(109,40,217,.15)":i===2?"0 8px 32px rgba(236,72,153,.1)":"none"}}
+                onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-5px)";e.currentTarget.style.boxShadow=i===1?"0 16px 48px rgba(109,40,217,.2)":i===2?"0 16px 48px rgba(236,72,153,.15)":"0 8px 24px rgba(0,0,0,.08)";}}
+                onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow=i===1?"0 8px 32px rgba(109,40,217,.15)":i===2?"0 8px 32px rgba(236,72,153,.1)":"none";}}>
+                {i===1&&<div style={{position:"absolute",top:-14,left:"50%",transform:"translateX(-50%)",background:"linear-gradient(135deg,#6d28d9,#a855f7)",borderRadius:20,padding:"5px 16px",fontSize:11,fontWeight:700,color:"#fff",whiteSpace:"nowrap",boxShadow:"0 4px 12px rgba(109,40,217,.3)"}}>MÁS POPULAR</div>}
+                {i===2&&<div style={{position:"absolute",top:-14,left:"50%",transform:"translateX(-50%)",background:"linear-gradient(135deg,#ec4899,#f43f5e)",borderRadius:20,padding:"5px 16px",fontSize:11,fontWeight:700,color:"#fff",whiteSpace:"nowrap",boxShadow:"0 4px 12px rgba(236,72,153,.3)"}}>TODO INCLUIDO</div>}
+
+                <div style={{fontWeight:800,fontSize:22,color:plan.color,marginBottom:4,letterSpacing:"-0.3px"}}>{plan.name}</div>
+
+                <div style={{marginBottom:22,paddingBottom:22,borderBottom:"1px solid #f0f0f8"}}>
+                  {plan.price_usd===0 ? (
+                    <div><span style={{fontSize:44,fontWeight:800,color:"#1a1a2e",letterSpacing:"-2px"}}>Gratis</span></div>
+                  ) : billingARS ? (
+                    <div>
+                      <div style={{fontSize:13,color:"#9090b0",marginBottom:2,fontWeight:400}}>Equivalente a USD {plan.price_usd}</div>
+                      <span style={{fontSize:34,fontWeight:800,color:"#1a1a2e",letterSpacing:"-1px"}}>
+                        {loadingRate?"...":"ARS $"+arsPrice(plan.price_usd)}
+                      </span>
+                      <span style={{fontSize:13,color:"#9090b0"}}>/mes</span>
+                    </div>
+                  ) : (
+                    <div>
+                      <span style={{fontSize:44,fontWeight:800,color:"#1a1a2e",letterSpacing:"-2px"}}>USD ${plan.price_usd}</span>
+                      <span style={{fontSize:14,color:"#9090b0"}}>/mes</span>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:24}}>
+                  {PLAN_FEATURES[plan.id].map((f,j)=>(
+                    <div key={j} style={{display:"flex",alignItems:"center",gap:9,fontSize:14,color:"#404060",fontWeight:400}}>
+                      <div style={{width:18,height:18,borderRadius:"50%",background:`${plan.color}18`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                        <span style={{color:plan.color,fontWeight:700,fontSize:11}}>✓</span>
+                      </div>
+                      {f}
+                    </div>
+                  ))}
+                </div>
+
+                <button onClick={onRegister} style={{width:"100%",padding:"13px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:LF,borderRadius:12,border:"none",
+                  background:i===0?"#f8f7ff":i===1?"linear-gradient(135deg,#6d28d9,#a855f7)":"linear-gradient(135deg,#ec4899,#f43f5e)",
+                  color:i===0?"#6d28d9":"#fff",
+                  border:i===0?"1.5px solid rgba(109,40,217,.2)":"none",
+                  boxShadow:i===1?"0 4px 16px rgba(109,40,217,.3)":i===2?"0 4px 16px rgba(236,72,153,.3)":"none"}}>
+                  {i===0?"Empezar gratis →":"Contratar "+plan.name+" →"}
+                </button>
+              </div>
             ))}
           </div>
-        </div>
-
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:20}}>
-          {Object.values(PLANS).map((plan,i)=>(
-            <div key={plan.id} style={{background:"var(--surface)",border:`2px solid ${i===2?"var(--pink)":i===1?"var(--accent2)":"var(--border)"}`,borderRadius:20,padding:"32px 28px",position:"relative",transition:"transform .2s"}}
-              onMouseEnter={e=>e.currentTarget.style.transform="translateY(-4px)"}
-              onMouseLeave={e=>e.currentTarget.style.transform="translateY(0)"}>
-              {i===1&&<div style={{position:"absolute",top:-14,left:"50%",transform:"translateX(-50%)",background:"linear-gradient(135deg,var(--accent),var(--accent2))",borderRadius:20,padding:"4px 16px",fontSize:11,fontWeight:700,color:"#fff",whiteSpace:"nowrap"}}>MÁS POPULAR</div>}
-              {i===2&&<div style={{position:"absolute",top:-14,left:"50%",transform:"translateX(-50%)",background:"linear-gradient(135deg,var(--pink),#f43f5e)",borderRadius:20,padding:"4px 16px",fontSize:11,fontWeight:700,color:"#fff",whiteSpace:"nowrap"}}>TODO INCLUIDO</div>}
-              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,marginBottom:6,color:plan.color}}>{plan.name}</div>
-              <div style={{marginBottom:20}}>
-                {plan.price_ars===0 ? (
-                  <span style={{fontSize:40,fontWeight:800,fontFamily:"'Syne',sans-serif"}}>Gratis</span>
-                ) : billingARS ? (
-                  <div>
-                    <span style={{fontSize:40,fontWeight:800,fontFamily:"'Syne',sans-serif"}}>ARS ${plan.price_ars.toLocaleString()}</span>
-                    <span style={{fontSize:13,color:"var(--muted)"}}>/mes</span>
-                  </div>
-                ) : (
-                  <div>
-                    <span style={{fontSize:40,fontWeight:800,fontFamily:"'Syne',sans-serif"}}>USD ${plan.price_usd}</span>
-                    <span style={{fontSize:13,color:"var(--muted)"}}>/mes</span>
-                  </div>
-                )}
-              </div>
-              <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:28}}>
-                {PLAN_FEATURES[plan.id].map((f,j)=>(
-                  <div key={j} style={{display:"flex",alignItems:"center",gap:8,fontSize:13,color:"var(--muted)"}}>
-                    <span style={{color:plan.color,fontWeight:700,fontSize:16}}>✓</span>{f}
-                  </div>
-                ))}
-              </div>
-              <button onClick={onRegister} className="btn" style={{width:"100%",padding:"12px",fontSize:14,fontWeight:700,
-                background:i===0?"var(--surface2)":i===1?"linear-gradient(135deg,var(--accent),var(--accent2))":"linear-gradient(135deg,var(--pink),#f43f5e)",
-                color:"#fff",border:i===0?"1px solid var(--border)":"none",borderRadius:10}}>
-                {i===0?"Empezar gratis":"Contratar ahora"}
-              </button>
-            </div>
-          ))}
+          <p style={{textAlign:"center",marginTop:20,fontSize:12,color:"#9090b0"}}>
+            💳 Argentina: MercadoPago · Internacional: Stripe · Cancelá cuando quieras
+          </p>
         </div>
       </div>
 
       {/* FOOTER */}
-      <footer style={{borderTop:"1px solid var(--border)",padding:"32px 40px",textAlign:"center",color:"var(--muted)",fontSize:13}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:12}}>
-          <div style={{width:26,height:26,background:"linear-gradient(135deg,var(--accent),var(--pink))",borderRadius:7,display:"grid",placeItems:"center",fontWeight:800,fontSize:11,color:"#fff"}}>M</div>
-          <span style={{fontFamily:"'Syne',sans-serif",fontWeight:800}}>MCM — My Community Manager</span>
+      <footer style={{background:"#1a1a2e",padding:"40px clamp(20px,5vw,60px)",textAlign:"center",color:"#6060a0",fontSize:13}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:14}}>
+          <div style={{width:30,height:30,background:"linear-gradient(135deg,#6d28d9,#ec4899)",borderRadius:8,display:"grid",placeItems:"center",fontWeight:800,fontSize:13,color:"#fff"}}>M</div>
+          <span style={{fontWeight:700,color:"#c0c0e0",fontSize:15,letterSpacing:"-0.2px"}}>MCM — My Community Manager</span>
         </div>
-        <p>© 2026 MCM · Todos los derechos reservados</p>
+        <p style={{color:"#4040608",marginBottom:8}}>© 2026 MCM · Todos los derechos reservados</p>
+        <p style={{fontSize:11,color:"#404060"}}>Powered by Claude AI · Anthropic · Precios en ARS calculados al tipo de cambio oficial BCRA</p>
       </footer>
     </div>
   );
@@ -940,8 +1027,20 @@ function AuthScreen({mode, setMode, onSuccess, onBack, showToast}) {
 // PLAN SCREEN — Gestión de membresía + pago
 // ════════════════════════════════════════════════════════════════
 function PlanScreen({currentPlan, user, onUpgrade, showToast}) {
-  const [billingARS, setBillingARS] = useState(true);
+  const [billingARS, setBillingARS] = useState(false);
   const [paying, setPaying] = useState(null);
+  const [usdRate, setUsdRate] = useState(null);
+
+  useEffect(()=>{
+    if(!billingARS||usdRate) return;
+    fetch("https://api.exchangerate-api.com/v4/latest/USD")
+      .then(r=>r.json()).then(d=>setUsdRate(d.rates?.ARS||1200))
+      .catch(()=>fetch("https://dolarapi.com/v1/dolares/oficial")
+        .then(r=>r.json()).then(d=>setUsdRate(d.venta||1200))
+        .catch(()=>setUsdRate(1200)));
+  },[billingARS]);
+
+  const arsPrice=(usd)=>usdRate?Math.round(usd*usdRate).toLocaleString("es-AR"):"...";
 
   const handlePay = async (planId) => {
     if(planId===currentPlan.id){showToast("Ya estás en este plan","info");return;}
@@ -1006,10 +1105,14 @@ function PlanScreen({currentPlan, user, onUpgrade, showToast}) {
               {isCurrent&&<div style={{position:"absolute",top:-12,left:"50%",transform:"translateX(-50%)",background:plan.color,borderRadius:20,padding:"3px 12px",fontSize:11,fontWeight:700,color:"#fff",whiteSpace:"nowrap"}}>TU PLAN ACTUAL</div>}
               <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20,color:plan.color,marginBottom:4}}>{plan.name}</div>
               <div style={{marginBottom:16}}>
-                {plan.price_ars===0 ? (
+                {plan.price_usd===0 ? (
                   <span style={{fontSize:32,fontWeight:800,fontFamily:"'Syne',sans-serif"}}>Gratis</span>
                 ) : billingARS ? (
-                  <div><span style={{fontSize:32,fontWeight:800,fontFamily:"'Syne',sans-serif"}}>ARS ${plan.price_ars.toLocaleString()}</span><span style={{fontSize:12,color:"var(--muted)"}}>/mes</span></div>
+                  <div>
+                    <div style={{fontSize:11,color:"var(--muted)",marginBottom:2}}>USD {plan.price_usd} al tipo oficial</div>
+                    <span style={{fontSize:28,fontWeight:800,fontFamily:"'Syne',sans-serif"}}>ARS ${arsPrice(plan.price_usd)}</span>
+                    <span style={{fontSize:12,color:"var(--muted)"}}>/mes</span>
+                  </div>
                 ) : (
                   <div><span style={{fontSize:32,fontWeight:800,fontFamily:"'Syne',sans-serif"}}>USD ${plan.price_usd}</span><span style={{fontSize:12,color:"var(--muted)"}}>/mes</span></div>
                 )}
