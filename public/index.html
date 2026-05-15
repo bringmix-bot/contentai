@@ -881,12 +881,20 @@ Responde SOLO con el JSON, sin texto adicional.`,
 // ════════════════════════════════════════════════════════════════
 function LibraryScreen({files,saveFiles,showToast,onNext}) {
   const inputRef=useRef();
-  const handleFiles=(e)=>{
-    const newFiles=Array.from(e.target.files).map(f=>({
-      id:Date.now()+Math.random(),name:f.name,
-      type:f.type.startsWith("video")?"video":"image",
-      preview:URL.createObjectURL(f),size:f.size,
-    }));
+  const handleFiles=async(e)=>{
+    const rawFiles=Array.from(e.target.files);
+    showToast("Procesando "+rawFiles.length+" archivo(s)...","info");
+    const newFiles = await Promise.all(rawFiles.map(f => new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = ev => resolve({
+        id: Date.now()+Math.random(),
+        name: f.name,
+        type: f.type.startsWith("video") ? "video" : "image",
+        preview: ev.target.result, // base64 real, no blob URL
+        size: f.size,
+      });
+      reader.readAsDataURL(f);
+    })));
     saveFiles([...files,...newFiles]);
     showToast(newFiles.length+" archivo(s) agregado(s)","ok");
   };
@@ -980,7 +988,7 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
       const prefs=store.get("stylePrefs")||{};
       for(let i=0;i<7;i++){
         setProgress(i+1);
-        // Elegir imagen relacionada al brief — escanea TODAS las imágenes disponibles
+        // Elegir imagen relacionada al brief — analiza TODAS las imágenes con Vision
         let imgSrc = imgs[i % imgs.length].preview;
         let imgMatchWarning = false;
         if(postBrief && imgs.length > 0) {
@@ -989,26 +997,29 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
             imgMatchWarning = true;
           } else {
             try {
-              // Analizar todas las imágenes disponibles (no solo las primeras 5)
+              // Analizar todas las imágenes en paralelo con Vision real (base64)
               const imgDescPromises = imgs.map((img, idx) => {
-                const b64 = img.preview.split(",")[1];
-                const mtype = img.preview.split(";")[0].split(":")[1] || "image/jpeg";
+                const parts = img.preview.split(",");
+                const b64 = parts[1] || "";
+                const mtype = (parts[0]||"").split(";")[0].split(":")[1] || "image/jpeg";
+                if(!b64) return Promise.resolve({ idx, desc: "" });
                 return generateTextWithImage(
-                  `Listá los 3 elementos principales que se ven en esta imagen (animales, personas, objetos, alimentos, lugares). Sé muy específico. Ej: "gallinas marrones, galpón de madera, pasto verde". Solo el listado, sin explicaciones.`,
+                  `Listá en 5 palabras máximo los elementos principales de esta imagen. Muy específico (ej: "gallinas, huevos, gallinero" o "lechuga, campo, plantas verdes"). Sin explicaciones, solo las palabras clave separadas por comas.`,
                   b64, mtype
                 ).then(desc => ({ idx, desc: desc.trim() }))
                  .catch(() => ({ idx, desc: "" }));
               });
               const descriptions = await Promise.all(imgDescPromises);
-              // Filtrar las que tienen descripción
               const valid = descriptions.filter(d => d.desc);
-              const selectPrompt = `El cliente quiere una imagen para un post sobre: "${postBrief}".\n\nDescripción de cada imagen disponible:\n${valid.map(d=>`Imagen ${d.idx+1}: ${d.desc}`).join("\n")}\n\nElegí la imagen cuyo contenido visual sea MÁS RELACIONADO con el tema "${postBrief}". Considerá palabras clave del tema. Respondé SOLO con el número de imagen (por ejemplo: 3). Si ninguna es relevante respondé 0.`;
-              const choice = await generateText(selectPrompt);
-              const chosenIdx = parseInt(choice.trim().replace(/\D/g,"")) - 1;
-              if(!isNaN(chosenIdx) && chosenIdx >= 0 && chosenIdx < imgs.length) {
-                imgSrc = imgs[chosenIdx].preview;
-              } else {
-                imgMatchWarning = true;
+              if(valid.length > 0) {
+                const selectPrompt = `Post sobre: "${postBrief}".\n\n${valid.map(d=>`Imagen ${d.idx+1}: ${d.desc}`).join("\n")}\n\nElegí el número de la imagen más relacionada con "${postBrief}". Solo el número.`;
+                const choice = await generateText(selectPrompt);
+                const chosenIdx = parseInt(choice.trim().replace(/\D/g,"")) - 1;
+                if(!isNaN(chosenIdx) && chosenIdx >= 0 && chosenIdx < imgs.length) {
+                  imgSrc = imgs[chosenIdx].preview;
+                } else {
+                  imgMatchWarning = true;
+                }
               }
             } catch(e) {
               imgSrc = imgs[i % imgs.length].preview;
