@@ -980,29 +980,39 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
       const prefs=store.get("stylePrefs")||{};
       for(let i=0;i<7;i++){
         setProgress(i+1);
-        // Elegir imagen relacionada al brief usando análisis IA
-        // Analiza las primeras 4 imágenes disponibles y elige la más relevante
-        let imgSrc = imgs[i % imgs.length].preview; // fallback
-        if(postBrief && imgs.length > 1) {
-          try {
-            const imgSample = imgs.slice(0, Math.min(4, imgs.length));
-            const imgDescPromises = imgSample.map((img, idx) => {
-              const b64 = img.preview.split(",")[1];
-              const mtype = img.preview.split(";")[0].split(":")[1] || "image/jpeg";
-              return generateTextWithImage(
-                `Describí en 1 oración muy corta qué se ve en esta imagen (objetos, personas, lugar, actividad). Solo la descripción, nada más.`,
-                b64, mtype
-              ).then(desc => ({ idx, desc: desc.trim() })).catch(() => ({ idx, desc: "" }));
-            });
-            const descriptions = await Promise.all(imgDescPromises);
-            const selectPrompt = `El cliente quiere un post sobre: "${postBrief}". Tenés estas imágenes disponibles:\n${descriptions.map(d => `Imagen ${d.idx + 1}: ${d.desc}`).join("\n")}\n¿Cuál imagen (número) es la más relevante para ese tema? Respondé SOLO con el número (1, 2, 3 o 4).`;
-            const choice = await generateText(selectPrompt);
-            const chosenIdx = parseInt(choice.trim()) - 1;
-            if(!isNaN(chosenIdx) && chosenIdx >= 0 && chosenIdx < imgSample.length) {
-              imgSrc = imgSample[chosenIdx].preview;
+        // Elegir imagen relacionada al brief — escanea TODAS las imágenes disponibles
+        let imgSrc = imgs[i % imgs.length].preview;
+        let imgMatchWarning = false;
+        if(postBrief && imgs.length > 0) {
+          if(imgs.length === 1) {
+            imgSrc = imgs[0].preview;
+            imgMatchWarning = true;
+          } else {
+            try {
+              // Analizar todas las imágenes disponibles (no solo las primeras 5)
+              const imgDescPromises = imgs.map((img, idx) => {
+                const b64 = img.preview.split(",")[1];
+                const mtype = img.preview.split(";")[0].split(":")[1] || "image/jpeg";
+                return generateTextWithImage(
+                  `Listá los 3 elementos principales que se ven en esta imagen (animales, personas, objetos, alimentos, lugares). Sé muy específico. Ej: "gallinas marrones, galpón de madera, pasto verde". Solo el listado, sin explicaciones.`,
+                  b64, mtype
+                ).then(desc => ({ idx, desc: desc.trim() }))
+                 .catch(() => ({ idx, desc: "" }));
+              });
+              const descriptions = await Promise.all(imgDescPromises);
+              // Filtrar las que tienen descripción
+              const valid = descriptions.filter(d => d.desc);
+              const selectPrompt = `El cliente quiere una imagen para un post sobre: "${postBrief}".\n\nDescripción de cada imagen disponible:\n${valid.map(d=>`Imagen ${d.idx+1}: ${d.desc}`).join("\n")}\n\nElegí la imagen cuyo contenido visual sea MÁS RELACIONADO con el tema "${postBrief}". Considerá palabras clave del tema. Respondé SOLO con el número de imagen (por ejemplo: 3). Si ninguna es relevante respondé 0.`;
+              const choice = await generateText(selectPrompt);
+              const chosenIdx = parseInt(choice.trim().replace(/\D/g,"")) - 1;
+              if(!isNaN(chosenIdx) && chosenIdx >= 0 && chosenIdx < imgs.length) {
+                imgSrc = imgs[chosenIdx].preview;
+              } else {
+                imgMatchWarning = true;
+              }
+            } catch(e) {
+              imgSrc = imgs[i % imgs.length].preview;
             }
-          } catch(e) {
-            imgSrc = imgs[i % imgs.length].preview; // fallback silencioso
           }
         }
         const ctx=buildBrandContext(i);
@@ -1010,18 +1020,24 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
         const postBrief=briefs[i]||"";
 
         // Base del prompt de overlay — contexto visual único por post
-        const overlayBase=`Sos un director creativo de publicidad. Empresa: ${brand.name} (${brand.industry||""}). ${OVERLAY_CONTEXTS[i]}`;
-        const briefNote=postBrief?` El cliente pidió específicamente: "${postBrief}".`:"";
+        const overlayBase=`Sos un director creativo de publicidad. Empresa: ${brand.name} (${brand.industry||""}).`;
+        const briefNote=postBrief?` El cliente pidió específicamente un post sobre: "${postBrief}".`:"";
+        const themeNote=` El tema del post es: ${OVERLAY_CONTEXTS[i]}`;
 
-        // 3 overlay texts completamente distintos, uno por template
-        // T1 (Revista): relacionado con la foto real del cliente y el tema del post
-        const overlayPrompt1=`${overlayBase}${briefNote} Escribí un texto de EXACTAMENTE 3 a 5 palabras para superponer sobre una FOTO REAL del negocio. Debe evocar lo que se ve en la imagen. Sin hashtags, sin emojis, sin puntuación. Solo las palabras.`;
-        // T2 (Diseño): frase poderosa de impacto visual, más tipográfica
-        const overlayPrompt2=`${overlayBase}${briefNote} Escribí una frase de EXACTAMENTE 3 a 5 palabras para un diseño gráfico sin foto. Debe ser un titular de impacto, bold, que llame la atención solo con tipografía. Sin hashtags, sin emojis, sin puntuación. Solo las palabras. Que sea DIFERENTE a cualquier otra frase que hayas escrito para este post.`;
-        // T3 (IA Visual): directamente ligado al brief del cliente
-        const overlayPrompt3=postBrief
-          ? `${overlayBase} El cliente pidió específicamente: "${postBrief}". Escribí un texto de EXACTAMENTE 3 a 5 palabras que resuma la IDEA CENTRAL de ese brief. Debe ser la frase principal del diseño. Sin hashtags, sin emojis, sin puntuación. Solo las palabras.`
-          : `${overlayBase} Escribí un texto de EXACTAMENTE 3 a 5 palabras para un fondo visual generado por IA. Que sea diferente, más creativo y conceptual que las otras opciones. Sin hashtags, sin emojis, sin puntuación. Solo las palabras.`;
+        // T1 (Revista): el brief manda. Si hay brief, la frase es SOBRE el brief, no sobre la imagen
+        const overlayPrompt1 = postBrief
+          ? `${overlayBase}${briefNote} Escribí un texto de EXACTAMENTE 3 a 5 palabras para superponer sobre la imagen. La frase DEBE hablar sobre "${postBrief}". Es OBLIGATORIO que la frase esté directamente relacionada con ese tema específico. Sin hashtags, sin emojis, sin puntuación. Solo las palabras.`
+          : `${overlayBase}${themeNote} Escribí un texto de EXACTAMENTE 3 a 5 palabras para superponer sobre una foto real del negocio. Debe ser poético e impactante. Sin hashtags, sin emojis, sin puntuación. Solo las palabras.`;
+
+        // T2 (Diseño): titular tipográfico fuerte, también guiado por brief si lo hay
+        const overlayPrompt2 = postBrief
+          ? `${overlayBase}${briefNote} Escribí una frase de EXACTAMENTE 3 a 5 palabras para un diseño gráfico bold. La frase DEBE referirse a "${postBrief}" de forma impactante. Sin hashtags, sin emojis, sin puntuación. Solo las palabras. Que sea DIFERENTE a cualquier otra frase que hayas generado para este post.`
+          : `${overlayBase}${themeNote} Escribí una frase de EXACTAMENTE 3 a 5 palabras para un diseño gráfico sin foto. Titular de impacto. Sin hashtags, sin emojis, sin puntuación. Solo las palabras.`;
+
+        // T3 (IA Visual): 100% guiado por el brief
+        const overlayPrompt3 = postBrief
+          ? `${overlayBase}${briefNote} Escribí un texto de EXACTAMENTE 3 a 5 palabras que capture la ESENCIA de "${postBrief}". Esta será la frase principal del diseño. Sin hashtags, sin emojis, sin puntuación. Solo las palabras.`
+          : `${overlayBase}${themeNote} Escribí un texto de EXACTAMENTE 3 a 5 palabras, creativo y conceptual, diferente a las otras opciones. Sin hashtags, sin emojis, sin puntuación. Solo las palabras.`;
 
         // Caption para T3: si hay brief, responde directamente a él
         const cap3Prompt=postBrief
@@ -1067,7 +1083,7 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
 
         const options=[
           {id:0,style:1,styleName:"Revista",caption:cap1,overlayText:overlayText1,imgSrc,...baseOpt,
-           slideCount, slides: slideCount>1?makeCarouselSlides(slideCount,imgSrc):null},
+           imgMatchWarning, slideCount, slides: slideCount>1?makeCarouselSlides(slideCount,imgSrc):null},
           {id:1,style:2,styleName:"Diseño",caption:cap2,overlayText:overlayText2,imgSrc:null,...baseOpt,
            slideCount, slides: null},
           {id:2,style:3,styleName:"IA Visual",caption:cap3,overlayText:overlayText3,imgSrc:null,...baseOpt,
@@ -1221,6 +1237,11 @@ function WeekPostCard({opt,postIdx,optIdx,selected,onSelect,onEdit}) {
         <canvas ref={canvasRef} style={{width:"100%",height:"100%",display:"block"}} />
         <div style={{position:"absolute",top:8,left:8,background:"rgba(0,0,0,.7)",backdropFilter:"blur(4px)",borderRadius:6,padding:"3px 8px",fontSize:11,fontWeight:600}}>{opt.styleName}</div>
         {selected&&<div style={{position:"absolute",top:8,right:8,background:"var(--accent)",borderRadius:"50%",width:22,height:22,display:"grid",placeItems:"center",fontSize:12}}>✓</div>}
+        {opt.imgMatchWarning&&(
+          <div style={{position:"absolute",bottom:hasCarousel?24:8,left:0,right:0,margin:"0 8px",background:"rgba(245,158,11,.9)",borderRadius:6,padding:"4px 8px",fontSize:10,fontWeight:600,color:"#000",textAlign:"center"}}>
+            ⚠️ Imagen puede no coincidir con el brief — agregá fotos relacionadas
+          </div>
+        )}
         {hasCarousel&&(
           <div style={{position:"absolute",bottom:8,left:0,right:0,display:"flex",justifyContent:"center",gap:4}}>
             {opt.slides.map((_,i)=>(
