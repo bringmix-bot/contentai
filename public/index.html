@@ -63,8 +63,8 @@ select option{background:var(--surface)}
 .post-canvas-wrap{aspect-ratio:1;background:var(--bg);overflow:hidden}
 /* MEJORA 3: caption visible completo */
 .post-caption{padding:12px;font-size:11px;color:var(--muted);line-height:1.65;max-height:none;overflow:visible;border-top:1px solid var(--border)}
-.editor-wrap{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.88);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(20px);overflow-y:auto}
-.editor-box{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:24px;width:100%;max-width:980px;max-height:92vh;overflow-y:auto;display:flex;gap:24px;flex-wrap:wrap;margin:auto}
+.editor-wrap{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.9);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(24px)}
+.editor-box{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:24px;width:100%;max-width:1000px;height:auto;max-height:88vh;overflow-y:auto;display:flex;gap:24px;flex-wrap:wrap;flex-shrink:0}
 .toast{position:fixed;bottom:24px;right:24px;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:500;z-index:9999;display:flex;align-items:center;gap:8px;max-width:340px;animation:fadeIn .3s ease}
 .toast.ok{background:#0d2b1f;border:1px solid var(--success);color:var(--success)}
 .toast.err{background:#1f0d0d;border:1px solid var(--error);color:var(--error)}
@@ -579,9 +579,65 @@ async function drawTemplate3(canvas, opt) {
 
 // ── ROUTER ──
 async function drawPost(canvas, opt) {
-  if(opt.style===1) return drawTemplate1(canvas, opt);
-  if(opt.style===2) return drawTemplate2(canvas, opt);
-  return drawTemplate3(canvas, opt);
+  if(opt.style===1) await drawTemplate1(canvas, opt);
+  else if(opt.style===2) await drawTemplate2(canvas, opt);
+  else await drawTemplate3(canvas, opt);
+  // Segundo texto (independiente del template)
+  await drawOverlayText2(canvas, opt);
+  // Stickers
+  await drawStickers(canvas, opt);
+}
+
+// ── SEGUNDO TEXTO ──
+async function drawOverlayText2(canvas, opt) {
+  if(!opt.overlayText2) return;
+  const ctx = canvas.getContext("2d");
+  const W=canvas.width||1080, H=canvas.height||1080;
+  const text = opt.overlayText2.replace(/[\*\_\#]/g,"").trim().toUpperCase();
+  if(!text) return;
+  const ff = opt.fontFamily2||"Impact,'Arial Black',sans-serif";
+  const fw = opt.fontWeight2||"900";
+  const fc = opt.fontColor2||"#ffffff";
+  const canvasSize = Math.round((opt.fontSize2||40) * 1080/500);
+  const words = text.split(" ");
+  const lines = [];
+  for(let i=0;i<words.length;i+=2) lines.push(words.slice(i,i+2).join(" "));
+  let size = canvasSize;
+  ctx.font=`${fw} ${size}px ${ff}`;
+  while(size>24){
+    ctx.font=`${fw} ${size}px ${ff}`;
+    if(Math.max(...lines.map(l=>ctx.measureText(l).width)) <= W-100) break;
+    size-=4;
+  }
+  const posX = (opt.text2X!==undefined?opt.text2X:0.05)*W;
+  const posY = (opt.text2Y!==undefined?opt.text2Y:0.88)*H;
+  const lH = size*0.95;
+  if(opt.textBg2){
+    const maxW = Math.max(...lines.map(l=>ctx.measureText(l).width));
+    ctx.fillStyle="rgba(0,0,0,0.55)";
+    ctx.fillRect(posX-8, posY-size*0.85-6, maxW+16, lines.length*lH+12);
+  }
+  ctx.shadowColor="rgba(0,0,0,0.6)"; ctx.shadowBlur=14;
+  ctx.fillStyle=fc; ctx.textAlign="left";
+  lines.forEach((ln,i)=>ctx.fillText(ln, posX, posY + i*lH));
+  ctx.shadowBlur=0;
+}
+
+// ── STICKERS ──
+async function drawStickers(canvas, opt) {
+  if(!opt.stickers||opt.stickers.length===0) return;
+  const ctx = canvas.getContext("2d");
+  const W=canvas.width||1080, H=canvas.height||1080;
+  for(const s of opt.stickers){
+    const sz = Math.round((s.size||0.1)*W);
+    const px = s.x*W, py = s.y*H;
+    ctx.font=`${sz}px serif`;
+    ctx.textAlign="center";
+    ctx.textBaseline="middle";
+    ctx.shadowColor="rgba(0,0,0,0.3)"; ctx.shadowBlur=8;
+    ctx.fillText(s.emoji, px, py);
+    ctx.shadowBlur=0; ctx.textBaseline="alphabetic";
+  }
 }
 
 
@@ -1011,264 +1067,356 @@ function WeekPostCard({opt,postIdx,optIdx,selected,onSelect,onEdit}) {
 
 function PostOptionCard(){return null;}
 
+// ── STICKERS disponibles ──
+const STICKER_SETS = [
+  { label:"Caritas", items:["😀","😂","🥰","😎","🤩","🥳","😍","🤔","😜","🥺","😤","🤯","🫶","🙌","👏","💪","🫡","🤝"] },
+  { label:"Objetos", items:["🌟","⭐","💫","✨","🔥","💥","❤️","💜","🧡","💛","💚","💙","🖤","🤍","💎","🏆","🎯","🎨"] },
+  { label:"Comida", items:["🍕","🍔","🥗","🍰","🍩","☕","🍷","🥂","🫕","🥩","🥑","🌿","🍓","🍋","🍊","🌽","🍅","🫐"] },
+  { label:"Naturaleza", items:["🌸","🌺","🌻","🌹","🌿","🍃","🌲","🌊","⛰️","🌅","🌙","☀️","⚡","🌈","❄️","🦋","🐝","🌱"] },
+  { label:"Símbolos", items:["✅","⚡","🔑","💡","📍","📌","🏷️","💬","📣","🎬","📸","🎵","💰","🚀","⭕","❌","♾️","🔮"] },
+];
+
 function EditorModal({opt,brand,onClose,onSave,showToast}) {
   const canvasRef=useRef();
   const previewRef=useRef();
+
+  const makeText=(src,idx)=>({
+    text: idx===0?(src?.overlayText||""):(src?.overlayText2||""),
+    x: idx===0?(src?.textX!==undefined?src.textX:0.05):(src?.text2X!==undefined?src.text2X:0.05),
+    y: idx===0?(src?.textY!==undefined?src.textY:0.75):(src?.text2Y!==undefined?src.text2Y:0.88),
+    fontFamily: idx===0?(src?.fontFamily||"Impact"):(src?.fontFamily2||"Impact"),
+    fontWeight: idx===0?(src?.fontWeight||"900"):(src?.fontWeight2||"900"),
+    fontSize: idx===0?(src?.fontSize||56):(src?.fontSize2||40),
+    fontColor: idx===0?(src?.fontColor||"#ffffff"):(src?.fontColor2||"#ffffff"),
+    textBg: idx===0?(src?.textBg||false):(src?.textBg2||false),
+    visible: idx===0?true:(src?.text2Visible!==undefined?src.text2Visible:false),
+  });
+
+  const [texts,setTexts]=useState([makeText(opt,0),makeText(opt,1)]);
+  const [activeText,setActiveText]=useState(0);
   const [form,setForm]=useState({
     ...opt,
-    textBg: opt.textBg||false,
     showLogo: opt.showLogo!==undefined?opt.showLogo:true,
     logoBase64: opt.logoBase64||brand?.logoBase64||null,
     logoX: opt.logoX!==undefined?opt.logoX:0.88,
     logoY: opt.logoY!==undefined?opt.logoY:0.88,
     logoSize: opt.logoSize!==undefined?opt.logoSize:0.15,
-    textX: opt.textX!==undefined?opt.textX:0.05,
-    textY: opt.textY!==undefined?opt.textY:0.75,
-    fontFamily: opt.fontFamily||"Impact",
-    fontWeight: opt.fontWeight||"900",
-    fontSize: opt.fontSize||56,
-    fontColor: opt.fontColor||"#ffffff",
-    _customSize: true, // siempre respetar el fontSize del form
+    stickers: opt.stickers||[],
   });
+
   const [publishing,setPublishing]=useState(false);
   const [pubMsg,setPubMsg]=useState(null);
-  const [dragMode,setDragMode]=useState(null); // null | "text" | "logo" | "logo-resize"
+  const [dragMode,setDragMode]=useState(null);
   const [showFormatPicker,setShowFormatPicker]=useState(false);
-  const [igFormat,setIgFormat]=useState("post");
-  const upd=(k,v)=>setForm(p=>({...p,[k]:v}));
+  const [showStickerPanel,setShowStickerPanel]=useState(false);
+  const [activeStickerSet,setActiveStickerSet]=useState(0);
+  const [activeSticker,setActiveSticker]=useState(null);
 
-  useEffect(()=>{if(canvasRef.current)drawPost(canvasRef.current,form);},[form]);
+  const updForm=(k,v)=>setForm(p=>({...p,[k]:v}));
+  const updText=(idx,k,v)=>setTexts(ts=>ts.map((t,i)=>i===idx?{...t,[k]:v}:t));
+  const t=texts[activeText];
 
-  // Detectar si el click está cerca del logo para decidir qué arrastrar
-  const getClickTarget=(e)=>{
+  useEffect(()=>{
+    if(!canvasRef.current)return;
+    const merged={
+      ...form,
+      overlayText:texts[0].text, textX:texts[0].x, textY:texts[0].y,
+      fontFamily:texts[0].fontFamily, fontWeight:texts[0].fontWeight,
+      fontSize:texts[0].fontSize, fontColor:texts[0].fontColor, textBg:texts[0].textBg,
+      overlayText2:texts[1].visible?texts[1].text:"",
+      text2X:texts[1].x, text2Y:texts[1].y,
+      fontFamily2:texts[1].fontFamily, fontWeight2:texts[1].fontWeight,
+      fontSize2:texts[1].fontSize, fontColor2:texts[1].fontColor, textBg2:texts[1].textBg,
+    };
+    drawPost(canvasRef.current, merged);
+  },[form,texts]);
+
+  const getClickTarget=(clientX,clientY)=>{
     const rect=previewRef.current.getBoundingClientRect();
-    const fx=(e.clientX-rect.left)/rect.width;
-    const fy=(e.clientY-rect.top)/rect.height;
+    const fx=(clientX-rect.left)/rect.width;
+    const fy=(clientY-rect.top)/rect.height;
+    for(let i=form.stickers.length-1;i>=0;i--){
+      const s=form.stickers[i];
+      const sz=s.size||0.1;
+      if(Math.abs(fx-s.x)<sz*0.7&&Math.abs(fy-s.y)<sz*0.7) return "sticker:"+i;
+    }
     if(form.showLogo&&form.logoBase64){
-      const lx=form.logoX!==undefined?form.logoX:0.88;
-      const ly=form.logoY!==undefined?form.logoY:0.88;
-      const ls=form.logoSize||0.15;
-      const hitR=ls*0.65;
-      if(Math.abs(fx-lx)<hitR&&Math.abs(fy-ly)<hitR) return "logo";
+      const lx=form.logoX||0.88, ly=form.logoY||0.88, ls=form.logoSize||0.15;
+      if(Math.abs(fx-lx)<ls*0.7&&Math.abs(fy-ly)<ls*0.7) return "logo";
     }
-    return "text";
+    if(texts[1].visible&&Math.abs(fx-texts[1].x)<0.15&&Math.abs(fy-texts[1].y)<0.08){ setActiveText(1); return "text1"; }
+    setActiveText(0); return "text0";
   };
 
-  const handlePreviewMouseDown=(e)=>{
+  const handleMouseDown=(e)=>{
     e.preventDefault();
-    setDragMode(getClickTarget(e));
+    const tgt=getClickTarget(e.clientX,e.clientY);
+    setDragMode(tgt);
+    if(tgt.startsWith("sticker:")) setActiveSticker(+tgt.split(":")[1]);
   };
-  const handlePreviewMouseMove=(e)=>{
-    if(!dragMode)return;
-    const rect=previewRef.current.getBoundingClientRect();
-    const fx=Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width));
-    const fy=Math.max(0,Math.min(1,(e.clientY-rect.top)/rect.height));
-    if(dragMode==="text"){
-      setForm(p=>({...p,textX:fx,textY:fy}));
-    } else if(dragMode==="logo"){
-      setForm(p=>({...p,logoX:fx,logoY:fy}));
-    }
-  };
-  const handlePreviewMouseUp=()=>setDragMode(null);
-  const handlePreviewTouch=(e)=>{
-    if(!dragMode)return;
-    const t=e.touches[0];
-    const rect=previewRef.current.getBoundingClientRect();
-    const fx=Math.max(0,Math.min(1,(t.clientX-rect.left)/rect.width));
-    const fy=Math.max(0,Math.min(1,(t.clientY-rect.top)/rect.height));
-    if(dragMode==="text") setForm(p=>({...p,textX:fx,textY:fy}));
+  const applyDrag=(fx,fy)=>{
+    if(dragMode==="text0") setTexts(ts=>[{...ts[0],x:fx,y:fy},ts[1]]);
+    else if(dragMode==="text1") setTexts(ts=>[ts[0],{...ts[1],x:fx,y:fy}]);
     else if(dragMode==="logo") setForm(p=>({...p,logoX:fx,logoY:fy}));
+    else if(dragMode&&dragMode.startsWith("sticker:")){
+      const idx=+dragMode.split(":")[1];
+      setForm(p=>({...p,stickers:p.stickers.map((s,i)=>i===idx?{...s,x:fx,y:fy}:s)}));
+    }
   };
-  const handlePreviewTouchStart=(e)=>{
-    e.preventDefault();
-    setDragMode(getClickTarget(e.touches[0]));
+  const handleMouseMove=(e)=>{
+    if(!dragMode)return;
+    const rect=previewRef.current.getBoundingClientRect();
+    applyDrag(Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width)),Math.max(0,Math.min(1,(e.clientY-rect.top)/rect.height)));
+  };
+  const handleMouseUp=()=>setDragMode(null);
+  const handleTouchStart=(e)=>{ e.preventDefault(); const t2=e.touches[0]; const tgt=getClickTarget(t2.clientX,t2.clientY); setDragMode(tgt); if(tgt.startsWith("sticker:"))setActiveSticker(+tgt.split(":")[1]); };
+  const handleTouchMove=(e)=>{
+    if(!dragMode)return;
+    const rect=previewRef.current.getBoundingClientRect();
+    const t2=e.touches[0];
+    applyDrag(Math.max(0,Math.min(1,(t2.clientX-rect.left)/rect.width)),Math.max(0,Math.min(1,(t2.clientY-rect.top)/rect.height)));
   };
 
-  const download=()=>{
-    const cv=canvasRef.current; if(!cv)return;
-    const a=document.createElement("a"); a.href=cv.toDataURL("image/png"); a.download="MCM_post.png"; a.click();
+  const addSticker=(emoji)=>{
+    setForm(p=>({...p,stickers:[...p.stickers,{emoji,x:0.5,y:0.5,size:0.1}]}));
+    setActiveSticker(form.stickers.length);
+    setShowStickerPanel(false);
   };
+  const removeSticker=(idx)=>{ setForm(p=>({...p,stickers:p.stickers.filter((_,i)=>i!==idx)})); setActiveSticker(null); };
+
+  const download=()=>{ const cv=canvasRef.current; if(!cv)return; const a=document.createElement("a"); a.href=cv.toDataURL("image/png"); a.download="MCM_post.png"; a.click(); };
 
   const publishIG=async(format)=>{
     const canvas=canvasRef.current; if(!canvas)return;
     setPublishing(true); setPubMsg(null); setShowFormatPicker(false);
     try{
       const upRes=await fetch("/api/instagram?action=upload",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({imageBase64:canvas.toDataURL("image/png")})});
-      const upData=await upRes.json();
-      if(!upData.success)throw new Error(upData.error);
-      const pubRes=await fetch("/api/instagram?action=publish",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({caption:form.caption,imageUrl:upData.url,format:format||igFormat})});
-      const pubData=await pubRes.json();
-      if(!pubData.success)throw new Error(pubData.error);
-      const formatLabel={"post":"Publicación","story":"Historia","reel":"Reel"}[format||igFormat]||"Post";
-      setPubMsg({ok:true,text:formatLabel+" publicada en @gonvinardell!"});
-      showToast(formatLabel+" publicada exitosamente!","ok");
+      const upData=await upRes.json(); if(!upData.success)throw new Error(upData.error);
+      const pubRes=await fetch("/api/instagram?action=publish",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({caption:form.caption,imageUrl:upData.url,format:format||"post"})});
+      const pubData=await pubRes.json(); if(!pubData.success)throw new Error(pubData.error);
+      const lbl={"post":"Publicación","story":"Historia","reel":"Reel"}[format]||"Post";
+      setPubMsg({ok:true,text:lbl+" publicada en @gonvinardell!"}); showToast(lbl+" publicada!","ok");
     }catch(e){setPubMsg({ok:false,text:"Error: "+e.message});}
     finally{setPublishing(false);}
   };
 
+  const handleSave=()=>{
+    onSave({...form,
+      overlayText:texts[0].text, textX:texts[0].x, textY:texts[0].y,
+      fontFamily:texts[0].fontFamily, fontWeight:texts[0].fontWeight, fontSize:texts[0].fontSize, fontColor:texts[0].fontColor, textBg:texts[0].textBg,
+      overlayText2:texts[1].text, text2X:texts[1].x, text2Y:texts[1].y,
+      fontFamily2:texts[1].fontFamily, fontWeight2:texts[1].fontWeight, fontSize2:texts[1].fontSize, fontColor2:texts[1].fontColor, textBg2:texts[1].textBg,
+      text2Visible:texts[1].visible,
+    });
+  };
+
   return (
-    <div className="editor-wrap">
-      <div className="editor-box">
-        <div style={{flex:"0 0 340px"}}>
-          <div className="lbl">Preview — arrastrá texto{form.showLogo&&form.logoBase64?" o logo":""}</div>
-          <div
-            ref={previewRef}
+    <div className="editor-wrap" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div className="editor-box" onClick={e=>e.stopPropagation()}>
+
+        {/* LEFT: Canvas preview */}
+        <div style={{flex:"0 0 310px"}}>
+          <div className="lbl" style={{marginBottom:5}}>Preview — arrastrá cualquier elemento</div>
+          <div ref={previewRef}
             style={{borderRadius:12,overflow:"hidden",aspectRatio:"1",background:"var(--bg)",cursor:dragMode?"grabbing":"crosshair",position:"relative",userSelect:"none"}}
-            onMouseDown={handlePreviewMouseDown}
-            onMouseMove={handlePreviewMouseMove}
-            onMouseUp={handlePreviewMouseUp}
-            onMouseLeave={handlePreviewMouseUp}
-            onTouchStart={handlePreviewTouchStart}
-            onTouchMove={handlePreviewTouch}
-            onTouchEnd={handlePreviewMouseUp}
-          >
+            onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
+            onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleMouseUp}>
             <canvas ref={canvasRef} style={{width:"100%",height:"100%",display:"block",pointerEvents:"none"}} />
-            {/* Indicador de logo arrastrable - solo posición, sin handle de resize */}
-            {form.showLogo&&form.logoBase64&&(
-              <div style={{
-                position:"absolute",
-                left:`${(form.logoX||0.88)*100}%`,
-                top:`${(form.logoY||0.88)*100}%`,
-                transform:"translate(-50%,-50%)",
-                pointerEvents:"none",
-                width:8,height:8,
-                borderRadius:"50%",
-                background:"var(--accent2)",
-                boxShadow:"0 0 0 3px rgba(168,85,247,0.4)",
-              }} />
-            )}
-            <div style={{position:"absolute",bottom:8,left:0,right:0,textAlign:"center",fontSize:10,color:"rgba(255,255,255,.4)",pointerEvents:"none"}}>
-              {form.showLogo&&form.logoBase64?"Arrastrá texto o logo · Esquina del logo para redimensionar":"Click para mover el texto"}
-            </div>
+            <div style={{position:"absolute",left:`${texts[0].x*100}%`,top:`${texts[0].y*100}%`,transform:"translate(-50%,-50%)",pointerEvents:"none",width:10,height:10,borderRadius:"50%",background:activeText===0?"var(--accent2)":"rgba(168,85,247,0.5)",boxShadow:"0 0 0 2px rgba(168,85,247,0.3)"}} />
+            {texts[1].visible&&<div style={{position:"absolute",left:`${texts[1].x*100}%`,top:`${texts[1].y*100}%`,transform:"translate(-50%,-50%)",pointerEvents:"none",width:10,height:10,borderRadius:"50%",background:activeText===1?"var(--success)":"rgba(34,211,238,0.5)",boxShadow:"0 0 0 2px rgba(34,211,238,0.3)"}} />}
+            {form.showLogo&&form.logoBase64&&<div style={{position:"absolute",left:`${(form.logoX||0.88)*100}%`,top:`${(form.logoY||0.88)*100}%`,transform:"translate(-50%,-50%)",pointerEvents:"none",width:8,height:8,borderRadius:"50%",background:"var(--pink)",boxShadow:"0 0 0 2px rgba(236,72,153,0.4)"}} />}
+            {form.stickers.map((s,i)=>(
+              <div key={i} style={{position:"absolute",left:`${s.x*100}%`,top:`${s.y*100}%`,transform:"translate(-50%,-50%)",pointerEvents:"none",outline:activeSticker===i?"2px solid var(--accent2)":"none",borderRadius:4,fontSize:`${(s.size||0.1)*120}px`,lineHeight:1}}>{s.emoji}</div>
+            ))}
+            <div style={{position:"absolute",bottom:6,left:0,right:0,textAlign:"center",fontSize:9,color:"rgba(255,255,255,.35)",pointerEvents:"none"}}>● violeta=texto1 · ● verde=texto2 · ● rosa=logo</div>
           </div>
-          <div style={{fontSize:10,color:"var(--muted)",textAlign:"center",marginTop:6}}>1080×1080px</div>
+          <div style={{fontSize:10,color:"var(--muted)",textAlign:"center",marginTop:4}}>1080×1080px</div>
         </div>
 
-        <div style={{flex:1,minWidth:260,display:"flex",flexDirection:"column",gap:13,overflowY:"auto"}}>
+        {/* RIGHT: Controls */}
+        <div style={{flex:1,minWidth:260,display:"flex",flexDirection:"column",gap:10,overflowY:"auto",maxHeight:"calc(92vh - 48px)"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <h3 style={{fontSize:16,fontWeight:700}}>Editor de diseño</h3>
-            <button onClick={onClose} style={{background:"var(--surface2)",border:"none",color:"var(--muted)",width:30,height:30,borderRadius:8,cursor:"pointer",fontSize:14}}>✕</button>
+            <h3 style={{fontSize:15,fontWeight:700}}>Editor de diseño</h3>
+            <button onClick={onClose} style={{background:"var(--surface2)",border:"none",color:"var(--muted)",width:28,height:28,borderRadius:8,cursor:"pointer",fontSize:13}}>✕</button>
           </div>
 
-          <div>
-            <span className="lbl">Texto sobre la imagen</span>
-            <input value={form.overlayText} onChange={e=>upd("overlayText",e.target.value)} placeholder="Máximo 5-6 palabras..." style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:10,color:"var(--text)",fontSize:13,padding:"10px 12px",width:"100%",outline:"none",fontFamily:"inherit"}} />
-          </div>
-
+          {/* Caption — siempre visible */}
           <div>
             <span className="lbl">Caption del post</span>
-            <textarea value={form.caption} onChange={e=>upd("caption",e.target.value)} rows={4}
-              style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:10,color:"var(--text)",fontSize:12,padding:"10px 12px",width:"100%",outline:"none",fontFamily:"inherit",resize:"none"}} />
+            <textarea value={form.caption} onChange={e=>updForm("caption",e.target.value)} rows={3}
+              style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:10,color:"var(--text)",fontSize:12,padding:"9px 11px",width:"100%",outline:"none",fontFamily:"inherit",resize:"none"}} />
           </div>
 
-          <div>
-            <span className="lbl">Tipografía</span>
-            <select value={form.fontFamily} onChange={e=>upd("fontFamily",e.target.value)}
-              style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:10,color:"var(--text)",fontSize:13,padding:"10px 12px",width:"100%",outline:"none",cursor:"pointer"}}>
-              <option value="Impact">Impact — DISPLAY</option>
-              <option value="Arial">Arial — Sans-Serif</option>
-              <option value="Georgia">Georgia — Serif</option>
-              <option value="'Courier New'">Courier New — Mono</option>
-              <option value="'Times New Roman'">Times New Roman — Clásica</option>
-              <option value="Verdana">Verdana — Legible</option>
-            </select>
+          {/* Selector de texto activo */}
+          <div style={{display:"flex",gap:5,background:"var(--surface2)",borderRadius:10,padding:3}}>
+            {[0,1].map(i=>(
+              <button key={i} onClick={()=>setActiveText(i)}
+                style={{flex:1,padding:"7px",fontSize:12,fontWeight:600,borderRadius:8,border:"none",cursor:"pointer",
+                  background:activeText===i?(i===0?"rgba(109,40,217,.35)":"rgba(34,211,238,.2)"):"transparent",
+                  color:activeText===i?(i===0?"var(--accent2)":"var(--success)"):"var(--muted)"}}>
+                {i===0?"● Texto 1":"● Texto 2"}{i===1&&!texts[1].visible&&" (inactivo)"}
+              </button>
+            ))}
           </div>
 
+          {/* Texto activo */}
           <div>
-            <span className="lbl">Peso</span>
-            <div style={{display:"flex",gap:6}}>
-              {[["normal","Normal"],["bold","Negrita"],["900","Extra Bold"]].map(([v,l])=>(
-                <button key={v} onClick={()=>upd("fontWeight",v)} className="btn"
-                  style={{flex:1,padding:"7px",fontSize:12,
-                    background:form.fontWeight===v?"rgba(109,40,217,.2)":"var(--surface2)",
-                    border:"1px solid "+(form.fontWeight===v?"var(--accent2)":"var(--border)"),
-                    color:form.fontWeight===v?"var(--accent2)":"var(--muted)",
-                    fontFamily:form.fontFamily,fontWeight:v}}>
-                  {l}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
+              <span className="lbl" style={{margin:0}}>Texto {activeText+1}</span>
+              {activeText===1&&(
+                <button onClick={()=>updText(1,"visible",!texts[1].visible)} className="btn"
+                  style={{fontSize:11,padding:"3px 9px",background:texts[1].visible?"rgba(34,211,238,.15)":"var(--surface2)",border:"1px solid "+(texts[1].visible?"var(--success)":"var(--border)"),color:texts[1].visible?"var(--success)":"var(--muted)"}}>
+                  {texts[1].visible?"✓ Activo":"+ Activar"}
                 </button>
-              ))}
+              )}
             </div>
+            <input value={t.text} onChange={e=>updText(activeText,"text",e.target.value)}
+              placeholder={activeText===0?"Máximo 5-6 palabras...":"Subtítulo, fecha, precio, etc."}
+              style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:10,color:"var(--text)",fontSize:13,padding:"9px 11px",width:"100%",outline:"none",fontFamily:"inherit"}} />
           </div>
 
-          <div style={{display:"flex",gap:12,alignItems:"flex-end"}}>
+          {/* Tipografía */}
+          <select value={t.fontFamily} onChange={e=>updText(activeText,"fontFamily",e.target.value)}
+            style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:10,color:"var(--text)",fontSize:13,padding:"9px 11px",outline:"none",cursor:"pointer"}}>
+            <option value="Impact">Impact — DISPLAY</option>
+            <option value="Arial">Arial — Sans-Serif</option>
+            <option value="Georgia">Georgia — Serif</option>
+            <option value="'Courier New'">Courier New — Mono</option>
+            <option value="'Times New Roman'">Times New Roman — Clásica</option>
+            <option value="Verdana">Verdana — Legible</option>
+          </select>
+
+          {/* Peso */}
+          <div style={{display:"flex",gap:5}}>
+            {[["normal","Normal"],["bold","Negrita"],["900","Extra Bold"]].map(([v,l])=>(
+              <button key={v} onClick={()=>updText(activeText,"fontWeight",v)} className="btn"
+                style={{flex:1,padding:"6px",fontSize:11,background:t.fontWeight===v?"rgba(109,40,217,.2)":"var(--surface2)",border:"1px solid "+(t.fontWeight===v?"var(--accent2)":"var(--border)"),color:t.fontWeight===v?"var(--accent2)":"var(--muted)",fontFamily:t.fontFamily,fontWeight:v}}>
+                {l}
+              </button>
+            ))}
+          </div>
+
+          {/* Tamaño + Color */}
+          <div style={{display:"flex",gap:10,alignItems:"flex-end"}}>
             <div style={{flex:1}}>
-              <span className="lbl">Tamaño ({form.fontSize}px canvas = {Math.round(form.fontSize*1080/500)}px real)</span>
-              <input type="range" min={12} max={120} value={form.fontSize}
-                onChange={e=>setForm(p=>({...p,fontSize:+e.target.value,_customSize:true}))}
+              <span className="lbl">Tamaño ({t.fontSize}px)</span>
+              <input type="range" min={12} max={120} value={t.fontSize}
+                onChange={e=>updText(activeText,"fontSize",+e.target.value)}
                 style={{width:"100%",accentColor:"var(--accent)"}} />
             </div>
             <div>
               <span className="lbl">Color</span>
-              <input type="color" value={form.fontColor||"#ffffff"} onChange={e=>upd("fontColor",e.target.value)} style={{width:44,height:36,borderRadius:8,border:"1px solid var(--border)",cursor:"pointer",padding:3}} />
+              <input type="color" value={t.fontColor||"#ffffff"} onChange={e=>updText(activeText,"fontColor",e.target.value)}
+                style={{width:40,height:34,borderRadius:8,border:"1px solid var(--border)",cursor:"pointer",padding:2}} />
             </div>
           </div>
 
-          <div>
-            <button onClick={()=>upd("textBg",!form.textBg)} className="btn"
-              style={{background:form.textBg?"rgba(109,40,217,.2)":"var(--surface2)",border:"1px solid "+(form.textBg?"var(--accent2)":"var(--border)"),color:form.textBg?"var(--accent2)":"var(--muted)",fontSize:12,padding:"8px 14px"}}>
-              {form.textBg?"✓ Fondo oscuro: ON":"○ Fondo oscuro: OFF"}
-            </button>
-          </div>
+          {/* Fondo texto */}
+          <button onClick={()=>updText(activeText,"textBg",!t.textBg)} className="btn"
+            style={{background:t.textBg?"rgba(109,40,217,.2)":"var(--surface2)",border:"1px solid "+(t.textBg?"var(--accent2)":"var(--border)"),color:t.textBg?"var(--accent2)":"var(--muted)",fontSize:11,padding:"6px 12px",alignSelf:"flex-start"}}>
+            {t.textBg?"✓ Fondo texto: ON":"○ Fondo texto: OFF"}
+          </button>
 
-          {/* TOGGLE LOGO */}
-          <div>
-            {form.logoBase64
-              ? (
-                <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                  <button onClick={()=>upd("showLogo",!form.showLogo)} className="btn"
-                    style={{background:form.showLogo?"rgba(109,40,217,.2)":"var(--surface2)",border:"1px solid "+(form.showLogo?"var(--accent2)":"var(--border)"),color:form.showLogo?"var(--accent2)":"var(--muted)",fontSize:12,padding:"8px 14px",gap:10,alignSelf:"flex-start"}}>
-                    <img src={form.logoBase64} alt="logo" style={{width:20,height:20,objectFit:"contain",borderRadius:3,background:"rgba(255,255,255,0.1)"}} />
-                    {form.showLogo?"✓ Logo: visible":"○ Logo: oculto"}
-                  </button>
-                  {form.showLogo&&(
-                    <div>
-                      <span className="lbl">Tamaño del logo ({Math.round((form.logoSize||0.15)*100)}%)</span>
-                      <input type="range" min={5} max={45} value={Math.round((form.logoSize||0.15)*100)}
-                        onChange={e=>upd("logoSize", +e.target.value/100)}
-                        style={{width:"100%",accentColor:"var(--accent)"}} />
-                      <div style={{fontSize:10,color:"var(--muted)",marginTop:4}}>Arrastrá el logo en el preview para moverlo</div>
-                    </div>
-                  )}
+          {/* Logo */}
+          {form.logoBase64?(
+            <div style={{background:"var(--surface2)",borderRadius:10,padding:"9px 11px",display:"flex",flexDirection:"column",gap:7}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <img src={form.logoBase64} alt="logo" style={{width:20,height:20,objectFit:"contain",borderRadius:3}} />
+                  <span style={{fontSize:12,fontWeight:600}}>Logo</span>
                 </div>
-              )
-              : (
-                <div style={{fontSize:12,color:"var(--muted)",padding:"8px 0"}}>
-                  Sin logo — cargalo en <strong style={{color:"var(--accent2)"}}>Mi Marca</strong> para mostrarlo en los posts.
+                <button onClick={()=>updForm("showLogo",!form.showLogo)} className="btn"
+                  style={{fontSize:11,padding:"3px 9px",background:form.showLogo?"rgba(109,40,217,.15)":"var(--surface2)",border:"1px solid "+(form.showLogo?"var(--accent2)":"var(--border)"),color:form.showLogo?"var(--accent2)":"var(--muted)"}}>
+                  {form.showLogo?"Visible":"Oculto"}
+                </button>
+              </div>
+              {form.showLogo&&(
+                <div>
+                  <span className="lbl">Tamaño ({Math.round((form.logoSize||0.15)*100)}%)</span>
+                  <input type="range" min={5} max={45} value={Math.round((form.logoSize||0.15)*100)}
+                    onChange={e=>updForm("logoSize",+e.target.value/100)}
+                    style={{width:"100%",accentColor:"var(--pink)"}} />
+                  <div style={{fontSize:10,color:"var(--muted)",marginTop:2}}>Arrastrá el punto rosa en el preview para moverlo</div>
                 </div>
-              )
-            }
-          </div>
+              )}
+            </div>
+          ):(
+            <div style={{fontSize:11,color:"var(--muted)"}}>Sin logo — cargalo en <strong style={{color:"var(--accent2)"}}>Mi Marca</strong></div>
+          )}
 
-          {pubMsg&&<div style={{background:pubMsg.ok?"#0d2b1f":"#1f0d0d",border:"1px solid "+(pubMsg.ok?"var(--success)":"var(--error)"),color:pubMsg.ok?"var(--success)":"var(--error)",padding:"10px 14px",borderRadius:8,fontSize:12,fontWeight:600}}>{pubMsg.text}</div>}
-
-          {/* FORMAT PICKER MODAL (inline) */}
-          {showFormatPicker&&(
-            <div style={{background:"var(--surface2)",border:"1px solid var(--accent2)",borderRadius:12,padding:"14px",display:"flex",flexDirection:"column",gap:8}} className="fade-in">
-              <div style={{fontSize:12,fontWeight:700,color:"var(--accent2)",marginBottom:2}}>¿Cómo querés publicar en Instagram?</div>
-              {[
-                {id:"post",icon:"🖼",label:"Publicación",desc:"Post estático en el feed"},
-                {id:"story",icon:"📱",label:"Historia",desc:"Desaparece en 24 hs"},
-                {id:"reel",icon:"🎬",label:"Reel",desc:"Video corto (requiere video)"},
-              ].map(f=>(
-                <button key={f.id} onClick={()=>publishIG(f.id)}
-                  style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",borderRadius:9,background:igFormat===f.id?"rgba(232,72,186,.15)":"rgba(255,255,255,.04)",border:"1px solid "+(igFormat===f.id?"#E1306C":"var(--border)"),cursor:"pointer",color:"var(--text)",textAlign:"left",width:"100%"}}>
-                  <span style={{fontSize:22}}>{f.icon}</span>
-                  <div>
-                    <div style={{fontWeight:700,fontSize:13}}>{f.label}</div>
-                    <div style={{fontSize:11,color:"var(--muted)"}}>{f.desc}</div>
+          {/* Stickers */}
+          <div style={{background:"var(--surface2)",borderRadius:10,padding:"9px 11px"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:7}}>
+              <span style={{fontSize:12,fontWeight:600}}>Stickers</span>
+              <button onClick={()=>setShowStickerPanel(v=>!v)} className="btn btn-ghost" style={{fontSize:11,padding:"3px 9px"}}>
+                {showStickerPanel?"Cerrar":"+ Agregar"}
+              </button>
+            </div>
+            {form.stickers.length>0&&(
+              <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:7}}>
+                {form.stickers.map((s,i)=>(
+                  <div key={i} onClick={()=>setActiveSticker(activeSticker===i?null:i)}
+                    style={{display:"flex",alignItems:"center",gap:4,padding:"2px 7px",borderRadius:20,cursor:"pointer",background:activeSticker===i?"rgba(109,40,217,.2)":"rgba(255,255,255,.04)",border:"1px solid "+(activeSticker===i?"var(--accent2)":"var(--border)"),fontSize:12}}>
+                    <span style={{fontSize:15}}>{s.emoji}</span>
+                    {activeSticker===i&&<button onClick={e=>{e.stopPropagation();removeSticker(i);}} style={{background:"none",border:"none",color:"var(--error)",cursor:"pointer",fontSize:10,padding:0,lineHeight:1}}>✕</button>}
                   </div>
+                ))}
+              </div>
+            )}
+            {activeSticker!==null&&form.stickers[activeSticker]&&(
+              <div style={{marginBottom:6}}>
+                <span className="lbl">Tamaño sticker ({Math.round((form.stickers[activeSticker].size||0.1)*100)}%)</span>
+                <input type="range" min={4} max={40} value={Math.round((form.stickers[activeSticker].size||0.1)*100)}
+                  onChange={e=>setForm(p=>({...p,stickers:p.stickers.map((s,i)=>i===activeSticker?{...s,size:+e.target.value/100}:s)}))}
+                  style={{width:"100%",accentColor:"var(--accent2)"}} />
+              </div>
+            )}
+            {showStickerPanel&&(
+              <div className="fade-in">
+                <div style={{display:"flex",gap:4,marginBottom:6,flexWrap:"wrap"}}>
+                  {STICKER_SETS.map((set,i)=>(
+                    <button key={i} onClick={()=>setActiveStickerSet(i)}
+                      style={{fontSize:11,padding:"3px 7px",borderRadius:20,border:"1px solid "+(activeStickerSet===i?"var(--accent2)":"var(--border)"),background:activeStickerSet===i?"rgba(109,40,217,.2)":"transparent",color:activeStickerSet===i?"var(--accent2)":"var(--muted)",cursor:"pointer"}}>
+                      {set.label}
+                    </button>
+                  ))}
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:3}}>
+                  {STICKER_SETS[activeStickerSet].items.map((emoji,i)=>(
+                    <button key={i} onClick={()=>addSticker(emoji)}
+                      style={{fontSize:20,padding:"5px",borderRadius:7,border:"1px solid var(--border)",background:"rgba(255,255,255,.03)",cursor:"pointer",lineHeight:1,transition:"background .1s"}}
+                      onMouseEnter={e=>e.currentTarget.style.background="rgba(109,40,217,.2)"}
+                      onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,.03)"}>
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {pubMsg&&<div style={{background:pubMsg.ok?"#0d2b1f":"#1f0d0d",border:"1px solid "+(pubMsg.ok?"var(--success)":"var(--error)"),color:pubMsg.ok?"var(--success)":"var(--error)",padding:"8px 12px",borderRadius:8,fontSize:12,fontWeight:600}}>{pubMsg.text}</div>}
+
+          {showFormatPicker&&(
+            <div style={{background:"var(--surface2)",border:"1px solid var(--accent2)",borderRadius:12,padding:"11px",display:"flex",flexDirection:"column",gap:6}} className="fade-in">
+              <div style={{fontSize:12,fontWeight:700,color:"var(--accent2)"}}>¿Cómo publicar en Instagram?</div>
+              {[{id:"post",icon:"🖼",label:"Publicación",desc:"Post estático en el feed"},{id:"story",icon:"📱",label:"Historia",desc:"Desaparece en 24 hs"},{id:"reel",icon:"🎬",label:"Reel",desc:"Video corto (requiere video)"}].map(f=>(
+                <button key={f.id} onClick={()=>publishIG(f.id)}
+                  style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",borderRadius:9,background:"rgba(255,255,255,.04)",border:"1px solid var(--border)",cursor:"pointer",color:"var(--text)",textAlign:"left",width:"100%"}}>
+                  <span style={{fontSize:18}}>{f.icon}</span>
+                  <div><div style={{fontWeight:700,fontSize:12}}>{f.label}</div><div style={{fontSize:10,color:"var(--muted)"}}>{f.desc}</div></div>
                   {publishing&&<div className="spin" style={{marginLeft:"auto"}} />}
                 </button>
               ))}
-              <button onClick={()=>setShowFormatPicker(false)} style={{background:"none",border:"none",color:"var(--muted)",fontSize:12,cursor:"pointer",padding:"4px 0"}}>Cancelar</button>
+              <button onClick={()=>setShowFormatPicker(false)} style={{background:"none",border:"none",color:"var(--muted)",fontSize:11,cursor:"pointer"}}>Cancelar</button>
             </div>
           )}
 
-          <div style={{display:"flex",gap:8,marginTop:"auto"}}>
-            <button onClick={download} className="btn btn-ghost" style={{flex:1}}>⬇ Descargar</button>
-            <button onClick={()=>onSave(form)} className="btn btn-ghost" style={{flex:1}}>✓ Guardar</button>
+          <div style={{display:"flex",gap:6,paddingTop:2}}>
+            <button onClick={download} className="btn btn-ghost" style={{flex:1,fontSize:12,padding:"8px"}}>⬇ Descargar</button>
+            <button onClick={handleSave} className="btn btn-ghost" style={{flex:1,fontSize:12,padding:"8px"}}>✓ Guardar</button>
             <button onClick={()=>setShowFormatPicker(v=>!v)} disabled={publishing} className="btn btn-primary"
-              style={{flex:1,background:publishing?"var(--surface2)":"linear-gradient(135deg,#E1306C,#833AB4)"}}>
+              style={{flex:1,fontSize:12,padding:"8px",background:publishing?"var(--surface2)":"linear-gradient(135deg,#E1306C,#833AB4)"}}>
               {publishing?<><div className="spin"/>Publicando</>:"🚀 Publicar IG"}
             </button>
           </div>
