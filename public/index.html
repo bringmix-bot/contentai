@@ -41,7 +41,7 @@ select option{background:var(--surface)}
 .sidebar{width:228px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;padding:16px 12px;overflow-y:auto}
 .main{flex:1;overflow-y:auto}
 .logo{display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:20px}
-.logo-mark{width:32px;height:32px;background:linear-gradient(135deg,var(--accent),var(--pink));border-radius:9px;display:grid;place-items:center;font-weight:800;font-size:13px;color:#fff;font-family:'Syne',sans-serif;flex-shrink:0}
+.logo-mark{display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .logo-text{font-family:'Syne',sans-serif;font-weight:800;font-size:15px}
 .logo-sub{font-size:9px;color:var(--muted);letter-spacing:1px}
 .nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;cursor:pointer;font-size:13px;font-weight:500;color:var(--muted);transition:all .15s;margin-bottom:2px;border:1px solid transparent;background:transparent;width:100%;text-align:left}
@@ -636,8 +636,10 @@ function App() {
     <div className="app">
       <div className="sidebar">
         <div className="logo">
-          <div className="logo-mark">M</div>
-          <div><div className="logo-text">MCM</div><div className="logo-sub">COMMUNITY MANAGER</div></div>
+          <div className="logo-mark">
+            <svg viewBox="0 0 90 38" width="72" height="30" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="lg1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#6d28d9"/><stop offset="100%" stopColor="#ec4899"/></linearGradient></defs><rect x="1" y="1" width="88" height="36" rx="8" fill="url(#lg1)"/><text x="45" y="28" fontFamily="'Playfair Display',Georgia,serif" fontSize="22" fontWeight="700" fill="white" textAnchor="middle" letterSpacing="3">MCM</text></svg>
+          </div>
+          <div><div className="logo-sub" style={{fontSize:9,color:"var(--muted)",letterSpacing:1}}>MY COMMUNITY MANAGER</div></div>
         </div>
         {/* Plan badge */}
         <div style={{margin:"0 10px 12px",background:`rgba(${currentPlan.id==="premium"?"236,72,153":currentPlan.id==="pro"?"109,40,217":"107,107,138"},.15)`,border:`1px solid ${currentPlan.color}44`,borderRadius:8,padding:"5px 10px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
@@ -768,7 +770,7 @@ function LandingPage({onLogin, onRegister}) {
       {/* NAV */}
       <nav style={{position:"fixed",top:0,left:0,right:0,zIndex:200,background:"rgba(255,255,255,0.94)",backdropFilter:"blur(20px)",borderBottom:"1px solid #f0eeff",padding:"0 clamp(20px,5vw,64px)",height:68,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <div style={{width:36,height:36,background:"linear-gradient(135deg,#6d28d9,#ec4899)",borderRadius:10,display:"grid",placeItems:"center",fontWeight:800,fontSize:16,color:"#fff",flexShrink:0,fontFamily:HF}}>M</div>
+          <svg viewBox="0 0 90 38" width="80" height="34" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="lg2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#6d28d9"/><stop offset="100%" stopColor="#ec4899"/></linearGradient></defs><rect x="1" y="1" width="88" height="36" rx="8" fill="url(#lg2)"/><text x="45" y="28" fontFamily="'Playfair Display',Georgia,serif" fontSize="22" fontWeight="700" fill="white" textAnchor="middle" letterSpacing="3">MCM</text></svg>
           <span style={{fontFamily:HF,fontWeight:700,fontSize:18,color:"#0f0f1a",letterSpacing:"-0.3px"}}>MCM</span>
         </div>
         <div style={{display:"flex",gap:10,alignItems:"center"}}>
@@ -857,10 +859,11 @@ function LandingPage({onLogin, onRegister}) {
               <circle cx="272" cy="234" r="8" fill="white" stroke="#1a1010" strokeWidth="2.5"/>
               <line x1="267" y1="234" x2="277" y2="234" stroke="#1a1010" strokeWidth="2"/>
               <line x1="272" y1="229" x2="272" y2="239" stroke="#1a1010" strokeWidth="2"/>
-              {/* PANTALLA MCM */}
-              <rect x="148" y="252" width="124" height="72" rx="9" fill="#c8dce8" stroke="#1a1010" strokeWidth="2.5"/>
-              <rect x="154" y="258" width="112" height="60" rx="6" fill="#daeaf4" strokeWidth="0"/>
-              <text x="210" y="302" fontFamily="'Courier New',Courier,monospace" fontSize="52" fontWeight="900" fill="#080808" textAnchor="middle" letterSpacing="8">MCM</text>
+              {/* PANTALLA MCM — logo rectangular degradé */}
+              <rect x="148" y="252" width="124" height="72" rx="9" fill="#1a1a2e" stroke="#1a1010" strokeWidth="2.5"/>
+              <defs><linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#6d28d9"/><stop offset="100%" stopColor="#ec4899"/></linearGradient></defs>
+              <rect x="154" y="258" width="112" height="60" rx="6" fill="url(#rg)"/>
+              <text x="210" y="298" fontFamily="'Playfair Display',Georgia,serif" fontSize="36" fontWeight="700" fill="white" textAnchor="middle" letterSpacing="6">MCM</text>
               {/* LUCES */}
               <circle cx="150" cy="344" r="8" fill="#1a1010"/>
               <circle cx="174" cy="346" r="5.5" fill="#1a1010"/>
@@ -1038,7 +1041,7 @@ function LandingPage({onLogin, onRegister}) {
       {/* FOOTER */}
       <footer style={{background:"#0f0f1a",padding:"44px clamp(20px,5vw,64px)",display:"flex",flexDirection:"column",alignItems:"center",gap:14}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <div style={{width:32,height:32,background:"linear-gradient(135deg,#6d28d9,#ec4899)",borderRadius:9,display:"grid",placeItems:"center",fontWeight:800,fontSize:14,color:"#fff",fontFamily:HF}}>M</div>
+          <svg viewBox="0 0 90 38" width="64" height="27" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="lg3" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#6d28d9"/><stop offset="100%" stopColor="#ec4899"/></linearGradient></defs><rect x="1" y="1" width="88" height="36" rx="8" fill="url(#lg3)"/><text x="45" y="28" fontFamily="'Playfair Display',Georgia,serif" fontSize="22" fontWeight="700" fill="white" textAnchor="middle" letterSpacing="3">MCM</text></svg>
           <span style={{fontFamily:HF,fontWeight:700,fontSize:16,color:"#e0d8f8",letterSpacing:"-0.3px"}}>MCM — My Community Manager</span>
         </div>
         <p style={{color:"#4a4a6a",fontSize:13,fontFamily:BF,textAlign:"center"}}>© 2026 MCM · Powered by Claude AI · Precios ARS al tipo de cambio oficial BCRA</p>
@@ -1099,7 +1102,7 @@ function AuthScreen({mode, setMode, onSuccess, onBack, showToast}) {
       <div style={{width:"100%",maxWidth:420,position:"relative"}}>
         {/* Logo */}
         <div style={{textAlign:"center",marginBottom:32}}>
-          <div style={{width:48,height:48,background:"linear-gradient(135deg,var(--accent),var(--pink))",borderRadius:14,display:"grid",placeItems:"center",fontWeight:800,fontSize:20,color:"#fff",fontFamily:"'Syne',sans-serif",margin:"0 auto 12px"}}>M</div>
+          <svg viewBox="0 0 90 38" width="140" height="60" xmlns="http://www.w3.org/2000/svg" style={{display:"block",margin:"0 auto 12px"}}><defs><linearGradient id="lg4" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#6d28d9"/><stop offset="100%" stopColor="#ec4899"/></linearGradient></defs><rect x="1" y="1" width="88" height="36" rx="8" fill="url(#lg4)"/><text x="45" y="28" fontFamily="'Playfair Display',Georgia,serif" fontSize="22" fontWeight="700" fill="white" textAnchor="middle" letterSpacing="3">MCM</text></svg>
           <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22}}>MCM</div>
           <div style={{fontSize:13,color:"var(--muted)",marginTop:4}}>
             {mode==="login"?"Iniciá sesión en tu cuenta":"Creá tu cuenta gratis"}
