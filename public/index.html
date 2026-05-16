@@ -1330,133 +1330,421 @@ function ConnectScreen({socials,saveSocials,showToast,onNext}) {
 // ════════════════════════════════════════════════════════════════
 // 40 TEMPLATES — previews estilo editorial grande
 // ════════════════════════════════════════════════════════════════
-const T = (content) => (
-  <svg viewBox="0 0 320 200" xmlns="http://www.w3.org/2000/svg" width="320" height="200">{content}</svg>
+const TP = (bg, children) => (
+  <div style={{width:"100%",height:"100%",background:bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"16px",position:"relative",overflow:"hidden",boxSizing:"border-box"}}>
+    {children}
+  </div>
 );
 
 const TEMPLATES_40 = [
-  {id:"t01",icon:"💬",name:"Frase motivacional",desc:"Cita inspiradora con tipografía grande",
-   preview:T(<><rect width="280" height="180" fill="#6d28d9"/><rect x="16" y="16" width="248" height="148" rx="6" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="1.5"/><text x="140" y="68" fontFamily="Georgia,serif" fontSize="13" fill="rgba(255,255,255,.5)" textAnchor="middle">"</text><text x="140" y="88" fontFamily="Georgia,serif" fontSize="20" fill="white" textAnchor="middle" fontWeight="700">El éxito no es</text><text x="140" y="112" fontFamily="Georgia,serif" fontSize="20" fill="#f0abfc" textAnchor="middle" fontWeight="700">un destino,</text><text x="140" y="136" fontFamily="Georgia,serif" fontSize="20" fill="white" textAnchor="middle" fontWeight="700">es un camino."</text><text x="140" y="160" fontFamily="Arial" fontSize="11" fill="rgba(255,255,255,.5)" textAnchor="middle">— Tu Marca</text></>)},
+  {id:"t01",icon:"💬",name:"Frase motivacional",desc:"Cita inspiradora sobre fondo vibrante",
+   preview:TP("linear-gradient(135deg,#6d28d9,#4c1d95)",<>
+     <div style={{border:"1px solid rgba(255,255,255,.3)",borderRadius:8,padding:"12px",textAlign:"center",width:"100%"}}>
+       <div style={{color:"rgba(255,255,255,.4)",fontSize:28,lineHeight:1}}>"</div>
+       <div style={{color:"white",fontSize:14,fontStyle:"italic",fontFamily:"Georgia,serif",lineHeight:1.4,margin:"4px 0"}}>El éxito no es un destino,<br/>es un camino.</div>
+       <div style={{color:"rgba(255,255,255,.4)",fontSize:11,marginTop:6}}>— Tu Marca</div>
+     </div>
+   </>)},
 
-  {id:"t02",icon:"🖼",name:"Foto + texto overlay",desc:"Imagen real con texto superpuesto impactante",
-   preview:T(<><rect width="280" height="180" fill="#2d4a3e"/><rect width="280" height="180" fill="url(#ov1)"/><defs><linearGradient id="ov1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="transparent"/><stop offset="60%" stopColor="rgba(0,0,0,.2)"/><stop offset="100%" stopColor="rgba(0,0,0,.85)"/></linearGradient></defs><circle cx="140" cy="70" r="45" fill="#1a3a2e" opacity="0.7"/><text x="140" y="65" fontSize="36" textAnchor="middle">🌿</text><text x="20" y="128" fontFamily="Arial Black" fontSize="24" fill="white" fontWeight="900">ORGÁNICO</text><text x="20" y="152" fontFamily="Arial Black" fontSize="24" fill="#86efac" fontWeight="900">Y NATURAL</text><text x="20" y="172" fontFamily="Arial" fontSize="11" fill="rgba(255,255,255,.7)">Del campo a tu mesa</text></>)},
+  {id:"t02",icon:"🖼",name:"Foto + texto overlay",desc:"Imagen con texto superpuesto impactante",
+   preview:TP("linear-gradient(160deg,#1a3a2e,#0a1a10)",<>
+     <div style={{fontSize:44,marginBottom:8}}>🌿</div>
+     <div style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(transparent,rgba(0,0,0,.85))",padding:"20px 14px 14px"}}>
+       <div style={{color:"white",fontSize:17,fontWeight:900,lineHeight:1.2}}>ORGÁNICO<br/><span style={{color:"#86efac"}}>Y NATURAL</span></div>
+       <div style={{color:"rgba(255,255,255,.5)",fontSize:10,marginTop:3}}>Del campo a tu mesa</div>
+     </div>
+   </>)},
 
-  {id:"t03",icon:"📋",name:"Lista de tips",desc:"5 consejos con diseño limpio numerado",
-   preview:T(<><rect width="280" height="180" fill="#0f172a"/><rect x="0" y="0" width="8" height="180" fill="#a855f7"/><text x="24" y="30" fontFamily="Arial Black" fontSize="16" fill="white" fontWeight="900">5 TIPS</text><text x="24" y="48" fontFamily="Arial Black" fontSize="16" fill="#a855f7" fontWeight="900">ESENCIALES</text><line x1="24" y1="58" x2="260" y2="58" stroke="rgba(255,255,255,.1)" strokeWidth="1"/>{[["Definí tu objetivo","01"],["Conocé tu audiencia","02"],["Creá contenido valioso","03"],["Medí tus resultados","04"],["Mejorá constantemente","05"]].map(([t,n],i)=><g key={i}><text x="24" y={78+i*22} fontFamily="Arial" fontSize="12" fill="rgba(255,255,255,.7)">{t}</text><text x="255" y={78+i*22} fontFamily="Arial Black" fontSize="10" fill="#a855f7" textAnchor="end" fontWeight="900">{n}</text></g>)}</>)},
+  {id:"t03",icon:"📋",name:"Lista de tips",desc:"5 consejos numerados con diseño limpio",
+   preview:TP("#0f172a",<div style={{width:"100%"}}>
+     <div style={{borderLeft:"3px solid #a855f7",paddingLeft:10,marginBottom:10}}>
+       <div style={{color:"white",fontSize:13,fontWeight:900}}>5 TIPS</div>
+       <div style={{color:"#a855f7",fontSize:13,fontWeight:900}}>ESENCIALES</div>
+     </div>
+     {["Definí tu objetivo","Conocé tu audiencia","Creá valor real","Medí tus resultados","Mejorá constantemente"].map((t,i)=>(
+       <div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:5}}>
+         <div style={{background:"#a855f7",color:"white",fontSize:9,fontWeight:900,borderRadius:4,padding:"2px 5px",flexShrink:0}}>{String(i+1).padStart(2,"0")}</div>
+         <div style={{color:"rgba(255,255,255,.75)",fontSize:11}}>{t}</div>
+       </div>
+     ))}
+   </div>)},
 
-  {id:"t04",icon:"⭐",name:"Testimonio cliente",desc:"Review con foto de perfil y estrellas",
-   preview:T(<><rect width="280" height="180" fill="#faf5ff"/><rect x="16" y="16" width="248" height="148" rx="12" fill="white" filter="url(#sh)"/><defs><filter id="sh"><feDropShadow dx="0" dy="2" stdDeviation="8" floodOpacity="0.1"/></filter></defs><text x="140" y="48" fontSize="22" textAnchor="middle">⭐⭐⭐⭐⭐</text><text x="140" y="80" fontFamily="Georgia,serif" fontSize="14" fill="#1a1a2e" textAnchor="middle" fontStyle="italic">"El mejor servicio que</text><text x="140" y="98" fontFamily="Georgia,serif" fontSize="14" fill="#1a1a2e" textAnchor="middle" fontStyle="italic">contraté en años."</text><circle cx="100" cy="138" r="18" fill="#e9d5ff"/><text x="100" y="143" fontFamily="Arial Black" fontSize="10" fill="#6d28d9" textAnchor="middle">JG</text><text x="126" y="132" fontFamily="Arial Black" fontSize="11" fill="#1a1a2e">Juan García</text><text x="126" y="148" fontFamily="Arial" fontSize="10" fill="#9ca3af">Cliente verificado</text></>)},
+  {id:"t04",icon:"⭐",name:"Testimonio cliente",desc:"Review con foto y estrellas de confianza",
+   preview:TP("white",<div style={{background:"white",borderRadius:12,padding:14,boxShadow:"0 4px 20px rgba(0,0,0,.12)",width:"100%"}}>
+     <div style={{fontSize:14,marginBottom:8}}>⭐⭐⭐⭐⭐</div>
+     <div style={{fontStyle:"italic",fontSize:12,color:"#1a1a2e",lineHeight:1.5,marginBottom:10}}>"El mejor servicio que contraté en años."</div>
+     <div style={{display:"flex",alignItems:"center",gap:8}}>
+       <div style={{width:28,height:28,borderRadius:"50%",background:"#e9d5ff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:900,color:"#6d28d9"}}>JG</div>
+       <div><div style={{fontSize:11,fontWeight:700,color:"#1a1a2e"}}>Juan García</div><div style={{fontSize:10,color:"#9ca3af"}}>Cliente verificado ✓</div></div>
+     </div>
+   </div>)},
 
-  {id:"t05",icon:"🔢",name:"Dato estadístico",desc:"Número impactante con contexto",
-   preview:T(<><rect width="280" height="180" fill="#ec4899"/><rect x="0" y="0" width="280" height="180" fill="url(#rg1)"/><defs><radialGradient id="rg1" cx="30%" cy="30%"><stop offset="0%" stopColor="rgba(255,255,255,.15)"/><stop offset="100%" stopColor="transparent"/></radialGradient></defs><text x="140" y="38" fontFamily="Arial" fontSize="13" fill="rgba(255,255,255,.7)" textAnchor="middle" letterSpacing="3">DATO DE HOY</text><text x="140" y="110" fontFamily="Arial Black" fontSize="72" fill="white" textAnchor="middle" fontWeight="900">87%</text><text x="140" y="135" fontFamily="Arial" fontSize="14" fill="rgba(255,255,255,.85)" textAnchor="middle">de los clientes recomiendan</text><text x="140" y="155" fontFamily="Arial Black" fontSize="14" fill="white" textAnchor="middle">nuestros servicios</text></>)},
+  {id:"t05",icon:"🔢",name:"Dato estadístico",desc:"Número impactante con contexto claro",
+   preview:TP("linear-gradient(135deg,#ec4899,#be185d)",<>
+     <div style={{color:"rgba(255,255,255,.6)",fontSize:10,letterSpacing:3,marginBottom:4}}>DATO DE HOY</div>
+     <div style={{color:"white",fontSize:54,fontWeight:900,lineHeight:1}}>87%</div>
+     <div style={{color:"rgba(255,255,255,.85)",fontSize:12,textAlign:"center",marginTop:6,lineHeight:1.5}}>de los clientes recomiendan<br/>nuestros servicios</div>
+   </>)},
 
   {id:"t06",icon:"🎠",name:"Carrusel tutorial",desc:"Paso a paso en múltiples slides",
-   preview:T(<><rect width="280" height="180" fill="#1e1b4b"/><rect x="8" y="8" width="120" height="164" rx="10" fill="#312e81"/><rect x="152" y="8" width="120" height="164" rx="10" fill="#4338ca"/><text x="68" y="40" fontFamily="Arial Black" fontSize="11" fill="#a5b4fc" textAnchor="middle" letterSpacing="1">PASO 01</text><line x1="28" y1="50" x2="108" y2="50" stroke="rgba(255,255,255,.2)" strokeWidth="1"/><text x="68" y="80" fontSize="32" textAnchor="middle">🔍</text><text x="68" y="110" fontFamily="Arial Black" fontSize="12" fill="white" textAnchor="middle">Investigá</text><text x="68" y="128" fontFamily="Arial" fontSize="10" fill="rgba(255,255,255,.6)" textAnchor="middle">tu mercado</text><text x="212" y="40" fontFamily="Arial Black" fontSize="11" fill="#818cf8" textAnchor="middle" letterSpacing="1">PASO 02</text><line x1="172" y1="50" x2="252" y2="50" stroke="rgba(255,255,255,.2)" strokeWidth="1"/><text x="212" y="80" fontSize="32" textAnchor="middle">💡</text><text x="212" y="110" fontFamily="Arial Black" fontSize="12" fill="white" textAnchor="middle">Ideá</text><text x="212" y="128" fontFamily="Arial" fontSize="10" fill="rgba(255,255,255,.6)" textAnchor="middle">tu solución</text><text x="140" y="175" fontSize="12" textAnchor="middle">● ○ ○ ○</text></>)},
+   preview:TP("#1e1b4b",<div style={{width:"100%"}}>
+     <div style={{display:"flex",gap:8,width:"100%"}}>
+       {[["01","🔍","Investigá"],["02","💡","Ideá"],["03","🚀","Lanzá"]].map(([n,e,t],i)=>(
+         <div key={n} style={{flex:1,background:i===1?"#4338ca":"#312e81",borderRadius:10,padding:"10px 6px",textAlign:"center"}}>
+           <div style={{color:i===1?"#c7d2fe":"#a5b4fc",fontSize:9,fontWeight:900,marginBottom:4}}>PASO {n}</div>
+           <div style={{fontSize:22}}>{e}</div>
+           <div style={{color:"white",fontSize:10,fontWeight:700,marginTop:4}}>{t}</div>
+         </div>
+       ))}
+     </div>
+     <div style={{textAlign:"center",color:"rgba(255,255,255,.3)",fontSize:10,marginTop:8}}>● ○ ○</div>
+   </div>)},
 
-  {id:"t07",icon:"🎉",name:"Anuncio / Lanzamiento",desc:"Novedad o producto nuevo con impacto",
-   preview:T(<><rect width="280" height="180" fill="#0f0f1a"/><rect x="20" y="20" width="240" height="140" rx="10" fill="none" stroke="#ffd700" strokeWidth="2"/><rect x="30" y="30" width="220" height="120" rx="7" fill="none" stroke="rgba(255,215,0,.3)" strokeWidth="1"/><text x="140" y="68" fontFamily="Arial Black" fontSize="13" fill="#ffd700" textAnchor="middle" letterSpacing="4">¡NUEVO!</text><text x="140" y="96" fontFamily="Arial Black" fontSize="26" fill="white" textAnchor="middle">PRODUCTO</text><text x="140" y="118" fontFamily="Arial Black" fontSize="26" fill="#ffd700" textAnchor="middle">ESTRELLA</text><text x="140" y="145" fontFamily="Arial" fontSize="11" fill="rgba(255,255,255,.5)" textAnchor="middle">Disponible desde hoy ✨</text></>)},
+  {id:"t07",icon:"🎉",name:"Anuncio / Lanzamiento",desc:"Novedad con impacto visual fuerte",
+   preview:TP("#0f0f1a",<div style={{border:"2px solid #ffd700",borderRadius:10,padding:"14px 18px",textAlign:"center",width:"100%"}}>
+     <div style={{color:"#ffd700",fontSize:10,letterSpacing:4,marginBottom:6}}>¡NUEVO!</div>
+     <div style={{color:"white",fontSize:20,fontWeight:900,lineHeight:1.2}}>PRODUCTO<br/><span style={{color:"#ffd700"}}>ESTRELLA</span></div>
+     <div style={{color:"rgba(255,255,255,.4)",fontSize:10,marginTop:8}}>Disponible desde hoy ✨</div>
+   </div>)},
 
-  {id:"t08",icon:"❓",name:"Pregunta al público",desc:"Genera engagement con una pregunta",
-   preview:T(<><rect width="280" height="180" fill="#f0f9ff"/><text x="140" y="45" fontSize="30" textAnchor="middle">🤔</text><text x="140" y="75" fontFamily="Arial Black" fontSize="18" fill="#1e40af" textAnchor="middle">¿Cuál preferís</text><text x="140" y="96" fontFamily="Arial Black" fontSize="18" fill="#1e40af" textAnchor="middle">para tu negocio?</text><rect x="20" y="110" width="112" height="44" rx="22" fill="#3b82f6"/><rect x="148" y="110" width="112" height="44" rx="22" fill="white" stroke="#e5e7eb" strokeWidth="2"/><text x="76" y="137" fontFamily="Arial Black" fontSize="13" fill="white" textAnchor="middle">Opción A 👍</text><text x="204" y="137" fontFamily="Arial Black" fontSize="13" fill="#374151" textAnchor="middle">Opción B 🤷</text></>)},
+  {id:"t08",icon:"❓",name:"Pregunta al público",desc:"Genera engagement con una pregunta directa",
+   preview:TP("#f0f9ff",<>
+     <div style={{fontSize:26,marginBottom:8}}>🤔</div>
+     <div style={{color:"#1e40af",fontSize:14,fontWeight:900,textAlign:"center",marginBottom:12}}>¿Cuál preferís?</div>
+     <div style={{display:"flex",gap:8,width:"100%"}}>
+       <div style={{flex:1,background:"#3b82f6",borderRadius:20,padding:"8px",textAlign:"center",color:"white",fontSize:11,fontWeight:700}}>Opción A 👍</div>
+       <div style={{flex:1,background:"white",border:"2px solid #e5e7eb",borderRadius:20,padding:"8px",textAlign:"center",color:"#374151",fontSize:11,fontWeight:700}}>Opción B 🤷</div>
+     </div>
+   </>)},
 
   {id:"t09",icon:"📅",name:"Efeméride del día",desc:"Fecha especial o día temático",
-   preview:T(<><rect width="280" height="180" fill="#064e3b"/><rect x="0" y="0" width="280" height="180" fill="url(#eg)"/><defs><linearGradient id="eg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="rgba(16,185,129,.3)"/><stop offset="100%" stopColor="transparent"/></linearGradient></defs><text x="140" y="36" fontFamily="Arial" fontSize="12" fill="#34d399" textAnchor="middle" letterSpacing="3">HOY CELEBRAMOS</text><text x="140" y="90" fontFamily="Arial Black" fontSize="56" fill="white" textAnchor="middle" fontWeight="900">21</text><text x="140" y="116" fontFamily="Arial Black" fontSize="16" fill="#34d399" textAnchor="middle">DE MARZO</text><line x1="60" y1="130" x2="220" y2="130" stroke="rgba(255,255,255,.2)" strokeWidth="1"/><text x="140" y="152" fontFamily="Arial Black" fontSize="13" fill="white" textAnchor="middle">Día Mundial de la</text><text x="140" y="170" fontFamily="Arial Black" fontSize="13" fill="#6ee7b7" textAnchor="middle">Sustentabilidad 🌱</text></>)},
+   preview:TP("linear-gradient(135deg,#064e3b,#065f46)",<>
+     <div style={{color:"#34d399",fontSize:10,letterSpacing:3,marginBottom:4}}>HOY CELEBRAMOS</div>
+     <div style={{color:"white",fontSize:48,fontWeight:900,lineHeight:1}}>21</div>
+     <div style={{color:"#34d399",fontSize:13,fontWeight:700}}>DE MARZO</div>
+     <div style={{width:36,height:1,background:"rgba(255,255,255,.2)",margin:"8px 0"}}/>
+     <div style={{color:"rgba(255,255,255,.65)",fontSize:11,textAlign:"center",lineHeight:1.5}}>Día Mundial de la<br/>Sustentabilidad 🌱</div>
+   </>)},
 
   {id:"t10",icon:"👥",name:"Presentación equipo",desc:"La cara humana de tu marca",
-   preview:T(<><rect width="280" height="180" fill="#1a1a2e"/><text x="140" y="28" fontFamily="Arial Black" fontSize="13" fill="#a855f7" textAnchor="middle" letterSpacing="2">NUESTRO EQUIPO</text><line x1="40" y1="36" x2="240" y2="36" stroke="rgba(168,85,247,.3)" strokeWidth="1"/>{[["#6d28d9","Ana","CEO",60],["#ec4899","Luis","Design",140],["#0ea5e9","Mar","Dev",220]].map(([c,n,r,x])=><g key={n}><circle cx={x} cy="95" r="32" fill={c} opacity="0.9"/><text x={x} y="100" fontFamily="Arial Black" fontSize="14" fill="white" textAnchor="middle">{n[0]}</text><text x={x} y="143" fontFamily="Arial Black" fontSize="12" fill="white" textAnchor="middle">{n}</text><text x={x} y="160" fontFamily="Arial" fontSize="10" fill="rgba(255,255,255,.5)" textAnchor="middle">{r}</text></g>)}</>)},
+   preview:TP("#1a1a2e",<>
+     <div style={{color:"#a855f7",fontSize:10,letterSpacing:2,marginBottom:12}}>NUESTRO EQUIPO</div>
+     <div style={{display:"flex",gap:10,justifyContent:"center"}}>
+       {[["#6d28d9","Ana","CEO"],["#ec4899","Luis","Design"],["#0ea5e9","Mar","Tech"]].map(([c,n,r])=>(
+         <div key={n} style={{textAlign:"center"}}>
+           <div style={{width:40,height:40,borderRadius:"50%",background:c,display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontSize:13,fontWeight:900,margin:"0 auto 4px"}}>{n[0]}</div>
+           <div style={{color:"white",fontSize:10,fontWeight:700}}>{n}</div>
+           <div style={{color:"rgba(255,255,255,.4)",fontSize:9}}>{r}</div>
+         </div>
+       ))}
+     </div>
+   </>)},
 
-  {id:"t11",icon:"🛍",name:"Promoción / Descuento",desc:"Oferta especial con precio y CTA",
-   preview:T(<><rect width="280" height="180" fill="#dc2626"/><rect x="0" y="0" width="280" height="180" fill="url(#rp)"/><defs><radialGradient id="rp" cx="80%" cy="20%"><stop offset="0%" stopColor="rgba(251,191,36,.2)"/><stop offset="100%" stopColor="transparent"/></radialGradient></defs><text x="140" y="32" fontFamily="Arial Black" fontSize="12" fill="rgba(255,255,255,.7)" textAnchor="middle" letterSpacing="4">OFERTA ESPECIAL</text><text x="140" y="100" fontFamily="Arial Black" fontSize="72" fill="white" textAnchor="middle" fontWeight="900">50%</text><text x="140" y="124" fontFamily="Arial Black" fontSize="20" fill="#fbbf24" textAnchor="middle">OFF HOY</text><rect x="40" y="138" width="200" height="32" rx="16" fill="white"/><text x="140" y="159" fontFamily="Arial Black" fontSize="13" fill="#dc2626" textAnchor="middle">APROVECHAR AHORA →</text></>)},
+  {id:"t11",icon:"🛍",name:"Promoción / Descuento",desc:"Oferta especial con CTA claro",
+   preview:TP("linear-gradient(135deg,#dc2626,#b91c1c)",<>
+     <div style={{color:"rgba(255,255,255,.7)",fontSize:10,letterSpacing:3,marginBottom:4}}>OFERTA ESPECIAL</div>
+     <div style={{color:"white",fontSize:48,fontWeight:900,lineHeight:1}}>50%</div>
+     <div style={{color:"#fbbf24",fontSize:16,fontWeight:900}}>OFF HOY</div>
+     <div style={{background:"white",borderRadius:20,padding:"8px 20px",marginTop:12,color:"#dc2626",fontSize:11,fontWeight:900}}>APROVECHAR AHORA →</div>
+   </>)},
 
-  {id:"t12",icon:"📸",name:"Detrás de escena",desc:"Behind the scenes del proceso",
-   preview:T(<><rect width="280" height="180" fill="#292524"/><rect x="12" y="12" width="256" height="118" rx="8" fill="#44403c"/><text x="140" y="65" fontSize="38" textAnchor="middle">📷</text><text x="140" y="96" fontFamily="Arial Black" fontSize="14" fill="rgba(255,255,255,.6)" textAnchor="middle">Así creamos</text><text x="140" y="115" fontFamily="Arial Black" fontSize="14" fill="white" textAnchor="middle">cada publicación</text><text x="140" y="150" fontFamily="Arial Black" fontSize="16" fill="#f5f5f4" textAnchor="middle">BEHIND THE SCENES</text><line x1="40" y1="158" x2="240" y2="158" stroke="rgba(255,255,255,.15)" strokeWidth="1"/><text x="140" y="173" fontFamily="Arial" fontSize="10" fill="rgba(255,255,255,.35)" textAnchor="middle">Swipe para ver más →</text></>)},
+  {id:"t12",icon:"📸",name:"Detrás de escena",desc:"Behind the scenes de tu proceso",
+   preview:TP("#1c1917",<>
+     <div style={{background:"#292524",borderRadius:10,padding:"12px",width:"100%",textAlign:"center",marginBottom:10}}>
+       <div style={{fontSize:32}}>📷</div>
+       <div style={{color:"rgba(255,255,255,.5)",fontSize:10,marginTop:4}}>Así creamos cada post</div>
+     </div>
+     <div style={{color:"#f5f5f4",fontSize:12,fontWeight:900,letterSpacing:1}}>BEHIND THE SCENES</div>
+     <div style={{color:"rgba(255,255,255,.3)",fontSize:10,marginTop:3}}>Swipe para ver más →</div>
+   </>)},
 
   {id:"t13",icon:"✅",name:"Antes y después",desc:"Transformación visible y real",
-   preview:T(<><rect width="280" height="180" fill="#0f172a"/><rect x="4" y="4" width="132" height="172" rx="8" fill="#1e293b"/><rect x="144" y="4" width="132" height="172" rx="8" fill="#14532d"/><text x="70" y="50" fontFamily="Arial Black" fontSize="12" fill="rgba(255,255,255,.4)" textAnchor="middle" letterSpacing="2">ANTES</text><text x="70" y="100" fontSize="36" textAnchor="middle">😔</text><text x="70" y="145" fontFamily="Arial" fontSize="10" fill="rgba(255,255,255,.4)" textAnchor="middle">Sin estrategia</text><text x="210" y="50" fontFamily="Arial Black" fontSize="12" fill="#86efac" textAnchor="middle" letterSpacing="2">DESPUÉS</text><text x="210" y="100" fontSize="36" textAnchor="middle">🚀</text><text x="210" y="145" fontFamily="Arial" fontSize="10" fill="#86efac" textAnchor="middle">Con MCM</text><text x="140" y="100" fontFamily="Arial Black" fontSize="18" fill="white" textAnchor="middle">→</text></>)},
+   preview:TP("#0f172a",<div style={{display:"flex",gap:8,width:"100%"}}>
+     <div style={{flex:1,background:"#1e293b",borderRadius:8,padding:"10px 6px",textAlign:"center"}}>
+       <div style={{color:"rgba(255,255,255,.3)",fontSize:9,letterSpacing:2,marginBottom:6}}>ANTES</div>
+       <div style={{fontSize:26}}>😔</div>
+       <div style={{color:"rgba(255,255,255,.3)",fontSize:9,marginTop:6}}>Sin estrategia</div>
+     </div>
+     <div style={{display:"flex",alignItems:"center",color:"white",fontSize:18,flexShrink:0}}>→</div>
+     <div style={{flex:1,background:"#14532d",borderRadius:8,padding:"10px 6px",textAlign:"center"}}>
+       <div style={{color:"#86efac",fontSize:9,letterSpacing:2,marginBottom:6}}>DESPUÉS</div>
+       <div style={{fontSize:26}}>🚀</div>
+       <div style={{color:"#86efac",fontSize:9,marginTop:6}}>Con MCM</div>
+     </div>
+   </div>)},
 
   {id:"t14",icon:"📖",name:"Mini guía",desc:"Guía rápida con pasos accionables",
-   preview:T(<><rect width="280" height="180" fill="#1e1b4b"/><rect x="0" y="0" width="280" height="44" fill="#4f46e5"/><text x="140" y="28" fontFamily="Arial Black" fontSize="16" fill="white" textAnchor="middle" letterSpacing="1">GUÍA RÁPIDA</text><text x="140" y="42" fontFamily="Arial" fontSize="10" fill="rgba(255,255,255,.6)" textAnchor="middle">3 pasos para lograrlo</text>{[["01","Definí tu objetivo claramente"],["02","Tomá acción inmediata"],["03","Medí y ajustá siempre"]].map(([n,t],i)=><g key={n}><rect x="16" y={58+i*38} width="36" height="28" rx="6" fill="#4f46e5"/><text x="34" y={77+i*38} fontFamily="Arial Black" fontSize="12" fill="white" textAnchor="middle">{n}</text><text x="64" y={70+i*38} fontFamily="Arial Black" fontSize="12" fill="white">{t.split(" ").slice(0,3).join(" ")}</text><text x="64" y={84+i*38} fontFamily="Arial" fontSize="10" fill="rgba(255,255,255,.5)">{t.split(" ").slice(3).join(" ")}</text></g>)}</>)},
+   preview:TP("#1e1b4b",<div style={{width:"100%",padding:0}}>
+     <div style={{background:"#4f46e5",padding:"10px 14px",borderRadius:"8px 8px 0 0",marginBottom:10}}>
+       <div style={{color:"white",fontSize:13,fontWeight:900}}>GUÍA RÁPIDA</div>
+       <div style={{color:"rgba(255,255,255,.6)",fontSize:10}}>3 pasos para lograrlo</div>
+     </div>
+     {[["01","Definí tu objetivo"],["02","Tomá acción ya"],["03","Medí y ajustá"]].map(([n,t])=>(
+       <div key={n} style={{display:"flex",gap:8,alignItems:"center",marginBottom:7}}>
+         <div style={{background:"#4f46e5",borderRadius:5,padding:"2px 7px",color:"white",fontSize:9,fontWeight:900,flexShrink:0}}>{n}</div>
+         <div style={{color:"white",fontSize:11}}>{t}</div>
+       </div>
+     ))}
+   </div>)},
 
   {id:"t15",icon:"🤝",name:"UGC / Repost",desc:"Contenido de tus clientes reales",
-   preview:T(<><rect width="280" height="180" fill="#fdf4ff"/><rect x="20" y="20" width="240" height="140" rx="12" fill="white" stroke="#f3e8ff" strokeWidth="2"/><circle cx="140" cy="65" r="28" fill="#e9d5ff"/><text x="140" y="70" fontFamily="Arial Black" fontSize="14" fill="#6d28d9" textAnchor="middle">JM</text><text x="140" y="108" fontFamily="Arial Black" fontSize="12" fill="#1a1a2e" textAnchor="middle">Juan Martínez</text><text x="140" y="124" fontFamily="Arial" fontSize="10" fill="#9ca3af" textAnchor="middle">@juanmartinez · Cliente</text><text x="140" y="144" fontFamily="Georgia,serif" fontSize="12" fill="#581c87" textAnchor="middle" fontStyle="italic">"Lo recomiendo 100%"</text><text x="140" y="160" fontSize="14" textAnchor="middle">❤️ 234  💬 18  🔁 56</text></>)},
+   preview:TP("white",<div style={{background:"white",borderRadius:12,padding:12,boxShadow:"0 2px 12px rgba(0,0,0,.1)",width:"100%"}}>
+     <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+       <div style={{width:28,height:28,borderRadius:"50%",background:"#e9d5ff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:900,color:"#6d28d9",flexShrink:0}}>JM</div>
+       <div><div style={{fontSize:11,fontWeight:700,color:"#1a1a2e"}}>Juan Martínez</div><div style={{fontSize:9,color:"#9ca3af"}}>@juanmartinez · cliente</div></div>
+     </div>
+     <div style={{fontSize:11,color:"#581c87",fontStyle:"italic",lineHeight:1.5,marginBottom:8}}>"Lo recomiendo 100%. Cambió mi negocio."</div>
+     <div style={{fontSize:11,color:"#9ca3af"}}>❤️ 234  💬 18  🔁 56</div>
+   </div>)},
 
-  {id:"t16",icon:"💡",name:"Sabías que...",desc:"Dato curioso que sorprende",
-   preview:T(<><rect width="280" height="180" fill="#1a1a0e"/><circle cx="140" cy="72" r="44" fill="rgba(251,191,36,.1)" stroke="rgba(251,191,36,.3)" strokeWidth="1.5"/><text x="140" y="80" fontSize="40" textAnchor="middle">💡</text><text x="140" y="126" fontFamily="Arial Black" fontSize="15" fill="#fbbf24" textAnchor="middle">¿SABÍAS QUE...?</text><line x1="40" y1="134" x2="240" y2="134" stroke="rgba(251,191,36,.2)" strokeWidth="1"/><text x="140" y="152" fontFamily="Arial" fontSize="12" fill="rgba(255,255,255,.8)" textAnchor="middle">El 80% del contenido</text><text x="140" y="168" fontFamily="Arial" fontSize="12" fill="rgba(255,255,255,.8)" textAnchor="middle">se olvida en 48 horas</text></>)},
+  {id:"t16",icon:"💡",name:"Sabías que...",desc:"Dato curioso que sorprende a todos",
+   preview:TP("#1a1a0e",<>
+     <div style={{fontSize:34,marginBottom:8}}>💡</div>
+     <div style={{color:"#fbbf24",fontSize:13,fontWeight:900,letterSpacing:1,marginBottom:6}}>¿SABÍAS QUE...?</div>
+     <div style={{width:36,height:1,background:"rgba(251,191,36,.3)",marginBottom:8}}/>
+     <div style={{color:"rgba(255,255,255,.8)",fontSize:12,textAlign:"center",lineHeight:1.6}}>El 80% del contenido<br/>se olvida en 48 horas</div>
+   </>)},
 
   {id:"t17",icon:"🏆",name:"Logro / Hito",desc:"Celebrá un milestone de tu marca",
-   preview:T(<><rect width="280" height="180" fill="#78350f"/><rect x="0" y="0" width="280" height="180" fill="url(#gld)"/><defs><linearGradient id="gld" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="rgba(251,191,36,.2)"/><stop offset="100%" stopColor="transparent"/></linearGradient></defs><text x="140" y="42" fontFamily="Arial Black" fontSize="13" fill="#fcd34d" textAnchor="middle" letterSpacing="3">ALCANZAMOS</text><text x="140" y="100" fontFamily="Arial Black" fontSize="52" fill="white" textAnchor="middle">1K</text><text x="140" y="124" fontFamily="Arial Black" fontSize="18" fill="#fcd34d" textAnchor="middle">CLIENTES</text><text x="140" y="148" fontFamily="Arial" fontSize="13" fill="rgba(255,255,255,.7)" textAnchor="middle">¡Gracias por confiar en nosotros!</text><text x="140" y="168" fontSize="18" textAnchor="middle">🏆 🎉 ✨</text></>)},
+   preview:TP("linear-gradient(135deg,#78350f,#92400e)",<>
+     <div style={{color:"#fcd34d",fontSize:10,letterSpacing:3,marginBottom:4}}>ALCANZAMOS</div>
+     <div style={{color:"white",fontSize:46,fontWeight:900,lineHeight:1}}>1K</div>
+     <div style={{color:"#fcd34d",fontSize:14,fontWeight:900}}>CLIENTES</div>
+     <div style={{color:"rgba(255,255,255,.6)",fontSize:11,marginTop:8}}>¡Gracias por confiar en nosotros!</div>
+     <div style={{fontSize:18,marginTop:6}}>🏆 🎉 ✨</div>
+   </>)},
 
-  {id:"t18",icon:"📊",name:"Comparativa",desc:"Tabla de comparación visual",
-   preview:T(<><rect width="280" height="180" fill="#0f172a"/><text x="140" y="24" fontFamily="Arial Black" fontSize="14" fill="white" textAnchor="middle">¿POR QUÉ ELEGIRNOS?</text><rect x="8" y="32" width="124" height="136" rx="8" fill="#1e293b"/><rect x="148" y="32" width="124" height="136" rx="8" fill="#0f4c3a" stroke="#34d399" strokeWidth="1.5"/><text x="70" y="56" fontFamily="Arial Black" fontSize="11" fill="#94a3b8" textAnchor="middle">Básico</text><text x="210" y="52" fontFamily="Arial Black" fontSize="11" fill="#34d399" textAnchor="middle">Con MCM ✨</text>{[["Contenido manual","✗","✓"],["Publicación auto","✗","✓"],["IA integrada","✗","✓"],["Estadísticas","✗","✓"],["Soporte","✗","✓"]].map(([l,no,si],i)=><g key={i}><text x="70" y={78+i*18} fontFamily="Arial" fontSize="9" fill="#64748b" textAnchor="middle">{no} {l}</text><text x="210" y={78+i*18} fontFamily="Arial" fontSize="9" fill="#34d399" textAnchor="middle">{si} {l}</text></g>)}</>)},
+  {id:"t18",icon:"📊",name:"Comparativa",desc:"Tabla de comparación visual clara",
+   preview:TP("#0f172a",<div style={{display:"flex",gap:8,width:"100%"}}>
+     <div style={{flex:1,background:"#1e293b",borderRadius:8,padding:"10px 6px"}}>
+       <div style={{color:"#94a3b8",fontSize:10,fontWeight:700,textAlign:"center",marginBottom:8}}>Básico</div>
+       {["Contenido","Auto-pub","IA","Stats"].map(f=><div key={f} style={{color:"#ef4444",fontSize:9,marginBottom:4,textAlign:"center"}}>✗ {f}</div>)}
+     </div>
+     <div style={{flex:1,background:"#0f4c3a",borderRadius:8,padding:"10px 6px",border:"1px solid #34d399"}}>
+       <div style={{color:"#34d399",fontSize:10,fontWeight:700,textAlign:"center",marginBottom:8}}>Con MCM ✨</div>
+       {["Contenido","Auto-pub","IA","Stats"].map(f=><div key={f} style={{color:"#34d399",fontSize:9,marginBottom:4,textAlign:"center"}}>✓ {f}</div>)}
+     </div>
+   </div>)},
 
   {id:"t19",icon:"🎯",name:"Call to action",desc:"Post directo con acción clara",
-   preview:T(<><rect width="280" height="180" fill="#6d28d9"/><rect x="0" y="0" width="280" height="180" fill="url(#cta)"/><defs><linearGradient id="cta" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="rgba(109,40,217,0)"/><stop offset="100%" stopColor="rgba(236,72,153,.5)"/></linearGradient></defs><text x="140" y="52" fontFamily="Arial Black" fontSize="20" fill="white" textAnchor="middle">¿Listo para</text><text x="140" y="78" fontFamily="Arial Black" fontSize="20" fill="#f0abfc" textAnchor="middle">transformar tu</text><text x="140" y="104" fontFamily="Arial Black" fontSize="20" fill="white" textAnchor="middle">marca?</text><rect x="30" y="120" width="220" height="42" rx="21" fill="white"/><text x="140" y="147" fontFamily="Arial Black" fontSize="15" fill="#6d28d9" textAnchor="middle">EMPEZAR AHORA →</text></>)},
+   preview:TP("linear-gradient(135deg,#6d28d9,#ec4899)",<>
+     <div style={{color:"white",fontSize:18,fontWeight:900,textAlign:"center",lineHeight:1.3,marginBottom:16}}>¿Listo para<br/>transformar<br/>tu marca?</div>
+     <div style={{background:"white",borderRadius:25,padding:"10px 24px",color:"#6d28d9",fontSize:13,fontWeight:900}}>EMPEZAR AHORA →</div>
+   </>)},
 
-  {id:"t20",icon:"🌟",name:"Producto destacado",desc:"Foco en tu producto estrella",
-   preview:T(<><rect width="280" height="180" fill="#0c0a09"/><rect x="0" y="0" width="280" height="110" fill="#1c1917"/><text x="140" y="62" fontSize="44" textAnchor="middle">🛍</text><text x="140" y="92" fontFamily="Arial" fontSize="11" fill="rgba(255,255,255,.4)" textAnchor="middle" letterSpacing="3">PRODUCTO DESTACADO</text><rect x="0" y="110" width="280" height="70" fill="#ec4899"/><text x="140" y="140" fontFamily="Arial Black" fontSize="18" fill="white" textAnchor="middle">PACK PREMIUM</text><text x="140" y="158" fontFamily="Arial Black" fontSize="14" fill="rgba(255,255,255,.8)" textAnchor="middle">$2.999 · Stock limitado</text><text x="140" y="175" fontFamily="Arial Black" fontSize="11" fill="white" textAnchor="middle">VER MÁS →</text></>)},
+  {id:"t20",icon:"🌟",name:"Producto destacado",desc:"Foco total en tu producto estrella",
+   preview:TP("#0c0a09",<>
+     <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",width:"100%",fontSize:44,marginBottom:8}}>🛍</div>
+     <div style={{background:"#ec4899",width:"calc(100% + 32px)",margin:"0 -16px -16px",padding:"10px 16px",textAlign:"center"}}>
+       <div style={{color:"white",fontSize:13,fontWeight:900}}>PACK PREMIUM</div>
+       <div style={{color:"rgba(255,255,255,.8)",fontSize:10}}>$2.999 · Stock limitado</div>
+     </div>
+   </>)},
 
   {id:"t21",icon:"📰",name:"Noticias del sector",desc:"Tendencia o novedad del rubro",
-   preview:T(<><rect width="280" height="180" fill="#1e293b"/><rect x="0" y="0" width="280" height="44" fill="#0f172a"/><text x="16" y="20" fontFamily="Arial Black" fontSize="10" fill="#38bdf8" letterSpacing="2">📰 ACTUALIDAD</text><text x="16" y="36" fontFamily="Arial" fontSize="9" fill="rgba(255,255,255,.4)">Hoy · Tu sector</text><text x="16" y="72" fontFamily="Arial Black" fontSize="16" fill="white">La gran tendencia</text><text x="16" y="92" fontFamily="Arial Black" fontSize="16" fill="#38bdf8">del momento</text><text x="16" y="116" fontFamily="Arial" fontSize="11" fill="rgba(255,255,255,.6)">Lo que está cambiando el juego</text><text x="16" y="134" fontFamily="Arial" fontSize="11" fill="rgba(255,255,255,.6)">en tu industria este año.</text><line x1="16" y1="148" x2="264" y2="148" stroke="rgba(255,255,255,.1)" strokeWidth="1"/><text x="16" y="166" fontFamily="Arial Black" fontSize="11" fill="#38bdf8">LEER MÁS →</text></>)},
+   preview:TP("#1e293b",<div style={{width:"100%",height:"100%",display:"flex",flexDirection:"column",padding:0}}>
+     <div style={{background:"#0f172a",padding:"8px 12px",display:"flex",alignItems:"center",gap:6}}>
+       <div style={{color:"#38bdf8",fontSize:9,fontWeight:900,letterSpacing:2}}>📰 ACTUALIDAD</div>
+       <div style={{color:"rgba(255,255,255,.3)",fontSize:9}}>Hoy</div>
+     </div>
+     <div style={{padding:"12px",flex:1}}>
+       <div style={{color:"white",fontSize:14,fontWeight:900,lineHeight:1.3,marginBottom:6}}>La gran tendencia<br/><span style={{color:"#38bdf8"}}>del momento</span></div>
+       <div style={{color:"rgba(255,255,255,.5)",fontSize:10,lineHeight:1.5,marginBottom:8}}>Lo que está cambiando el juego en tu industria.</div>
+       <div style={{color:"#38bdf8",fontSize:11,fontWeight:700}}>LEER MÁS →</div>
+     </div>
+   </div>)},
 
   {id:"t22",icon:"❌",name:"Errores comunes",desc:"Top errores que comete tu audiencia",
-   preview:T(<><rect width="280" height="180" fill="#1a0505"/><rect x="0" y="0" width="6" height="180" fill="#ef4444"/><text x="24" y="32" fontFamily="Arial Black" fontSize="15" fill="#fca5a5">ERRORES que</text><text x="24" y="52" fontFamily="Arial Black" fontSize="15" fill="white">todos cometen</text><line x1="24" y1="62" x2="264" y2="62" stroke="rgba(239,68,68,.3)" strokeWidth="1"/>{[["No tener estrategia clara"],["Publicar sin constancia"],["Ignorar las métricas"],["Copiar a la competencia"]].map((t,i)=><g key={i}><text x="24" y={84+i*24} fontSize="13">✗</text><text x="44" y={84+i*24} fontFamily="Arial" fontSize="12" fill="rgba(255,255,255,.75)">{t}</text></g>)}</>)},
+   preview:TP("#1a0505",<div style={{width:"100%"}}>
+     <div style={{borderLeft:"3px solid #ef4444",paddingLeft:10,marginBottom:10}}>
+       <div style={{color:"#fca5a5",fontSize:13,fontWeight:900}}>ERRORES que</div>
+       <div style={{color:"white",fontSize:13,fontWeight:900}}>todos cometen</div>
+     </div>
+     {["No tener estrategia","Publicar sin constancia","Ignorar las métricas","Copiar competencia"].map((t,i)=>(
+       <div key={i} style={{display:"flex",gap:6,alignItems:"flex-start",marginBottom:5}}>
+         <span style={{color:"#ef4444",fontSize:11,flexShrink:0}}>✗</span>
+         <span style={{color:"rgba(255,255,255,.7)",fontSize:11}}>{t}</span>
+       </div>
+     ))}
+   </div>)},
 
   {id:"t23",icon:"💰",name:"Precio / Inversión",desc:"Comunicá el valor de tu servicio",
-   preview:T(<><rect width="280" height="180" fill="#14532d"/><rect x="0" y="0" width="280" height="180" fill="url(#gn)"/><defs><linearGradient id="gn" x1="0" y1="1" x2="1" y2="0"><stop offset="0%" stopColor="rgba(22,163,74,.4)"/><stop offset="100%" stopColor="transparent"/></linearGradient></defs><text x="140" y="36" fontFamily="Arial" fontSize="12" fill="#86efac" textAnchor="middle" letterSpacing="2">INVERTÍ EN TU FUTURO</text><text x="140" y="98" fontFamily="Arial Black" fontSize="54" fill="white" textAnchor="middle">$999</text><text x="140" y="122" fontFamily="Arial" fontSize="12" fill="#4ade80" textAnchor="middle">por mes · sin permanencia</text><rect x="40" y="138" width="200" height="30" rx="15" fill="#16a34a"/><text x="140" y="158" fontFamily="Arial Black" fontSize="12" fill="white" textAnchor="middle">EMPEZAR HOY →</text></>)},
+   preview:TP("linear-gradient(160deg,#14532d,#166534)",<>
+     <div style={{color:"#86efac",fontSize:10,letterSpacing:3,marginBottom:4}}>INVERTÍ EN TU FUTURO</div>
+     <div style={{color:"white",fontSize:46,fontWeight:900,lineHeight:1}}>$999</div>
+     <div style={{color:"#4ade80",fontSize:11,marginBottom:12}}>por mes · sin permanencia</div>
+     <div style={{background:"#16a34a",borderRadius:20,padding:"8px 20px",color:"white",fontSize:11,fontWeight:900}}>EMPEZAR HOY →</div>
+   </>)},
 
   {id:"t24",icon:"🔥",name:"Meme de marca",desc:"Humor adaptado a tu negocio",
-   preview:T(<><rect width="280" height="180" fill="#0f0f1a"/><rect x="8" y="8" width="264" height="96" rx="8" fill="#1f2937"/><text x="140" y="44" fontFamily="Arial Black" fontSize="13" fill="white" textAnchor="middle">Cuando el cliente dice</text><text x="140" y="68" fontFamily="Arial Black" fontSize="15" fill="#fbbf24" textAnchor="middle">"lo pienso y te aviso"</text><text x="140" y="90" fontFamily="Arial" fontSize="11" fill="rgba(255,255,255,.4)" textAnchor="middle">y nunca más aparece...</text><text x="140" y="140" fontSize="36" textAnchor="middle">💀😂</text><text x="140" y="172" fontFamily="Arial" fontSize="10" fill="rgba(255,255,255,.3)" textAnchor="middle">¿Te pasó? Contanos en comentarios 👇</text></>)},
+   preview:TP("#0f0f1a",<>
+     <div style={{background:"#1f2937",borderRadius:10,padding:"12px",width:"100%",marginBottom:10}}>
+       <div style={{color:"white",fontSize:12,fontWeight:700,textAlign:"center",marginBottom:4}}>Cuando el cliente dice</div>
+       <div style={{color:"#fbbf24",fontSize:13,fontWeight:900,textAlign:"center"}}>"lo pienso y te aviso"</div>
+       <div style={{color:"rgba(255,255,255,.3)",fontSize:10,textAlign:"center",marginTop:3}}>y nunca más aparece...</div>
+     </div>
+     <div style={{fontSize:28}}>💀😂</div>
+   </>)},
 
   {id:"t25",icon:"🎓",name:"Educativo / Infografía",desc:"Enseñá algo útil a tu audiencia",
-   preview:T(<><rect width="280" height="180" fill="#1e1b4b"/><rect x="0" y="0" width="280" height="48" fill="#4338ca"/><text x="140" y="30" fontFamily="Arial Black" fontSize="16" fill="white" textAnchor="middle">APRENDÉ HOY</text><text x="140" y="46" fontFamily="Arial" fontSize="10" fill="rgba(255,255,255,.6)" textAnchor="middle">3 conceptos clave</text>{[["📱","Redes sociales","La vidriera de tu marca"],["🎯","Estrategia","El mapa hacia el éxito"],["📊","Métricas","Lo que no se mide, no mejora"]].map(([em,t,d],i)=><g key={i}><text x="24" y={74+i*36} fontSize="16">{em}</text><text x="48" y={70+i*36} fontFamily="Arial Black" fontSize="11" fill="white">{t}</text><text x="48" y={84+i*36} fontFamily="Arial" fontSize="9" fill="rgba(255,255,255,.5)">{d}</text></g>)}</>)},
+   preview:TP("#1e1b4b",<div style={{width:"100%",padding:0}}>
+     <div style={{background:"#4338ca",padding:"10px 14px",borderRadius:"8px 8px 0 0",marginBottom:10}}>
+       <div style={{color:"white",fontSize:13,fontWeight:900}}>APRENDÉ HOY</div>
+       <div style={{color:"rgba(255,255,255,.6)",fontSize:10}}>3 conceptos clave</div>
+     </div>
+     {[["📱","Redes","Tu vidriera digital"],["🎯","Estrategia","El mapa al éxito"],["📊","Métricas","Lo que no se mide..."]].map(([e,t,d])=>(
+       <div key={t} style={{display:"flex",gap:8,marginBottom:7,alignItems:"flex-start"}}>
+         <span style={{fontSize:14}}>{e}</span>
+         <div><div style={{color:"white",fontSize:11,fontWeight:700}}>{t}</div><div style={{color:"rgba(255,255,255,.4)",fontSize:9}}>{d}</div></div>
+       </div>
+     ))}
+   </div>)},
 
-  {id:"t26",icon:"🗓",name:"Rutina semanal",desc:"Contenido tipo agenda o planning",
-   preview:T(<><rect width="280" height="180" fill="#0f172a"/><text x="140" y="24" fontFamily="Arial Black" fontSize="14" fill="#38bdf8" textAnchor="middle">ESTA SEMANA</text>{[["L","📝",60],["M","📊",104],["X","🎯",148],["J","💡",192],["V","✅",236]].map(([d,e,x])=><g key={d}><rect x={x-24} y="34" width="40" height="136" rx="8" fill={d==="X"?"#0369a1":"#1e293b"}/><text x={x} y="58" fontFamily="Arial Black" fontSize="12" fill={d==="X"?"white":"#64748b"} textAnchor="middle">{d}</text><text x={x} y="100" fontSize="20" textAnchor="middle">{e}</text><text x={x} y="125" fontFamily="Arial" fontSize="8" fill="rgba(255,255,255,.4)" textAnchor="middle">Post</text><text x={x} y="138" fontFamily="Arial" fontSize="8" fill="rgba(255,255,255,.4)" textAnchor="middle">9:00am</text></g>)}</>)},
+  {id:"t26",icon:"🗓",name:"Rutina semanal",desc:"Agenda o planning de contenido",
+   preview:TP("#0f172a",<>
+     <div style={{color:"#38bdf8",fontSize:11,fontWeight:900,letterSpacing:2,marginBottom:10}}>ESTA SEMANA</div>
+     <div style={{display:"flex",gap:4,width:"100%"}}>
+       {[["L","📝"],["M","📊"],["X","🎯"],["J","💡"],["V","✅"]].map(([d,e],i)=>(
+         <div key={d} style={{flex:1,background:i===2?"#0369a1":"#1e293b",borderRadius:6,padding:"6px 2px",textAlign:"center"}}>
+           <div style={{color:i===2?"white":"#64748b",fontSize:9,fontWeight:900}}>{d}</div>
+           <div style={{fontSize:14,margin:"3px 0"}}>{e}</div>
+           <div style={{color:"rgba(255,255,255,.25)",fontSize:8}}>9am</div>
+         </div>
+       ))}
+     </div>
+   </>)},
 
   {id:"t27",icon:"💬",name:"Cita de experto",desc:"Quote de una figura referente",
-   preview:T(<><rect width="280" height="180" fill="#1a1a2e"/><text x="30" y="58" fontFamily="Georgia,serif" fontSize="60" fill="rgba(168,85,247,.3)">"</text><text x="140" y="80" fontFamily="Georgia,serif" fontSize="15" fill="white" textAnchor="middle" fontStyle="italic">La creatividad es</text><text x="140" y="100" fontFamily="Georgia,serif" fontSize="15" fill="#d8b4fe" textAnchor="middle" fontStyle="italic">la inteligencia</text><text x="140" y="120" fontFamily="Georgia,serif" fontSize="15" fill="white" textAnchor="middle" fontStyle="italic">divirtiéndose."</text><text x="230" y="138" fontFamily="Georgia,serif" fontSize="60" fill="rgba(168,85,247,.3)">"</text><line x1="60" y1="148" x2="220" y2="148" stroke="rgba(168,85,247,.3)" strokeWidth="1"/><text x="140" y="168" fontFamily="Arial Black" fontSize="11" fill="#a855f7" textAnchor="middle">— Albert Einstein</text></>)},
+   preview:TP("#1a1a2e",<>
+     <div style={{color:"rgba(168,85,247,.3)",fontSize:46,lineHeight:0.8,alignSelf:"flex-start"}}>"</div>
+     <div style={{fontStyle:"italic",fontSize:13,color:"white",textAlign:"center",lineHeight:1.5,fontFamily:"Georgia,serif",flex:1,display:"flex",alignItems:"center",textAlign:"center",padding:"0 4px"}}>La creatividad es la inteligencia divirtiéndose.</div>
+     <div style={{color:"rgba(168,85,247,.3)",fontSize:46,lineHeight:0.8,alignSelf:"flex-end"}}>"</div>
+     <div style={{color:"#a855f7",fontSize:10,fontWeight:700,marginTop:4}}>— Albert Einstein</div>
+   </>)},
 
   {id:"t28",icon:"🤖",name:"IA / Tecnología",desc:"Contenido sobre innovación y tech",
-   preview:T(<><rect width="280" height="180" fill="#0a0a1a"/><circle cx="140" cy="80" r="50" fill="rgba(56,189,248,.05)" stroke="rgba(56,189,248,.2)" strokeWidth="1"/><circle cx="140" cy="80" r="35" fill="rgba(56,189,248,.08)" stroke="rgba(56,189,248,.3)" strokeWidth="1"/><text x="140" y="88" fontSize="36" textAnchor="middle">🤖</text><text x="140" y="142" fontFamily="Arial Black" fontSize="16" fill="#38bdf8" textAnchor="middle">POWERED BY AI</text><text x="140" y="162" fontFamily="Arial" fontSize="11" fill="rgba(255,255,255,.4)" textAnchor="middle">Tecnología al servicio de tu marca</text></>)},
+   preview:TP("#0a0a1a",<>
+     <div style={{width:64,height:64,borderRadius:"50%",border:"2px solid rgba(56,189,248,.3)",display:"flex",alignItems:"center",justifyContent:"center",marginBottom:10,boxShadow:"0 0 20px rgba(56,189,248,.15)"}}>
+       <div style={{fontSize:34}}>🤖</div>
+     </div>
+     <div style={{color:"#38bdf8",fontSize:14,fontWeight:900,letterSpacing:1}}>POWERED BY AI</div>
+     <div style={{color:"rgba(255,255,255,.4)",fontSize:11,textAlign:"center",marginTop:4}}>Tecnología al servicio<br/>de tu marca</div>
+   </>)},
 
   {id:"t29",icon:"🌍",name:"Impacto / RSE",desc:"Responsabilidad social de tu marca",
-   preview:T(<><rect width="280" height="180" fill="#064e3b"/><text x="140" y="50" fontSize="36" textAnchor="middle">🌱</text><text x="140" y="84" fontFamily="Arial Black" fontSize="18" fill="#34d399" textAnchor="middle">COMPROMETIDOS</text><text x="140" y="106" fontFamily="Arial Black" fontSize="18" fill="white" textAnchor="middle">CON EL PLANETA</text><line x1="60" y1="118" x2="220" y2="118" stroke="rgba(52,211,153,.3)" strokeWidth="1"/><text x="140" y="140" fontFamily="Arial" fontSize="12" fill="rgba(255,255,255,.7)" textAnchor="middle">Somos carbono neutral desde 2023</text><text x="140" y="162" fontFamily="Arial" fontSize="11" fill="rgba(52,211,153,.6)" textAnchor="middle">♻️ Cada compra planta un árbol</text></>)},
+   preview:TP("linear-gradient(135deg,#064e3b,#065f46)",<>
+     <div style={{fontSize:34,marginBottom:8}}>🌱</div>
+     <div style={{color:"#34d399",fontSize:15,fontWeight:900}}>COMPROMETIDOS</div>
+     <div style={{color:"white",fontSize:15,fontWeight:900}}>CON EL PLANETA</div>
+     <div style={{width:36,height:1,background:"rgba(52,211,153,.3)",margin:"8px 0"}}/>
+     <div style={{color:"rgba(255,255,255,.6)",fontSize:11,textAlign:"center",lineHeight:1.5}}>Somos carbono neutral 🌱<br/>Cada compra planta un árbol</div>
+   </>)},
 
-  {id:"t30",icon:"🎨",name:"Identidad de marca",desc:"Mostrá tu paleta y estilo visual",
-   preview:T(<><rect width="280" height="180" fill="#1a1a2e"/><text x="140" y="24" fontFamily="Arial Black" fontSize="13" fill="rgba(255,255,255,.5)" textAnchor="middle" letterSpacing="3">NUESTRA IDENTIDAD</text>{[["#6d28d9",14],["#a855f7",70],["#ec4899",126],["#f43f5e",182],["#f97316",238]].map(([c,x])=><g key={c}><rect x={x} y="34" width="50" height="120" rx="8" fill={c}/></g>)}<text x="140" y="172" fontFamily="Arial" fontSize="10" fill="rgba(255,255,255,.3)" textAnchor="middle">Colores que nos representan</text></>)},
+  {id:"t30",icon:"🎨",name:"Identidad de marca",desc:"Paleta y estilo visual de tu negocio",
+   preview:TP("#1a1a2e",<>
+     <div style={{color:"rgba(255,255,255,.35)",fontSize:10,letterSpacing:3,marginBottom:10}}>NUESTRA IDENTIDAD</div>
+     <div style={{display:"flex",width:"100%",height:60,borderRadius:10,overflow:"hidden"}}>
+       {["#6d28d9","#a855f7","#ec4899","#f43f5e","#f97316"].map(c=>(
+         <div key={c} style={{flex:1,background:c}}/>
+       ))}
+     </div>
+     <div style={{color:"rgba(255,255,255,.2)",fontSize:9,letterSpacing:2,marginTop:8}}>COLORES DE MARCA</div>
+   </>)},
 
   {id:"t31",icon:"📍",name:"Local / Ubicación",desc:"Destacá tu local o punto de venta",
-   preview:T(<><rect width="280" height="180" fill="#1e1b4b"/><circle cx="140" cy="70" r="40" fill="rgba(99,102,241,.2)" stroke="#6366f1" strokeWidth="1.5"/><text x="140" y="78" fontSize="36" textAnchor="middle">📍</text><text x="140" y="124" fontFamily="Arial Black" fontSize="16" fill="white" textAnchor="middle">VISITANOS</text><text x="140" y="144" fontFamily="Arial" fontSize="13" fill="#a5b4fc" textAnchor="middle">Av. Principal 1234</text><line x1="60" y1="154" x2="220" y2="154" stroke="rgba(255,255,255,.1)" strokeWidth="1"/><text x="140" y="170" fontFamily="Arial" fontSize="11" fill="rgba(255,255,255,.4)" textAnchor="middle">Lun–Vie 9 a 18hs · Sáb 9 a 13hs</text></>)},
+   preview:TP("linear-gradient(135deg,#1e1b4b,#312e81)",<>
+     <div style={{fontSize:34,marginBottom:8}}>📍</div>
+     <div style={{color:"white",fontSize:16,fontWeight:900}}>VISITANOS</div>
+     <div style={{color:"#a5b4fc",fontSize:12,marginTop:4}}>Av. Principal 1234</div>
+     <div style={{width:36,height:1,background:"rgba(255,255,255,.15)",margin:"8px 0"}}/>
+     <div style={{color:"rgba(255,255,255,.4)",fontSize:10}}>Lun–Vie 9 a 18hs · Sáb 9 a 13hs</div>
+   </>)},
 
-  {id:"t32",icon:"🔔",name:"Recordatorio urgente",desc:"Aviso de última oportunidad",
-   preview:T(<><rect width="280" height="180" fill="#92400e"/><rect x="0" y="0" width="280" height="180" fill="url(#rr)"/><defs><linearGradient id="rr" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(251,191,36,.2)"/><stop offset="100%" stopColor="transparent"/></linearGradient></defs><text x="140" y="42" fontSize="32" textAnchor="middle">🔔</text><text x="140" y="74" fontFamily="Arial Black" fontSize="18" fill="#fcd34d" textAnchor="middle">ÚLTIMO DÍA</text><text x="140" y="96" fontFamily="Arial Black" fontSize="15" fill="white" textAnchor="middle">para aprovechar</text><text x="140" y="116" fontFamily="Arial Black" fontSize="15" fill="white" textAnchor="middle">la oferta especial</text><rect x="40" y="132" width="200" height="32" rx="16" fill="#fcd34d"/><text x="140" y="153" fontFamily="Arial Black" fontSize="13" fill="#92400e" textAnchor="middle">NO TE LO PIERDAS →</text></>)},
+  {id:"t32",icon:"🔔",name:"Recordatorio urgente",desc:"Última oportunidad, aviso clave",
+   preview:TP("linear-gradient(135deg,#92400e,#b45309)",<>
+     <div style={{fontSize:30,marginBottom:6}}>🔔</div>
+     <div style={{color:"#fcd34d",fontSize:16,fontWeight:900}}>ÚLTIMO DÍA</div>
+     <div style={{color:"white",fontSize:12,textAlign:"center",margin:"6px 0 12px",lineHeight:1.5}}>para aprovechar<br/>la oferta especial</div>
+     <div style={{background:"#fcd34d",borderRadius:20,padding:"8px 20px",color:"#92400e",fontSize:11,fontWeight:900}}>NO TE LO PIERDAS →</div>
+   </>)},
 
-  {id:"t33",icon:"❤️",name:"Agradecimiento",desc:"Gracias a tu comunidad",
-   preview:T(<><rect width="280" height="180" fill="#4c0519"/><rect x="0" y="0" width="280" height="180" fill="url(#hr)"/><defs><radialGradient id="hr" cx="50%" cy="40%"><stop offset="0%" stopColor="rgba(251,113,133,.2)"/><stop offset="100%" stopColor="transparent"/></radialGradient></defs><text x="140" y="50" fontSize="36" textAnchor="middle">❤️</text><text x="140" y="84" fontFamily="Arial Black" fontSize="22" fill="white" textAnchor="middle">GRACIAS</text><text x="140" y="108" fontFamily="Arial Black" fontSize="16" fill="#fda4af" textAnchor="middle">COMUNIDAD</text><line x1="60" y1="120" x2="220" y2="120" stroke="rgba(253,164,175,.3)" strokeWidth="1"/><text x="140" y="142" fontFamily="Arial" fontSize="12" fill="rgba(255,255,255,.7)" textAnchor="middle">Por cada like, comentario</text><text x="140" y="160" fontFamily="Arial" fontSize="12" fill="rgba(255,255,255,.7)" textAnchor="middle">y mensaje de apoyo 🙏</text></>)},
+  {id:"t33",icon:"❤️",name:"Agradecimiento",desc:"Gracias a tu comunidad fiel",
+   preview:TP("linear-gradient(135deg,#4c0519,#881337)",<>
+     <div style={{fontSize:34,marginBottom:8}}>❤️</div>
+     <div style={{color:"white",fontSize:20,fontWeight:900}}>GRACIAS</div>
+     <div style={{color:"#fda4af",fontSize:16,fontWeight:900}}>COMUNIDAD</div>
+     <div style={{width:36,height:1,background:"rgba(253,164,175,.3)",margin:"8px 0"}}/>
+     <div style={{color:"rgba(255,255,255,.6)",fontSize:11,textAlign:"center",lineHeight:1.5}}>Por cada like, comentario<br/>y mensaje de apoyo 🙏</div>
+   </>)},
 
   {id:"t34",icon:"🎪",name:"Evento / Webinar",desc:"Invitación a un evento especial",
-   preview:T(<><rect width="280" height="180" fill="#0f172a"/><rect x="12" y="12" width="256" height="156" rx="12" fill="none" stroke="#a855f7" strokeWidth="1.5"/><text x="140" y="48" fontFamily="Arial Black" fontSize="12" fill="#a855f7" textAnchor="middle" letterSpacing="3">EVENTO GRATUITO</text><text x="140" y="76" fontFamily="Arial Black" fontSize="22" fill="white" textAnchor="middle">WEBINAR</text><text x="140" y="98" fontFamily="Arial Black" fontSize="22" fill="#f0abfc" textAnchor="middle">EN VIVO</text><text x="140" y="120" fontFamily="Arial" fontSize="12" fill="rgba(255,255,255,.6)" textAnchor="middle">📅 Sábado 15 · 18:00hs</text><rect x="40" y="132" width="200" height="28" rx="14" fill="#7c3aed"/><text x="140" y="150" fontFamily="Arial Black" fontSize="12" fill="white" textAnchor="middle">RESERVAR LUGAR GRATIS</text></>)},
+   preview:TP("#0f172a",<div style={{border:"1.5px solid #a855f7",borderRadius:12,padding:"14px 16px",width:"100%",textAlign:"center"}}>
+     <div style={{color:"#a855f7",fontSize:9,letterSpacing:3,marginBottom:6}}>EVENTO GRATUITO</div>
+     <div style={{color:"white",fontSize:18,fontWeight:900,lineHeight:1.2}}>WEBINAR<br/><span style={{color:"#f0abfc"}}>EN VIVO</span></div>
+     <div style={{color:"rgba(255,255,255,.5)",fontSize:10,margin:"8px 0"}}>📅 Sábado 15 · 18:00hs</div>
+     <div style={{background:"#7c3aed",borderRadius:15,padding:"7px",color:"white",fontSize:10,fontWeight:900}}>RESERVAR LUGAR GRATIS</div>
+   </div>)},
 
   {id:"t35",icon:"📱",name:"Story interactiva",desc:"Diseño vertical para Instagram Stories",
-   preview:T(<><rect width="280" height="180" fill="#4c1d95"/><rect x="0" y="0" width="280" height="180" fill="url(#sg)"/><defs><linearGradient id="sg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="rgba(109,40,217,.8)"/><stop offset="100%" stopColor="rgba(236,72,153,.6)"/></linearGradient></defs><text x="140" y="44" fontFamily="Arial Black" fontSize="15" fill="white" textAnchor="middle">¿Cuál es tu</text><text x="140" y="66" fontFamily="Arial Black" fontSize="15" fill="#f0abfc" textAnchor="middle">red favorita?</text><rect x="20" y="82" width="112" height="52" rx="12" fill="rgba(255,255,255,.2)" stroke="white" strokeWidth="1.5"/><rect x="148" y="82" width="112" height="52" rx="12" fill="rgba(255,255,255,.1)"/><text x="76" y="114" fontSize="22" textAnchor="middle">📸</text><text x="204" y="108" fontSize="18" textAnchor="middle">📘</text><text x="76" y="148" fontFamily="Arial Black" fontSize="11" fill="white" textAnchor="middle">Instagram</text><text x="204" y="148" fontFamily="Arial Black" fontSize="11" fill="rgba(255,255,255,.6)" textAnchor="middle">Facebook</text></>)},
+   preview:TP("linear-gradient(160deg,#4c1d95,#be185d)",<>
+     <div style={{color:"white",fontSize:14,fontWeight:900,textAlign:"center",marginBottom:14}}>¿Cuál es tu<br/><span style={{color:"#f0abfc"}}>red favorita?</span></div>
+     <div style={{display:"flex",gap:8,width:"100%"}}>
+       <div style={{flex:1,background:"rgba(255,255,255,.25)",border:"1.5px solid white",borderRadius:12,padding:"8px",textAlign:"center"}}>
+         <div style={{fontSize:20}}>📸</div>
+         <div style={{color:"white",fontSize:10,fontWeight:700,marginTop:4}}>Instagram</div>
+       </div>
+       <div style={{flex:1,background:"rgba(255,255,255,.1)",borderRadius:12,padding:"8px",textAlign:"center"}}>
+         <div style={{fontSize:20}}>📘</div>
+         <div style={{color:"rgba(255,255,255,.5)",fontSize:10,marginTop:4}}>Facebook</div>
+       </div>
+     </div>
+   </>)},
 
   {id:"t36",icon:"🏅",name:"Premio / Certificación",desc:"Distinción o reconocimiento obtenido",
-   preview:T(<><rect width="280" height="180" fill="#1a1200"/><circle cx="140" cy="72" r="50" fill="rgba(252,211,77,.08)" stroke="rgba(252,211,77,.2)" strokeWidth="1.5"/><text x="140" y="80" fontSize="44" textAnchor="middle">🏅</text><text x="140" y="130" fontFamily="Arial Black" fontSize="14" fill="#fcd34d" textAnchor="middle">PREMIADOS</text><text x="140" y="150" fontFamily="Arial Black" fontSize="14" fill="white" textAnchor="middle">MEJOR EMPRESA 2024</text><line x1="60" y1="158" x2="220" y2="158" stroke="rgba(252,211,77,.2)" strokeWidth="1"/><text x="140" y="174" fontFamily="Arial" fontSize="10" fill="rgba(255,255,255,.4)" textAnchor="middle">Reconocimiento nacional · Sector XYZ</text></>)},
+   preview:TP("linear-gradient(135deg,#1a1200,#292100)",<>
+     <div style={{fontSize:40,marginBottom:6}}>🏅</div>
+     <div style={{color:"#fcd34d",fontSize:11,fontWeight:900,letterSpacing:2}}>PREMIADOS</div>
+     <div style={{color:"white",fontSize:14,fontWeight:900}}>MEJOR EMPRESA 2024</div>
+     <div style={{width:36,height:1,background:"rgba(252,211,77,.3)",margin:"8px 0"}}/>
+     <div style={{color:"rgba(255,255,255,.4)",fontSize:10}}>Reconocimiento nacional · Sector XYZ</div>
+   </>)},
 
   {id:"t37",icon:"🌐",name:"Expansión / Global",desc:"Crecimiento o presencia internacional",
-   preview:T(<><rect width="280" height="180" fill="#0f172a"/><text x="140" y="52" fontSize="40" textAnchor="middle">🌐</text><text x="140" y="86" fontFamily="Arial Black" fontSize="20" fill="#38bdf8" textAnchor="middle">PRESENCIA</text><text x="140" y="110" fontFamily="Arial Black" fontSize="20" fill="white" textAnchor="middle">GLOBAL</text><line x1="60" y1="120" x2="220" y2="120" stroke="rgba(56,189,248,.2)" strokeWidth="1"/><text x="140" y="142" fontFamily="Arial" fontSize="12" fill="rgba(255,255,255,.6)" textAnchor="middle">🇦🇷 🇧🇷 🇲🇽 🇨🇱 🇨🇴</text><text x="140" y="164" fontFamily="Arial Black" fontSize="12" fill="#38bdf8" textAnchor="middle">15 países · 50.000 clientes</text></>)},
+   preview:TP("#0f172a",<>
+     <div style={{fontSize:34,marginBottom:8}}>🌐</div>
+     <div style={{color:"#38bdf8",fontSize:18,fontWeight:900}}>PRESENCIA</div>
+     <div style={{color:"white",fontSize:18,fontWeight:900}}>GLOBAL</div>
+     <div style={{width:36,height:1,background:"rgba(56,189,248,.2)",margin:"8px 0"}}/>
+     <div style={{fontSize:16,marginBottom:4}}>🇦🇷 🇧🇷 🇲🇽 🇨🇱 🇨🇴</div>
+     <div style={{color:"#38bdf8",fontSize:11,fontWeight:700}}>15 países · 50.000 clientes</div>
+   </>)},
 
-  {id:"t38",icon:"🔁",name:"Contenido evergreen",desc:"Post atemporal que siempre suma",
-   preview:T(<><rect width="280" height="180" fill="#1e1b4b"/><rect x="16" y="16" width="248" height="148" rx="10" fill="rgba(99,102,241,.15)" stroke="#6366f1" strokeWidth="1"/><text x="140" y="52" fontFamily="Arial Black" fontSize="15" fill="#a5b4fc" textAnchor="middle">CONTENIDO</text><text x="140" y="74" fontFamily="Arial Black" fontSize="15" fill="white" textAnchor="middle">SIEMPRE ÚTIL</text><text x="140" y="104" fontSize="32" textAnchor="middle">♻️</text><text x="140" y="132" fontFamily="Arial" fontSize="12" fill="rgba(255,255,255,.7)" textAnchor="middle">Consejos que no tienen</text><text x="140" y="150" fontFamily="Arial" fontSize="12" fill="rgba(255,255,255,.7)" textAnchor="middle">fecha de vencimiento</text></>)},
+  {id:"t38",icon:"🔁",name:"Contenido evergreen",desc:"Post atemporal, siempre relevante",
+   preview:TP("#1e1b4b",<div style={{border:"1px solid #6366f1",borderRadius:12,padding:"16px",width:"100%",textAlign:"center",background:"rgba(99,102,241,.1)"}}>
+     <div style={{color:"#a5b4fc",fontSize:13,fontWeight:900,marginBottom:2}}>CONTENIDO</div>
+     <div style={{color:"white",fontSize:13,fontWeight:900,marginBottom:10}}>SIEMPRE ÚTIL</div>
+     <div style={{fontSize:24,marginBottom:8}}>♻️</div>
+     <div style={{color:"rgba(255,255,255,.5)",fontSize:11,lineHeight:1.5}}>Consejos que no tienen<br/>fecha de vencimiento</div>
+   </div>)},
 
   {id:"t39",icon:"💌",name:"Newsletter / Email",desc:"Invitá a tu lista de suscriptores",
-   preview:T(<><rect width="280" height="180" fill="#0f172a"/><rect x="30" y="24" width="220" height="132" rx="10" fill="#1e293b"/><text x="140" y="60" fontSize="30" textAnchor="middle">💌</text><text x="140" y="88" fontFamily="Arial Black" fontSize="16" fill="white" textAnchor="middle">SUSCRIBITE</text><text x="140" y="108" fontFamily="Arial" fontSize="11" fill="rgba(255,255,255,.6)" textAnchor="middle">Contenido exclusivo cada semana</text><rect x="50" y="120" width="180" height="28" rx="14" fill="#6d28d9"/><text x="140" y="139" fontFamily="Arial Black" fontSize="12" fill="white" textAnchor="middle">QUIERO SUSCRIBIRME →</text></>)},
+   preview:TP("#0f172a",<div style={{background:"#1e293b",borderRadius:12,padding:"16px",width:"100%",textAlign:"center"}}>
+     <div style={{fontSize:26,marginBottom:8}}>💌</div>
+     <div style={{color:"white",fontSize:13,fontWeight:900,marginBottom:4}}>SUSCRIBITE</div>
+     <div style={{color:"rgba(255,255,255,.5)",fontSize:10,lineHeight:1.5,marginBottom:12}}>Contenido exclusivo<br/>cada semana</div>
+     <div style={{background:"#6d28d9",borderRadius:15,padding:"8px",color:"white",fontSize:10,fontWeight:900}}>QUIERO SUSCRIBIRME →</div>
+   </div>)},
 
   {id:"t40",icon:"🚀",name:"Inspiración emprendedor",desc:"Motivación para tu audiencia",
-   preview:T(<><rect width="280" height="180" fill="#0a0a1a"/><rect x="0" y="0" width="280" height="180" fill="url(#ins)"/><defs><radialGradient id="ins" cx="50%" cy="50%"><stop offset="0%" stopColor="rgba(168,85,247,.15)"/><stop offset="100%" stopColor="transparent"/></radialGradient></defs><text x="140" y="52" fontSize="36" textAnchor="middle">🚀</text><text x="140" y="84" fontFamily="Arial Black" fontSize="22" fill="#a855f7" textAnchor="middle">NO PARES</text><text x="140" y="108" fontFamily="Arial Black" fontSize="22" fill="white" textAnchor="middle">DE CRECER</text><line x1="60" y1="118" x2="220" y2="118" stroke="rgba(168,85,247,.3)" strokeWidth="1"/><text x="140" y="142" fontFamily="Georgia,serif" fontSize="13" fill="rgba(255,255,255,.5)" textAnchor="middle" fontStyle="italic">"Tu momento es ahora."</text><text x="140" y="166" fontFamily="Arial Black" fontSize="11" fill="#a855f7" textAnchor="middle">— MCM · my community manager</text></>)},
+   preview:TP("radial-gradient(ellipse at center,#2d1b69 0%,#0a0a1a 100%)",<>
+     <div style={{fontSize:34,marginBottom:10}}>🚀</div>
+     <div style={{color:"#a855f7",fontSize:20,fontWeight:900}}>NO PARES</div>
+     <div style={{color:"white",fontSize:20,fontWeight:900}}>DE CRECER</div>
+     <div style={{width:36,height:1,background:"rgba(168,85,247,.3)",margin:"10px 0"}}/>
+     <div style={{color:"rgba(255,255,255,.4)",fontSize:11,fontStyle:"italic",fontFamily:"Georgia,serif"}}>"Tu momento es ahora."</div>
+     <div style={{color:"#a855f7",fontSize:9,fontWeight:700,marginTop:4}}>— MCM · my community manager</div>
+   </>)},
 ];
-
-
 function BrandScreen({brand,saveBrand,showToast,onNext}) {
   const [form,setForm]=useState({
     industry: brand.industry||"",
@@ -1760,11 +2048,9 @@ Responde SOLO con el JSON, sin texto adicional.`,
                     }}>
                       {/* Check badge */}
                       {selected&&<div style={{position:"absolute",top:8,right:8,background:"#7c3aed",borderRadius:"50%",width:26,height:26,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:"#fff",zIndex:3,boxShadow:"0 2px 8px rgba(0,0,0,.5)"}}>✓</div>}
-                      {/* Preview — aspect ratio 16:10 */}
-                      <div style={{position:"relative",paddingTop:"62.5%",background:"#111",overflow:"hidden"}}>
-                        <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                          {t.preview}
-                        </div>
+                      {/* Preview — altura fija con flex */}
+                      <div style={{height:160,overflow:"hidden",flexShrink:0}}>
+                        {t.preview}
                       </div>
                       {/* Info */}
                       <div style={{padding:"12px 14px 14px",background:"var(--surface2)"}}>
