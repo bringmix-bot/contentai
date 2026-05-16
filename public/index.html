@@ -1372,6 +1372,37 @@ const TEMPLATES_40 = [
   {id:"t39",icon:"💌",name:"Newsletter / Email",desc:"Invitá a suscribirse",bg:"#0f172a",html:`<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:20px;box-sizing:border-box"><div style="background:#1e293b;border-radius:16px;padding:24px;width:100%;text-align:center"><div style="font-size:44px;margin-bottom:12px">💌</div><div style="color:white;font-size:18px;font-weight:900;margin-bottom:8px">SUSCRIBITE</div><div style="color:rgba(255,255,255,.5);font-size:13px;line-height:1.6;margin-bottom:16px">Contenido exclusivo<br/>cada semana</div><div style="background:#6d28d9;border-radius:20px;padding:11px;color:white;font-size:13px;font-weight:900">QUIERO SUSCRIBIRME →</div></div></div>`},
   {id:"t40",icon:"🚀",name:"Inspiración emprendedor",desc:"Motivación para tu audiencia",bg:"radial-gradient(ellipse at center,#2d1b69 0%,#0a0a1a 100%)",html:`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:24px"><div style="font-size:52px;margin-bottom:14px">🚀</div><div style="color:#a855f7;font-size:26px;font-weight:900">NO PARES</div><div style="color:white;font-size:26px;font-weight:900">DE CRECER</div><div style="width:48px;height:2px;background:rgba(168,85,247,.3);margin:14px 0"></div><div style="color:rgba(255,255,255,.4);font-size:14px;font-style:italic;font-family:Georgia,serif">"Tu momento es ahora."</div><div style="color:#a855f7;font-size:11px;font-weight:700;margin-top:8px">— MCM · my community manager</div></div>`},
 ];
+function renderTmplGrid(selected, upd) {
+  const grid = document.getElementById('tmpl-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:20px;';
+  TEMPLATES_40.forEach(t => {
+    const isSel = (selected||[]).includes(t.id);
+    const card = document.createElement('div');
+    card.style.cssText = `border-radius:14px;overflow:hidden;cursor:pointer;border:${isSel?'3px solid #7c3aed':'2px solid rgba(255,255,255,.1)'};background:#1a1a2e;display:flex;flex-direction:column;position:relative;`;
+    card.innerHTML = `
+      ${isSel?'<div style="position:absolute;top:8px;right:8px;background:#7c3aed;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;z-index:3;box-shadow:0 2px 8px rgba(0,0,0,.5)">✓</div>':''}
+      <div style="height:200px;background:${t.bg};overflow:hidden;flex-shrink:0;display:flex;align-items:stretch;">
+        <div style="width:100%;height:200px;">${t.html}</div>
+      </div>
+      <div style="padding:12px 14px 14px;background:#1e1e30;">
+        <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:4px">${t.icon} ${t.name}</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.5);line-height:1.5">${t.desc}</div>
+      </div>`;
+    card.onclick = () => {
+      const curr = window._mcmSelected || [];
+      const next = curr.includes(t.id) ? curr.filter(x=>x!==t.id) : [...curr, t.id];
+      window._mcmSelected = next;
+      upd("selectedTemplates", next);
+      renderTmplGrid(next, upd);
+    };
+    wrap.appendChild(card);
+  });
+  grid.appendChild(wrap);
+}
+
 function BrandScreen({brand,saveBrand,showToast,onNext}) {
   const [form,setForm]=useState({
     industry: brand.industry||"",
@@ -1622,7 +1653,7 @@ Responde SOLO con el JSON, sin texto adicional.`,
             {(form.selectedTemplates||[]).length>0&&<span style={{color:"var(--accent2)",fontWeight:600}}> {(form.selectedTemplates||[]).length} seleccionados</span>}
           </p>
           <button className="btn btn-primary" style={{fontSize:13,padding:"9px 20px"}}
-            onClick={()=>upd("showTemplateModal",true)}>
+            onClick={()=>{upd("showTemplateModal",true);window._mcmSelected=form.selectedTemplates||[];setTimeout(()=>renderTmplGrid(form.selectedTemplates||[],upd),100);}}>
             🎨 Seleccionar templates
           </button>
           {(form.selectedTemplates||[]).length>0&&(
@@ -1644,55 +1675,30 @@ Responde SOLO con el JSON, sin texto adicional.`,
         {/* Modal 40 templates */}
         {form.showTemplateModal&&ReactDOM.createPortal(
           <div style={{position:"fixed",inset:0,zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.85)"}}>
-            <div style={{background:"var(--surface)",borderRadius:20,width:"min(98vw,1280px)",height:"94vh",display:"flex",flexDirection:"column",overflow:"hidden",boxShadow:"0 24px 80px rgba(0,0,0,.6)"}}>
+            <div style={{background:"var(--surface)",borderRadius:20,width:"min(98vw,1280px)",height:"94vh",display:"flex",flexDirection:"column",boxShadow:"0 24px 80px rgba(0,0,0,.6)"}}>
               {/* Header */}
               <div style={{padding:"22px 32px 18px",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
                 <div>
                   <div style={{fontSize:22,fontWeight:800,fontFamily:"'Syne',sans-serif"}}>🎨 Elegí tus templates</div>
                   <div style={{fontSize:13,color:"var(--muted)",marginTop:3}}>Seleccioná los que más se adapten a tu marca · <span style={{color:"var(--accent2)",fontWeight:700}}>{(form.selectedTemplates||[]).length} elegidos</span></div>
                 </div>
-                <button onClick={()=>upd("showTemplateModal",false)} style={{background:"var(--surface2)",border:"none",color:"var(--text)",borderRadius:10,width:40,height:40,cursor:"pointer",fontSize:20,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+                <button onClick={()=>upd("showTemplateModal",false)} style={{background:"var(--surface2)",border:"none",color:"var(--text)",borderRadius:10,width:40,height:40,cursor:"pointer",fontSize:20}}>✕</button>
               </div>
 
-              {/* Grid scrolleable — 4 columnas */}
-              <div style={{overflowY:"auto",padding:"24px 28px",display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:16,flex:1}}>
-                {TEMPLATES_40.map(t=>{
-                  const selected=(form.selectedTemplates||[]).includes(t.id);
-                  return(
-                    <div key={t.id} onClick={()=>{
-                      const curr=form.selectedTemplates||[];
-                      upd("selectedTemplates", selected ? curr.filter(x=>x!==t.id) : [...curr,t.id]);
-                    }} style={{
-                      background:"var(--surface2)",
-                      border:`2px solid ${selected?"#7c3aed":"var(--border)"}`,
-                      borderRadius:14,
-                      overflow:"hidden",
-                      cursor:"pointer",
-                      transition:"all .2s",
-                      position:"relative",
-                      display:"flex",
-                      flexDirection:"column"
-                    }}>
-                      {/* Check badge */}
-                      {selected&&<div style={{position:"absolute",top:8,right:8,background:"#7c3aed",borderRadius:"50%",width:26,height:26,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:"#fff",zIndex:3,boxShadow:"0 2px 8px rgba(0,0,0,.5)"}}>✓</div>}
-                      {/* Preview */}
-                      <div style={{height:200,background:t.bg,overflow:"hidden",flexShrink:0}}
-                           dangerouslySetInnerHTML={{__html:t.html}}/>
-                      {/* Info */}
-                      <div style={{padding:"12px 14px 14px",background:"var(--surface2)"}}>
-                        <div style={{fontSize:13,fontWeight:700,color:"var(--text)",marginBottom:4}}>{t.icon} {t.name}</div>
-                        <div style={{fontSize:11,color:"var(--muted)",lineHeight:1.6}}>{t.desc}</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              {/* Grid — HTML puro inyectado */}
+              <div id="tmpl-grid" style={{overflowY:"auto",padding:"24px 28px",flex:1}}/>
 
               {/* Footer */}
               <div style={{padding:"14px 24px",borderTop:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
-                <button onClick={()=>upd("selectedTemplates",TEMPLATES_40.map(t=>t.id))} className="btn btn-ghost" style={{fontSize:12}}>Seleccionar todos</button>
+                <button onClick={()=>{
+                  upd("selectedTemplates",TEMPLATES_40.map(t=>t.id));
+                  setTimeout(()=>renderTmplGrid(form.selectedTemplates||TEMPLATES_40.map(t=>t.id),upd),50);
+                }} className="btn btn-ghost" style={{fontSize:12}}>Seleccionar todos</button>
                 <div style={{display:"flex",gap:10}}>
-                  <button onClick={()=>upd("selectedTemplates",[])} className="btn btn-ghost" style={{fontSize:12}}>Limpiar</button>
+                  <button onClick={()=>{
+                    upd("selectedTemplates",[]);
+                    setTimeout(()=>renderTmplGrid([],upd),50);
+                  }} className="btn btn-ghost" style={{fontSize:12}}>Limpiar</button>
                   <button onClick={()=>upd("showTemplateModal",false)} className="btn btn-primary" style={{fontSize:13}}>Confirmar selección →</button>
                 </div>
               </div>
