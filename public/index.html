@@ -1330,7 +1330,7 @@ function ConnectScreen({socials,saveSocials,showToast,onNext}) {
 // ════════════════════════════════════════════════════════════════
 // 40 TEMPLATES — previews estilo editorial grande
 // ════════════════════════════════════════════════════════════════
-const T = (content) => <svg viewBox="0 0 280 180" xmlns="http://www.w3.org/2000/svg" style={{width:"100%",height:"100%",display:"block"}}>{content}</svg>;
+const T = (content) => <svg viewBox="0 0 280 180" xmlns="http://www.w3.org/2000/svg" style={{width:"100%",height:"100%",display:"block",preserveAspectRatio:"xMidYMid slice"}}>{content}</svg>;
 
 const TEMPLATES_40 = [
   {id:"t01",icon:"💬",name:"Frase motivacional",desc:"Cita inspiradora con tipografía grande",
@@ -1726,19 +1726,19 @@ Responde SOLO con el JSON, sin texto adicional.`,
 
         {/* Modal 40 templates */}
         {form.showTemplateModal&&ReactDOM.createPortal(
-          <div style={{position:"fixed",inset:0,zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.7)"}}>
-            <div style={{background:"var(--surface)",borderRadius:20,width:"min(95vw,860px)",maxHeight:"88vh",display:"flex",flexDirection:"column",overflow:"hidden",boxShadow:"0 24px 80px rgba(0,0,0,.5)"}}>
+          <div style={{position:"fixed",inset:0,zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.85)"}}>
+            <div style={{background:"var(--surface)",borderRadius:20,width:"min(98vw,1200px)",height:"92vh",display:"flex",flexDirection:"column",overflow:"hidden",boxShadow:"0 24px 80px rgba(0,0,0,.6)"}}>
               {/* Header */}
-              <div style={{padding:"20px 24px 16px",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
+              <div style={{padding:"20px 28px 16px",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
                 <div>
-                  <div style={{fontSize:18,fontWeight:800,fontFamily:"'Syne',sans-serif"}}>🎨 Elegí tus templates</div>
-                  <div style={{fontSize:12,color:"var(--muted)",marginTop:2}}>Seleccioná los que más se adapten a tu marca · <span style={{color:"var(--accent2)"}}>{(form.selectedTemplates||[]).length} elegidos</span></div>
+                  <div style={{fontSize:20,fontWeight:800,fontFamily:"'Syne',sans-serif"}}>🎨 Elegí tus templates</div>
+                  <div style={{fontSize:13,color:"var(--muted)",marginTop:3}}>Seleccioná los que más se adapten a tu marca · <span style={{color:"var(--accent2)",fontWeight:600}}>{(form.selectedTemplates||[]).length} elegidos</span></div>
                 </div>
-                <button onClick={()=>upd("showTemplateModal",false)} style={{background:"var(--surface2)",border:"none",color:"var(--muted)",borderRadius:8,width:32,height:32,cursor:"pointer",fontSize:16}}>✕</button>
+                <button onClick={()=>upd("showTemplateModal",false)} style={{background:"var(--surface2)",border:"none",color:"var(--muted)",borderRadius:8,width:36,height:36,cursor:"pointer",fontSize:18}}>✕</button>
               </div>
 
-              {/* Grid */}
-              <div style={{overflowY:"auto",padding:"20px 24px",display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:16}}>
+              {/* Grid — scrolleable */}
+              <div style={{overflowY:"auto",padding:"24px 28px",display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:20,flex:1}}>
                 {TEMPLATES_40.map(t=>{
                   const selected=(form.selectedTemplates||[]).includes(t.id);
                   return(
@@ -1746,14 +1746,14 @@ Responde SOLO con el JSON, sin texto adicional.`,
                       const curr=form.selectedTemplates||[];
                       upd("selectedTemplates", selected ? curr.filter(x=>x!==t.id) : [...curr,t.id]);
                     }} style={{background:selected?"rgba(109,40,217,.12)":"var(--surface2)",border:`2px solid ${selected?"var(--accent2)":"var(--border)"}`,borderRadius:16,overflow:"hidden",cursor:"pointer",transition:"all .18s",position:"relative"}}>
-                      {selected&&<div style={{position:"absolute",top:8,right:8,background:"var(--accent2)",borderRadius:"50%",width:24,height:24,display:"grid",placeItems:"center",fontSize:13,color:"#fff",zIndex:2,boxShadow:"0 2px 8px rgba(0,0,0,.3)"}}>✓</div>}
-                      {/* Preview SVG */}
-                      <div style={{height:130,overflow:"hidden"}}>
+                      {selected&&<div style={{position:"absolute",top:10,right:10,background:"var(--accent2)",borderRadius:"50%",width:28,height:28,display:"grid",placeItems:"center",fontSize:14,color:"#fff",zIndex:2,boxShadow:"0 2px 8px rgba(0,0,0,.4)"}}>✓</div>}
+                      {/* Preview SVG — altura generosa */}
+                      <div style={{height:180,overflow:"hidden",background:"#0d0d18",display:"flex",alignItems:"stretch"}}>
                         {t.preview}
                       </div>
-                      <div style={{padding:"10px 12px 14px"}}>
-                        <div style={{fontSize:13,fontWeight:700,marginBottom:3}}>{t.icon} {t.name}</div>
-                        <div style={{fontSize:11,color:"var(--muted)",lineHeight:1.5}}>{t.desc}</div>
+                      <div style={{padding:"12px 14px 16px"}}>
+                        <div style={{fontSize:14,fontWeight:700,marginBottom:4}}>{t.icon} {t.name}</div>
+                        <div style={{fontSize:12,color:"var(--muted)",lineHeight:1.5}}>{t.desc}</div>
                       </div>
                     </div>
                   );
