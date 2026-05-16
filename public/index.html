@@ -1330,7 +1330,9 @@ function ConnectScreen({socials,saveSocials,showToast,onNext}) {
 // ════════════════════════════════════════════════════════════════
 // 40 TEMPLATES — previews estilo editorial grande
 // ════════════════════════════════════════════════════════════════
-const T = (content) => <svg viewBox="0 0 280 180" xmlns="http://www.w3.org/2000/svg" style={{width:"100%",height:"100%",display:"block",preserveAspectRatio:"xMidYMid slice"}}>{content}</svg>;
+const T = (content) => (
+  <svg viewBox="0 0 320 200" xmlns="http://www.w3.org/2000/svg" width="320" height="200">{content}</svg>
+);
 
 const TEMPLATES_40 = [
   {id:"t01",icon:"💬",name:"Frase motivacional",desc:"Cita inspiradora con tipografía grande",
@@ -1727,33 +1729,47 @@ Responde SOLO con el JSON, sin texto adicional.`,
         {/* Modal 40 templates */}
         {form.showTemplateModal&&ReactDOM.createPortal(
           <div style={{position:"fixed",inset:0,zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.85)"}}>
-            <div style={{background:"var(--surface)",borderRadius:20,width:"min(98vw,1200px)",height:"92vh",display:"flex",flexDirection:"column",overflow:"hidden",boxShadow:"0 24px 80px rgba(0,0,0,.6)"}}>
+            <div style={{background:"var(--surface)",borderRadius:20,width:"min(98vw,1280px)",height:"94vh",display:"flex",flexDirection:"column",overflow:"hidden",boxShadow:"0 24px 80px rgba(0,0,0,.6)"}}>
               {/* Header */}
-              <div style={{padding:"20px 28px 16px",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
+              <div style={{padding:"22px 32px 18px",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
                 <div>
-                  <div style={{fontSize:20,fontWeight:800,fontFamily:"'Syne',sans-serif"}}>🎨 Elegí tus templates</div>
-                  <div style={{fontSize:13,color:"var(--muted)",marginTop:3}}>Seleccioná los que más se adapten a tu marca · <span style={{color:"var(--accent2)",fontWeight:600}}>{(form.selectedTemplates||[]).length} elegidos</span></div>
+                  <div style={{fontSize:22,fontWeight:800,fontFamily:"'Syne',sans-serif"}}>🎨 Elegí tus templates</div>
+                  <div style={{fontSize:13,color:"var(--muted)",marginTop:3}}>Seleccioná los que más se adapten a tu marca · <span style={{color:"var(--accent2)",fontWeight:700}}>{(form.selectedTemplates||[]).length} elegidos</span></div>
                 </div>
-                <button onClick={()=>upd("showTemplateModal",false)} style={{background:"var(--surface2)",border:"none",color:"var(--muted)",borderRadius:8,width:36,height:36,cursor:"pointer",fontSize:18}}>✕</button>
+                <button onClick={()=>upd("showTemplateModal",false)} style={{background:"var(--surface2)",border:"none",color:"var(--text)",borderRadius:10,width:40,height:40,cursor:"pointer",fontSize:20,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
               </div>
 
-              {/* Grid — scrolleable */}
-              <div style={{overflowY:"auto",padding:"24px 28px",display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:20,flex:1}}>
+              {/* Grid scrolleable — 4 columnas */}
+              <div style={{overflowY:"auto",padding:"28px 32px",display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:24,flex:1}}>
                 {TEMPLATES_40.map(t=>{
                   const selected=(form.selectedTemplates||[]).includes(t.id);
                   return(
                     <div key={t.id} onClick={()=>{
                       const curr=form.selectedTemplates||[];
                       upd("selectedTemplates", selected ? curr.filter(x=>x!==t.id) : [...curr,t.id]);
-                    }} style={{background:selected?"rgba(109,40,217,.12)":"var(--surface2)",border:`2px solid ${selected?"var(--accent2)":"var(--border)"}`,borderRadius:16,overflow:"hidden",cursor:"pointer",transition:"all .18s",position:"relative"}}>
-                      {selected&&<div style={{position:"absolute",top:10,right:10,background:"var(--accent2)",borderRadius:"50%",width:28,height:28,display:"grid",placeItems:"center",fontSize:14,color:"#fff",zIndex:2,boxShadow:"0 2px 8px rgba(0,0,0,.4)"}}>✓</div>}
-                      {/* Preview SVG — altura generosa */}
-                      <div style={{height:180,overflow:"hidden",background:"#0d0d18",display:"flex",alignItems:"stretch"}}>
-                        {t.preview}
+                    }} style={{
+                      background:"var(--surface2)",
+                      border:`2px solid ${selected?"#7c3aed":"var(--border)"}`,
+                      borderRadius:14,
+                      overflow:"hidden",
+                      cursor:"pointer",
+                      transition:"all .2s",
+                      boxShadow: selected?"0 0 0 4px rgba(124,58,237,.2)":"none",
+                      transform: selected?"scale(1.02)":"scale(1)",
+                      position:"relative"
+                    }}>
+                      {/* Check badge */}
+                      {selected&&<div style={{position:"absolute",top:8,right:8,background:"#7c3aed",borderRadius:"50%",width:26,height:26,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:"#fff",zIndex:3,boxShadow:"0 2px 8px rgba(0,0,0,.5)"}}>✓</div>}
+                      {/* Preview — aspect ratio 16:10 */}
+                      <div style={{position:"relative",paddingTop:"62.5%",background:"#111",overflow:"hidden"}}>
+                        <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                          {t.preview}
+                        </div>
                       </div>
-                      <div style={{padding:"12px 14px 16px"}}>
-                        <div style={{fontSize:14,fontWeight:700,marginBottom:4}}>{t.icon} {t.name}</div>
-                        <div style={{fontSize:12,color:"var(--muted)",lineHeight:1.5}}>{t.desc}</div>
+                      {/* Info */}
+                      <div style={{padding:"12px 14px 14px",background:"var(--surface2)"}}>
+                        <div style={{fontSize:13,fontWeight:700,color:"var(--text)",marginBottom:4}}>{t.icon} {t.name}</div>
+                        <div style={{fontSize:11,color:"var(--muted)",lineHeight:1.6}}>{t.desc}</div>
                       </div>
                     </div>
                   );
