@@ -770,7 +770,6 @@ function LandingPage({onLogin, onRegister}) {
       <nav style={{position:"fixed",top:0,left:0,right:0,zIndex:200,background:"rgba(255,255,255,0.94)",backdropFilter:"blur(20px)",borderBottom:"1px solid #f0eeff",padding:"0 clamp(20px,5vw,64px)",height:68,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <svg viewBox="0 0 90 38" width="80" height="34" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="lg2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#6d28d9"/><stop offset="100%" stopColor="#ec4899"/></linearGradient></defs><rect x="1" y="1" width="88" height="36" rx="8" fill="url(#lg2)"/><text x="45" y="28" fontFamily="'Playfair Display',Georgia,serif" fontSize="22" fontWeight="700" fill="white" textAnchor="middle" letterSpacing="3">MCM</text></svg>
-          <span style={{fontFamily:HF,fontWeight:700,fontSize:18,color:"#0f0f1a",letterSpacing:"-0.3px"}}>MCM</span>
         </div>
         <div style={{display:"flex",gap:10,alignItems:"center"}}>
           <button onClick={onLogin} className="landing-btn-ghost" style={{padding:"9px 22px",fontSize:14}}>Iniciar sesión</button>
@@ -859,7 +858,7 @@ function LandingPage({onLogin, onRegister}) {
               <line x1="267" y1="234" x2="277" y2="234" stroke="#1a1010" strokeWidth="2"/>
               <line x1="272" y1="229" x2="272" y2="239" stroke="#1a1010" strokeWidth="2"/>
               {/* PANTALLA MCM — logo rectangular degradé más pequeño y centrado */}
-              <rect x="148" y="252" width="124" height="72" rx="9" fill="#1a1a2e" stroke="#1a1010" strokeWidth="1"/>
+              <rect x="148" y="252" width="124" height="72" rx="9" fill="#c8dce8" stroke="#1a1010" strokeWidth="0.5"/>
               <defs><linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#6d28d9"/><stop offset="100%" stopColor="#ec4899"/></linearGradient></defs>
               <rect x="158" y="262" width="104" height="52" rx="6" fill="url(#rg)"/>
               <text x="210" y="295" fontFamily="'Playfair Display',Georgia,serif" fontSize="28" fontWeight="700" fill="white" textAnchor="middle" letterSpacing="5">MCM</text>
