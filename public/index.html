@@ -782,43 +782,134 @@ function LandingPage({onLogin, onRegister}) {
         {/* Fade central para que el texto sea legible sobre el doodle */}
         <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 70% 65% at 50% 48%, rgba(255,255,255,.97) 35%, rgba(255,255,255,.7) 65%, transparent 100%)",pointerEvents:"none"}} />
 
-        <div style={{position:"relative",zIndex:1,textAlign:"center",maxWidth:800,padding:"60px clamp(20px,5vw,40px)"}}>
-          <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(109,40,217,.07)",border:"1px solid rgba(109,40,217,.18)",borderRadius:24,padding:"7px 18px",fontSize:12,color:"#7c3aed",marginBottom:32,fontWeight:600,letterSpacing:"0.4px",fontFamily:BF}}>
-            ✦ Community Manager con IA · Powered by Claude
+        <div style={{position:"relative",zIndex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:"clamp(20px,4vw,60px)",padding:"60px clamp(20px,5vw,40px)",maxWidth:1200,width:"100%"}}>
+
+          {/* ROBOT IZQ */}
+          <div style={{flexShrink:0,width:"clamp(220px,28vw,380px)"}}>
+            <svg viewBox="0 0 420 560" xmlns="http://www.w3.org/2000/svg" style={{width:"100%",height:"auto"}}>
+              {/* ANTENA IZQ */}
+              <line x1="160" y1="76" x2="152" y2="54" stroke="#1a1010" strokeWidth="3.5" strokeLinecap="round"/>
+              <circle cx="149" cy="49" r="7" fill="#d4e2ea" stroke="#1a1010" strokeWidth="3"/>
+              {/* ANTENA DER */}
+              <line x1="248" y1="78" x2="258" y2="58" stroke="#1a1010" strokeWidth="3" strokeLinecap="round"/>
+              <circle cx="261" cy="53" r="5" fill="#d4e2ea" stroke="#1a1010" strokeWidth="2.5"/>
+              {/* OREJITAS */}
+              <rect x="108" y="88" width="22" height="32" rx="8" fill="#d8e4ea" stroke="#1a1010" strokeWidth="4.5"/>
+              <circle cx="119" cy="104" r="5" fill="#1a1010"/>
+              <rect x="290" y="88" width="22" height="32" rx="8" fill="#d8e4ea" stroke="#1a1010" strokeWidth="4.5"/>
+              <circle cx="301" cy="104" r="5" fill="#1a1010"/>
+              {/* CABEZA */}
+              <rect x="128" y="68" width="164" height="116" rx="22" fill="#d4e2ea" stroke="#1a1010" strokeWidth="6"/>
+              <rect x="139" y="79" width="142" height="96" rx="16" fill="#eaf2f6" strokeWidth="0"/>
+              {/* OJO IZQ */}
+              <circle cx="178" cy="116" r="28" fill="#eaf4f8" stroke="#1a1010" strokeWidth="4"/>
+              <circle cx="181" cy="119" r="19" fill="#2a1818"/>
+              <circle cx="181" cy="119" r="12" fill="#f2f2f2"/>
+              <circle cx="181" cy="119" r="7" fill="#100808"/>
+              <circle cx="173" cy="109" r="6" fill="white"/>
+              {/* OJO DER */}
+              <circle cx="242" cy="116" r="28" fill="#eaf4f8" stroke="#1a1010" strokeWidth="4"/>
+              <circle cx="245" cy="119" r="19" fill="#2a1818"/>
+              <circle cx="245" cy="119" r="12" fill="#f2f2f2"/>
+              <circle cx="245" cy="119" r="7" fill="#100808"/>
+              <circle cx="237" cy="109" r="6" fill="white"/>
+              {/* BOCA */}
+              <circle cx="192" cy="158" r="4" fill="#1a1010"/>
+              <circle cx="204" cy="160" r="3.5" fill="#1a1010"/>
+              <circle cx="216" cy="160" r="3.5" fill="#1a1010"/>
+              <circle cx="228" cy="158" r="4" fill="#1a1010"/>
+              {/* CUELLO */}
+              <rect x="191" y="184" width="38" height="30" rx="4" fill="#d4e2ea" stroke="#1a1010" strokeWidth="3.5"/>
+              <line x1="200" y1="188" x2="200" y2="210" stroke="#1a1010" strokeWidth="2"/>
+              <line x1="210" y1="188" x2="210" y2="210" stroke="#1a1010" strokeWidth="2"/>
+              <line x1="220" y1="188" x2="220" y2="210" stroke="#1a1010" strokeWidth="2"/>
+              {/* BRAZO IZQ */}
+              <path d="M128 242 C108 242 88 250 74 268 C66 280 64 300 64 322 L64 348" fill="none" stroke="#1a1010" strokeWidth="26" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M128 242 C108 242 88 250 74 268 C66 280 64 300 64 322 L64 348" fill="none" stroke="#f0f5f7" strokeWidth="14" strokeLinecap="round" strokeLinejoin="round"/>
+              <line x1="54" y1="276" x2="76" y2="272" stroke="#1a1010" strokeWidth="3.5" strokeLinecap="round"/>
+              <line x1="54" y1="290" x2="74" y2="286" stroke="#1a1010" strokeWidth="3.5" strokeLinecap="round"/>
+              <line x1="54" y1="303" x2="74" y2="301" stroke="#1a1010" strokeWidth="3.5" strokeLinecap="round"/>
+              <line x1="54" y1="316" x2="74" y2="315" stroke="#1a1010" strokeWidth="3.5" strokeLinecap="round"/>
+              <line x1="54" y1="329" x2="74" y2="330" stroke="#1a1010" strokeWidth="3.5" strokeLinecap="round"/>
+              <line x1="54" y1="342" x2="74" y2="344" stroke="#1a1010" strokeWidth="3.5" strokeLinecap="round"/>
+              {/* MANO IZQ — arco abertura abajo */}
+              <path d="M30 400 C30 370 44 352 64 352 C84 352 98 370 98 400" fill="none" stroke="#1a1010" strokeWidth="20" strokeLinecap="round"/>
+              <path d="M30 400 C30 370 44 352 64 352 C84 352 98 370 98 400" fill="none" stroke="#f0f5f7" strokeWidth="9" strokeLinecap="round"/>
+              {/* BRAZO DER */}
+              <path d="M292 242 C312 242 332 250 346 268 C354 280 356 300 356 322 L356 348" fill="none" stroke="#1a1010" strokeWidth="26" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M292 242 C312 242 332 250 346 268 C354 280 356 300 356 322 L356 348" fill="none" stroke="#f0f5f7" strokeWidth="14" strokeLinecap="round" strokeLinejoin="round"/>
+              <line x1="344" y1="276" x2="366" y2="272" stroke="#1a1010" strokeWidth="3.5" strokeLinecap="round"/>
+              <line x1="346" y1="290" x2="366" y2="286" stroke="#1a1010" strokeWidth="3.5" strokeLinecap="round"/>
+              <line x1="346" y1="303" x2="366" y2="301" stroke="#1a1010" strokeWidth="3.5" strokeLinecap="round"/>
+              <line x1="346" y1="316" x2="366" y2="315" stroke="#1a1010" strokeWidth="3.5" strokeLinecap="round"/>
+              <line x1="346" y1="329" x2="366" y2="330" stroke="#1a1010" strokeWidth="3.5" strokeLinecap="round"/>
+              <line x1="346" y1="342" x2="366" y2="344" stroke="#1a1010" strokeWidth="3.5" strokeLinecap="round"/>
+              {/* MANO DER */}
+              <path d="M322 400 C322 370 336 352 356 352 C376 352 390 370 390 400" fill="none" stroke="#1a1010" strokeWidth="20" strokeLinecap="round"/>
+              <path d="M322 400 C322 370 336 352 356 352 C376 352 390 370 390 400" fill="none" stroke="#f0f5f7" strokeWidth="9" strokeLinecap="round"/>
+              {/* CUERPO */}
+              <rect x="126" y="214" width="168" height="166" rx="18" fill="#d4e2ea" stroke="#1a1010" strokeWidth="6"/>
+              <rect x="138" y="226" width="144" height="142" rx="12" fill="#eaf2f6" strokeWidth="0"/>
+              {/* tornillos */}
+              <circle cx="148" cy="234" r="8" fill="white" stroke="#1a1010" strokeWidth="2.5"/>
+              <line x1="143" y1="234" x2="153" y2="234" stroke="#1a1010" strokeWidth="2"/>
+              <line x1="148" y1="229" x2="148" y2="239" stroke="#1a1010" strokeWidth="2"/>
+              <circle cx="272" cy="234" r="8" fill="white" stroke="#1a1010" strokeWidth="2.5"/>
+              <line x1="267" y1="234" x2="277" y2="234" stroke="#1a1010" strokeWidth="2"/>
+              <line x1="272" y1="229" x2="272" y2="239" stroke="#1a1010" strokeWidth="2"/>
+              {/* PANTALLA MCM */}
+              <rect x="148" y="252" width="124" height="72" rx="9" fill="#c8dce8" stroke="#1a1010" strokeWidth="2.5"/>
+              <rect x="154" y="258" width="112" height="60" rx="6" fill="#daeaf4" strokeWidth="0"/>
+              <text x="210" y="302" fontFamily="'Courier New',Courier,monospace" fontSize="52" fontWeight="900" fill="#080808" textAnchor="middle" letterSpacing="8">MCM</text>
+              {/* LUCES */}
+              <circle cx="150" cy="344" r="8" fill="#1a1010"/>
+              <circle cx="174" cy="346" r="5.5" fill="#1a1010"/>
+              <circle cx="193" cy="346" r="5.5" fill="#1a1010"/>
+              <circle cx="212" cy="346" r="5.5" fill="#1a1010"/>
+              <circle cx="270" cy="344" r="8" fill="#1a1010"/>
+              {/* PIERNA IZQ */}
+              <rect x="150" y="378" width="56" height="56" rx="7" fill="#b8ccd8" stroke="#1a1010" strokeWidth="4.5"/>
+              <line x1="163" y1="386" x2="163" y2="428" stroke="white" strokeWidth="4"/>
+              <line x1="177" y1="386" x2="177" y2="428" stroke="white" strokeWidth="4"/>
+              <line x1="191" y1="386" x2="191" y2="428" stroke="white" strokeWidth="4"/>
+              <line x1="163" y1="386" x2="163" y2="428" stroke="#1a1010" strokeWidth="1.8"/>
+              <line x1="177" y1="386" x2="177" y2="428" stroke="#1a1010" strokeWidth="1.8"/>
+              <line x1="191" y1="386" x2="191" y2="428" stroke="#1a1010" strokeWidth="1.8"/>
+              {/* PIERNA DER */}
+              <rect x="214" y="378" width="56" height="56" rx="7" fill="#b8ccd8" stroke="#1a1010" strokeWidth="4.5"/>
+              <line x1="227" y1="386" x2="227" y2="428" stroke="white" strokeWidth="4"/>
+              <line x1="241" y1="386" x2="241" y2="428" stroke="white" strokeWidth="4"/>
+              <line x1="255" y1="386" x2="255" y2="428" stroke="white" strokeWidth="4"/>
+              <line x1="227" y1="386" x2="227" y2="428" stroke="#1a1010" strokeWidth="1.8"/>
+              <line x1="241" y1="386" x2="241" y2="428" stroke="#1a1010" strokeWidth="1.8"/>
+              <line x1="255" y1="386" x2="255" y2="428" stroke="#1a1010" strokeWidth="1.8"/>
+              {/* PIES */}
+              <rect x="134" y="430" width="86" height="22" rx="10" fill="#d4e2ea" stroke="#1a1010" strokeWidth="4.5"/>
+              <rect x="200" y="430" width="86" height="22" rx="10" fill="#d4e2ea" stroke="#1a1010" strokeWidth="4.5"/>
+            </svg>
           </div>
 
-          <h1 style={{fontFamily:HF,fontSize:"clamp(40px,6.5vw,80px)",fontWeight:800,lineHeight:1.05,marginBottom:24,letterSpacing:"-2.5px",color:"#0f0f1a"}}>
-            Vos lo pensás.<br/>
-            <span style={{background:"linear-gradient(135deg,#6d28d9,#ec4899)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Nosotros lo creamos</span><br/>
-            y lo publicamos.
-          </h1>
-
-          <p style={{fontSize:"clamp(16px,1.8vw,19px)",color:"#6060a0",maxWidth:500,margin:"0 auto 40px",lineHeight:1.7,fontWeight:400,fontFamily:BF}}>
-            Tu community manager con inteligencia artificial. Diseña, redacta y publica tu contenido en redes, solo.
-          </p>
-
-          <div style={{display:"flex",gap:14,justifyContent:"center",flexWrap:"wrap",marginBottom:48}}>
-            <button onClick={onRegister} className="landing-btn-primary">Empezar gratis →</button>
-            <button onClick={onLogin} className="landing-btn-ghost">Ya tengo cuenta</button>
-          </div>
-
-          <p style={{fontSize:13,color:"#a0a0c0",fontFamily:BF}}>Sin tarjeta de crédito · 7 posts gratis · Cancelá cuando quieras</p>
-
-          {/* Social proof bar */}
-          <div style={{display:"flex",justifyContent:"center",marginTop:52,gap:0,flexWrap:"wrap",borderTop:"1px solid #f0eeff",paddingTop:32}}>
-            {[
-              {n:"7 posts",d:"para empezar gratis"},
-              {n:"3 diseños",d:"por publicación"},
-              {n:"IA Vision",d:"selección de imágenes"},
-              {n:"Auto-post",d:"en Instagram"},
-            ].map(({n,d},i,arr)=>(
-              <div key={i} style={{padding:"0 32px",borderLeft:i>0?"1px solid #f0eeff":"none",textAlign:"center"}}>
-                <div style={{fontSize:22,fontWeight:800,color:"#6d28d9",letterSpacing:"-0.5px",fontFamily:HF}}>{n}</div>
-                <div style={{fontSize:12,color:"#a0a0c0",marginTop:3,fontFamily:BF}}>{d}</div>
-              </div>
-            ))}
+          {/* TEXTO DER */}
+          <div style={{textAlign:"left",maxWidth:580}}>
+            <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(109,40,217,.07)",border:"1px solid rgba(109,40,217,.18)",borderRadius:24,padding:"7px 18px",fontSize:12,color:"#7c3aed",marginBottom:32,fontWeight:600,letterSpacing:"0.4px",fontFamily:BF}}>
+              ✦ Community Manager con IA · Powered by Claude
+            </div>
+            <h1 style={{fontFamily:HF,fontSize:"clamp(40px,5vw,72px)",fontWeight:800,lineHeight:1.05,marginBottom:24,letterSpacing:"-2.5px",color:"#0f0f1a"}}>
+              Vos lo pensás.<br/>
+              <span style={{background:"linear-gradient(135deg,#6d28d9,#ec4899)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Nosotros lo creamos</span><br/>
+              y lo publicamos.
+            </h1>
+            <p style={{fontSize:"clamp(16px,1.8vw,19px)",color:"#6060a0",maxWidth:500,lineHeight:1.7,fontWeight:400,fontFamily:BF,marginBottom:40}}>
+              Tu community manager con inteligencia artificial. Diseña, redacta y publica tu contenido en redes, solo.
+            </p>
+            <div style={{display:"flex",gap:14,flexWrap:"wrap",marginBottom:24}}>
+              <button onClick={onRegister} className="landing-btn-primary">Empezar gratis →</button>
+              <button onClick={onLogin} className="landing-btn-ghost">Ya tengo cuenta</button>
+            </div>
+            <p style={{fontSize:13,color:"#a0a0c0",fontFamily:BF}}>Sin tarjeta de crédito · 7 posts gratis · Cancelá cuando quieras</p>
           </div>
         </div>
+
       </div>
 
       {/* FEATURES */}
