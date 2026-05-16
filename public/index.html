@@ -1330,420 +1330,431 @@ function ConnectScreen({socials,saveSocials,showToast,onNext}) {
 // ════════════════════════════════════════════════════════════════
 // 40 TEMPLATES — previews estilo editorial grande
 // ════════════════════════════════════════════════════════════════
-const TP = (bg, children) => (
-  <div style={{width:"100%",height:"100%",background:bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"16px",position:"relative",overflow:"hidden",boxSizing:"border-box"}}>
-    {children}
-  </div>
-);
-
 const TEMPLATES_40 = [
   {id:"t01",icon:"💬",name:"Frase motivacional",desc:"Cita inspiradora sobre fondo vibrante",
-   preview:TP("linear-gradient(135deg,#6d28d9,#4c1d95)",<>
-     <div style={{border:"1px solid rgba(255,255,255,.3)",borderRadius:8,padding:"12px",textAlign:"center",width:"100%"}}>
-       <div style={{color:"rgba(255,255,255,.4)",fontSize:28,lineHeight:1}}>"</div>
-       <div style={{color:"white",fontSize:14,fontStyle:"italic",fontFamily:"Georgia,serif",lineHeight:1.4,margin:"4px 0"}}>El éxito no es un destino,<br/>es un camino.</div>
-       <div style={{color:"rgba(255,255,255,.4)",fontSize:11,marginTop:6}}>— Tu Marca</div>
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"linear-gradient(135deg,#6d28d9,#4c1d95)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"20px",boxSizing:"border-box"}}>
+     <div style={{border:"1px solid rgba(255,255,255,.3)",borderRadius:10,padding:"16px 20px",textAlign:"center",width:"100%"}}>
+       <div style={{color:"rgba(255,255,255,.4)",fontSize:32,lineHeight:1,marginBottom:4,fontFamily:"Georgia"}}>"</div>
+       <div style={{color:"white",fontSize:16,fontStyle:"italic",fontFamily:"Georgia,serif",lineHeight:1.5}}>El éxito no es un destino,<br/>es un camino.</div>
+       <div style={{color:"rgba(255,255,255,.4)",fontSize:12,marginTop:10}}>— Tu Marca</div>
      </div>
-   </>)},
+   </div>},
 
-  {id:"t02",icon:"🖼",name:"Foto + texto overlay",desc:"Imagen con texto superpuesto impactante",
-   preview:TP("linear-gradient(160deg,#1a3a2e,#0a1a10)",<>
-     <div style={{fontSize:44,marginBottom:8}}>🌿</div>
-     <div style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(transparent,rgba(0,0,0,.85))",padding:"20px 14px 14px"}}>
-       <div style={{color:"white",fontSize:17,fontWeight:900,lineHeight:1.2}}>ORGÁNICO<br/><span style={{color:"#86efac"}}>Y NATURAL</span></div>
-       <div style={{color:"rgba(255,255,255,.5)",fontSize:10,marginTop:3}}>Del campo a tu mesa</div>
+  {id:"t02",icon:"🖼",name:"Foto + texto overlay",desc:"Imagen real con texto superpuesto",
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"linear-gradient(160deg,#1a3a2e,#0a1a10)",display:"flex",alignItems:"flex-end",position:"relative",overflow:"hidden"}}>
+     <div style={{fontSize:64,position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-65%)"}}>🌿</div>
+     <div style={{background:"linear-gradient(transparent,rgba(0,0,0,.85))",padding:"30px 20px 20px",width:"100%"}}>
+       <div style={{color:"white",fontSize:22,fontWeight:900,lineHeight:1.2}}>ORGÁNICO<br/><span style={{color:"#86efac"}}>Y NATURAL</span></div>
+       <div style={{color:"rgba(255,255,255,.5)",fontSize:12,marginTop:4}}>Del campo a tu mesa</div>
      </div>
-   </>)},
+   </div>},
 
-  {id:"t03",icon:"📋",name:"Lista de tips",desc:"5 consejos numerados con diseño limpio",
-   preview:TP("#0f172a",<div style={{width:"100%"}}>
-     <div style={{borderLeft:"3px solid #a855f7",paddingLeft:10,marginBottom:10}}>
-       <div style={{color:"white",fontSize:13,fontWeight:900}}>5 TIPS</div>
-       <div style={{color:"#a855f7",fontSize:13,fontWeight:900}}>ESENCIALES</div>
+  {id:"t03",icon:"📋",name:"Lista de tips",desc:"5 consejos numerados y claros",
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"#0f172a",padding:"20px",boxSizing:"border-box",display:"flex",flexDirection:"column"}}>
+     <div style={{borderLeft:"4px solid #a855f7",paddingLeft:12,marginBottom:14}}>
+       <div style={{color:"white",fontSize:16,fontWeight:900}}>5 TIPS</div>
+       <div style={{color:"#a855f7",fontSize:16,fontWeight:900}}>ESENCIALES</div>
      </div>
-     {["Definí tu objetivo","Conocé tu audiencia","Creá valor real","Medí tus resultados","Mejorá constantemente"].map((t,i)=>(
-       <div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:5}}>
-         <div style={{background:"#a855f7",color:"white",fontSize:9,fontWeight:900,borderRadius:4,padding:"2px 5px",flexShrink:0}}>{String(i+1).padStart(2,"0")}</div>
-         <div style={{color:"rgba(255,255,255,.75)",fontSize:11}}>{t}</div>
+     {["Definí tu objetivo","Conocé tu audiencia","Creá valor real","Medí resultados","Mejorá siempre"].map((t,i)=>(
+       <div key={i} style={{display:"flex",alignItems:"center",gap:10,marginBottom:7}}>
+         <div style={{background:"#a855f7",color:"white",fontSize:10,fontWeight:900,borderRadius:4,padding:"3px 6px",flexShrink:0,minWidth:24,textAlign:"center"}}>{i+1}</div>
+         <div style={{color:"rgba(255,255,255,.8)",fontSize:12}}>{t}</div>
        </div>
      ))}
-   </div>)},
+   </div>},
 
-  {id:"t04",icon:"⭐",name:"Testimonio cliente",desc:"Review con foto y estrellas de confianza",
-   preview:TP("white",<div style={{background:"white",borderRadius:12,padding:14,boxShadow:"0 4px 20px rgba(0,0,0,.12)",width:"100%"}}>
-     <div style={{fontSize:14,marginBottom:8}}>⭐⭐⭐⭐⭐</div>
-     <div style={{fontStyle:"italic",fontSize:12,color:"#1a1a2e",lineHeight:1.5,marginBottom:10}}>"El mejor servicio que contraté en años."</div>
-     <div style={{display:"flex",alignItems:"center",gap:8}}>
-       <div style={{width:28,height:28,borderRadius:"50%",background:"#e9d5ff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:900,color:"#6d28d9"}}>JG</div>
-       <div><div style={{fontSize:11,fontWeight:700,color:"#1a1a2e"}}>Juan García</div><div style={{fontSize:10,color:"#9ca3af"}}>Cliente verificado ✓</div></div>
+  {id:"t04",icon:"⭐",name:"Testimonio cliente",desc:"Review con estrellas de confianza",
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"#f8fafc",display:"flex",alignItems:"center",justifyContent:"center",padding:"20px",boxSizing:"border-box"}}>
+     <div style={{background:"white",borderRadius:16,padding:20,boxShadow:"0 4px 24px rgba(0,0,0,.1)",width:"100%"}}>
+       <div style={{fontSize:18,marginBottom:10}}>⭐⭐⭐⭐⭐</div>
+       <div style={{fontStyle:"italic",fontSize:13,color:"#1e293b",lineHeight:1.6,marginBottom:14}}>"El mejor servicio que contraté.<br/>Lo recomiendo al 100%."</div>
+       <div style={{display:"flex",alignItems:"center",gap:10}}>
+         <div style={{width:36,height:36,borderRadius:"50%",background:"#e9d5ff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:900,color:"#6d28d9",flexShrink:0}}>JG</div>
+         <div><div style={{fontSize:12,fontWeight:700,color:"#1e293b"}}>Juan García</div><div style={{fontSize:11,color:"#94a3b8"}}>Cliente verificado ✓</div></div>
+       </div>
      </div>
-   </div>)},
+   </div>},
 
-  {id:"t05",icon:"🔢",name:"Dato estadístico",desc:"Número impactante con contexto claro",
-   preview:TP("linear-gradient(135deg,#ec4899,#be185d)",<>
-     <div style={{color:"rgba(255,255,255,.6)",fontSize:10,letterSpacing:3,marginBottom:4}}>DATO DE HOY</div>
-     <div style={{color:"white",fontSize:54,fontWeight:900,lineHeight:1}}>87%</div>
-     <div style={{color:"rgba(255,255,255,.85)",fontSize:12,textAlign:"center",marginTop:6,lineHeight:1.5}}>de los clientes recomiendan<br/>nuestros servicios</div>
-   </>)},
+  {id:"t05",icon:"🔢",name:"Dato estadístico",desc:"Número impactante con contexto",
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"linear-gradient(135deg,#ec4899,#be185d)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+     <div style={{color:"rgba(255,255,255,.6)",fontSize:11,letterSpacing:4,marginBottom:6}}>DATO CLAVE</div>
+     <div style={{color:"white",fontSize:64,fontWeight:900,lineHeight:1}}>87%</div>
+     <div style={{color:"rgba(255,255,255,.85)",fontSize:13,textAlign:"center",marginTop:8,lineHeight:1.6}}>de los clientes recomiendan<br/>nuestros servicios</div>
+   </div>},
 
   {id:"t06",icon:"🎠",name:"Carrusel tutorial",desc:"Paso a paso en múltiples slides",
-   preview:TP("#1e1b4b",<div style={{width:"100%"}}>
-     <div style={{display:"flex",gap:8,width:"100%"}}>
-       {[["01","🔍","Investigá"],["02","💡","Ideá"],["03","🚀","Lanzá"]].map(([n,e,t],i)=>(
-         <div key={n} style={{flex:1,background:i===1?"#4338ca":"#312e81",borderRadius:10,padding:"10px 6px",textAlign:"center"}}>
-           <div style={{color:i===1?"#c7d2fe":"#a5b4fc",fontSize:9,fontWeight:900,marginBottom:4}}>PASO {n}</div>
-           <div style={{fontSize:22}}>{e}</div>
-           <div style={{color:"white",fontSize:10,fontWeight:700,marginTop:4}}>{t}</div>
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"#1e1b4b",padding:"16px",boxSizing:"border-box",display:"flex",flexDirection:"column",justifyContent:"center"}}>
+     <div style={{display:"flex",gap:10,marginBottom:10}}>
+       {[["01","🔍","Investigá","#312e81"],["02","💡","Ideá","#4338ca"],["03","🚀","Lanzá","#312e81"]].map(([n,e,t,bg])=>(
+         <div key={n} style={{flex:1,background:bg,borderRadius:12,padding:"14px 8px",textAlign:"center"}}>
+           <div style={{color:"#a5b4fc",fontSize:9,fontWeight:900,marginBottom:6}}>PASO {n}</div>
+           <div style={{fontSize:26}}>{e}</div>
+           <div style={{color:"white",fontSize:11,fontWeight:700,marginTop:6}}>{t}</div>
          </div>
        ))}
      </div>
-     <div style={{textAlign:"center",color:"rgba(255,255,255,.3)",fontSize:10,marginTop:8}}>● ○ ○</div>
-   </div>)},
+     <div style={{textAlign:"center",color:"rgba(255,255,255,.3)",fontSize:12}}>● ○ ○</div>
+   </div>},
 
   {id:"t07",icon:"🎉",name:"Anuncio / Lanzamiento",desc:"Novedad con impacto visual fuerte",
-   preview:TP("#0f0f1a",<div style={{border:"2px solid #ffd700",borderRadius:10,padding:"14px 18px",textAlign:"center",width:"100%"}}>
-     <div style={{color:"#ffd700",fontSize:10,letterSpacing:4,marginBottom:6}}>¡NUEVO!</div>
-     <div style={{color:"white",fontSize:20,fontWeight:900,lineHeight:1.2}}>PRODUCTO<br/><span style={{color:"#ffd700"}}>ESTRELLA</span></div>
-     <div style={{color:"rgba(255,255,255,.4)",fontSize:10,marginTop:8}}>Disponible desde hoy ✨</div>
-   </div>)},
-
-  {id:"t08",icon:"❓",name:"Pregunta al público",desc:"Genera engagement con una pregunta directa",
-   preview:TP("#f0f9ff",<>
-     <div style={{fontSize:26,marginBottom:8}}>🤔</div>
-     <div style={{color:"#1e40af",fontSize:14,fontWeight:900,textAlign:"center",marginBottom:12}}>¿Cuál preferís?</div>
-     <div style={{display:"flex",gap:8,width:"100%"}}>
-       <div style={{flex:1,background:"#3b82f6",borderRadius:20,padding:"8px",textAlign:"center",color:"white",fontSize:11,fontWeight:700}}>Opción A 👍</div>
-       <div style={{flex:1,background:"white",border:"2px solid #e5e7eb",borderRadius:20,padding:"8px",textAlign:"center",color:"#374151",fontSize:11,fontWeight:700}}>Opción B 🤷</div>
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"#0f0f1a",display:"flex",alignItems:"center",justifyContent:"center",padding:"20px",boxSizing:"border-box"}}>
+     <div style={{border:"2px solid #ffd700",borderRadius:12,padding:"20px 24px",textAlign:"center",width:"100%"}}>
+       <div style={{color:"#ffd700",fontSize:11,letterSpacing:4,marginBottom:8}}>¡NUEVO!</div>
+       <div style={{color:"white",fontSize:24,fontWeight:900,lineHeight:1.2,marginBottom:8}}>PRODUCTO<br/><span style={{color:"#ffd700"}}>ESTRELLA</span></div>
+       <div style={{color:"rgba(255,255,255,.4)",fontSize:11}}>Disponible desde hoy ✨</div>
      </div>
-   </>)},
+   </div>},
+
+  {id:"t08",icon:"❓",name:"Pregunta al público",desc:"Genera engagement con una pregunta",
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"#f0f9ff",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"20px",boxSizing:"border-box"}}>
+     <div style={{fontSize:32,marginBottom:10}}>🤔</div>
+     <div style={{color:"#1e40af",fontSize:16,fontWeight:900,textAlign:"center",marginBottom:16}}>¿Cuál preferís<br/>para tu negocio?</div>
+     <div style={{display:"flex",gap:10,width:"100%"}}>
+       <div style={{flex:1,background:"#3b82f6",borderRadius:25,padding:"10px",textAlign:"center",color:"white",fontSize:12,fontWeight:700}}>Opción A 👍</div>
+       <div style={{flex:1,background:"white",border:"2px solid #e2e8f0",borderRadius:25,padding:"10px",textAlign:"center",color:"#374151",fontSize:12,fontWeight:700}}>Opción B 🤷</div>
+     </div>
+   </div>},
 
   {id:"t09",icon:"📅",name:"Efeméride del día",desc:"Fecha especial o día temático",
-   preview:TP("linear-gradient(135deg,#064e3b,#065f46)",<>
-     <div style={{color:"#34d399",fontSize:10,letterSpacing:3,marginBottom:4}}>HOY CELEBRAMOS</div>
-     <div style={{color:"white",fontSize:48,fontWeight:900,lineHeight:1}}>21</div>
-     <div style={{color:"#34d399",fontSize:13,fontWeight:700}}>DE MARZO</div>
-     <div style={{width:36,height:1,background:"rgba(255,255,255,.2)",margin:"8px 0"}}/>
-     <div style={{color:"rgba(255,255,255,.65)",fontSize:11,textAlign:"center",lineHeight:1.5}}>Día Mundial de la<br/>Sustentabilidad 🌱</div>
-   </>)},
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"linear-gradient(135deg,#064e3b,#065f46)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+     <div style={{color:"#34d399",fontSize:11,letterSpacing:3,marginBottom:6}}>HOY CELEBRAMOS</div>
+     <div style={{color:"white",fontSize:60,fontWeight:900,lineHeight:1}}>21</div>
+     <div style={{color:"#34d399",fontSize:16,fontWeight:700}}>DE MARZO</div>
+     <div style={{width:48,height:2,background:"rgba(255,255,255,.2)",margin:"12px 0"}}/>
+     <div style={{color:"rgba(255,255,255,.7)",fontSize:12,textAlign:"center",lineHeight:1.6}}>Día Mundial de la<br/>Sustentabilidad 🌱</div>
+   </div>},
 
   {id:"t10",icon:"👥",name:"Presentación equipo",desc:"La cara humana de tu marca",
-   preview:TP("#1a1a2e",<>
-     <div style={{color:"#a855f7",fontSize:10,letterSpacing:2,marginBottom:12}}>NUESTRO EQUIPO</div>
-     <div style={{display:"flex",gap:10,justifyContent:"center"}}>
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"#1a1a2e",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+     <div style={{color:"#a855f7",fontSize:11,letterSpacing:2,marginBottom:16}}>NUESTRO EQUIPO</div>
+     <div style={{display:"flex",gap:14,justifyContent:"center"}}>
        {[["#6d28d9","Ana","CEO"],["#ec4899","Luis","Design"],["#0ea5e9","Mar","Tech"]].map(([c,n,r])=>(
          <div key={n} style={{textAlign:"center"}}>
-           <div style={{width:40,height:40,borderRadius:"50%",background:c,display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontSize:13,fontWeight:900,margin:"0 auto 4px"}}>{n[0]}</div>
-           <div style={{color:"white",fontSize:10,fontWeight:700}}>{n}</div>
-           <div style={{color:"rgba(255,255,255,.4)",fontSize:9}}>{r}</div>
+           <div style={{width:52,height:52,borderRadius:"50%",background:c,display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontSize:16,fontWeight:900,margin:"0 auto 6px"}}>{n[0]}</div>
+           <div style={{color:"white",fontSize:11,fontWeight:700}}>{n}</div>
+           <div style={{color:"rgba(255,255,255,.4)",fontSize:10}}>{r}</div>
          </div>
        ))}
      </div>
-   </>)},
+   </div>},
 
   {id:"t11",icon:"🛍",name:"Promoción / Descuento",desc:"Oferta especial con CTA claro",
-   preview:TP("linear-gradient(135deg,#dc2626,#b91c1c)",<>
-     <div style={{color:"rgba(255,255,255,.7)",fontSize:10,letterSpacing:3,marginBottom:4}}>OFERTA ESPECIAL</div>
-     <div style={{color:"white",fontSize:48,fontWeight:900,lineHeight:1}}>50%</div>
-     <div style={{color:"#fbbf24",fontSize:16,fontWeight:900}}>OFF HOY</div>
-     <div style={{background:"white",borderRadius:20,padding:"8px 20px",marginTop:12,color:"#dc2626",fontSize:11,fontWeight:900}}>APROVECHAR AHORA →</div>
-   </>)},
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"linear-gradient(135deg,#dc2626,#b91c1c)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+     <div style={{color:"rgba(255,255,255,.7)",fontSize:11,letterSpacing:3,marginBottom:6}}>OFERTA ESPECIAL</div>
+     <div style={{color:"white",fontSize:60,fontWeight:900,lineHeight:1}}>50%</div>
+     <div style={{color:"#fbbf24",fontSize:18,fontWeight:900,marginBottom:16}}>OFF HOY</div>
+     <div style={{background:"white",borderRadius:25,padding:"10px 28px",color:"#dc2626",fontSize:13,fontWeight:900}}>APROVECHAR AHORA →</div>
+   </div>},
 
   {id:"t12",icon:"📸",name:"Detrás de escena",desc:"Behind the scenes de tu proceso",
-   preview:TP("#1c1917",<>
-     <div style={{background:"#292524",borderRadius:10,padding:"12px",width:"100%",textAlign:"center",marginBottom:10}}>
-       <div style={{fontSize:32}}>📷</div>
-       <div style={{color:"rgba(255,255,255,.5)",fontSize:10,marginTop:4}}>Así creamos cada post</div>
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"#1c1917",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+     <div style={{background:"#292524",borderRadius:12,padding:"20px",width:"100%",textAlign:"center",marginBottom:12}}>
+       <div style={{fontSize:40}}>📷</div>
+       <div style={{color:"rgba(255,255,255,.5)",fontSize:11,marginTop:6}}>Así creamos cada publicación</div>
      </div>
-     <div style={{color:"#f5f5f4",fontSize:12,fontWeight:900,letterSpacing:1}}>BEHIND THE SCENES</div>
-     <div style={{color:"rgba(255,255,255,.3)",fontSize:10,marginTop:3}}>Swipe para ver más →</div>
-   </>)},
+     <div style={{color:"#f5f5f4",fontSize:14,fontWeight:900,letterSpacing:1}}>BEHIND THE SCENES</div>
+   </div>},
 
   {id:"t13",icon:"✅",name:"Antes y después",desc:"Transformación visible y real",
-   preview:TP("#0f172a",<div style={{display:"flex",gap:8,width:"100%"}}>
-     <div style={{flex:1,background:"#1e293b",borderRadius:8,padding:"10px 6px",textAlign:"center"}}>
-       <div style={{color:"rgba(255,255,255,.3)",fontSize:9,letterSpacing:2,marginBottom:6}}>ANTES</div>
-       <div style={{fontSize:26}}>😔</div>
-       <div style={{color:"rgba(255,255,255,.3)",fontSize:9,marginTop:6}}>Sin estrategia</div>
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"#0f172a",display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",gap:10,boxSizing:"border-box"}}>
+     <div style={{flex:1,background:"#1e293b",borderRadius:12,padding:"16px",textAlign:"center",height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+       <div style={{color:"rgba(255,255,255,.3)",fontSize:10,letterSpacing:2,marginBottom:8}}>ANTES</div>
+       <div style={{fontSize:36}}>😔</div>
+       <div style={{color:"rgba(255,255,255,.3)",fontSize:10,marginTop:8}}>Sin estrategia</div>
      </div>
-     <div style={{display:"flex",alignItems:"center",color:"white",fontSize:18,flexShrink:0}}>→</div>
-     <div style={{flex:1,background:"#14532d",borderRadius:8,padding:"10px 6px",textAlign:"center"}}>
-       <div style={{color:"#86efac",fontSize:9,letterSpacing:2,marginBottom:6}}>DESPUÉS</div>
-       <div style={{fontSize:26}}>🚀</div>
-       <div style={{color:"#86efac",fontSize:9,marginTop:6}}>Con MCM</div>
+     <div style={{color:"white",fontSize:20,flexShrink:0}}>→</div>
+     <div style={{flex:1,background:"#14532d",borderRadius:12,padding:"16px",textAlign:"center",height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+       <div style={{color:"#86efac",fontSize:10,letterSpacing:2,marginBottom:8}}>DESPUÉS</div>
+       <div style={{fontSize:36}}>🚀</div>
+       <div style={{color:"#86efac",fontSize:10,marginTop:8}}>Con MCM</div>
      </div>
-   </div>)},
+   </div>},
 
   {id:"t14",icon:"📖",name:"Mini guía",desc:"Guía rápida con pasos accionables",
-   preview:TP("#1e1b4b",<div style={{width:"100%",padding:0}}>
-     <div style={{background:"#4f46e5",padding:"10px 14px",borderRadius:"8px 8px 0 0",marginBottom:10}}>
-       <div style={{color:"white",fontSize:13,fontWeight:900}}>GUÍA RÁPIDA</div>
-       <div style={{color:"rgba(255,255,255,.6)",fontSize:10}}>3 pasos para lograrlo</div>
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"#1e1b4b",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+     <div style={{background:"#4f46e5",padding:"14px 18px"}}>
+       <div style={{color:"white",fontSize:16,fontWeight:900}}>GUÍA RÁPIDA</div>
+       <div style={{color:"rgba(255,255,255,.6)",fontSize:11,marginTop:2}}>3 pasos para lograrlo</div>
      </div>
-     {[["01","Definí tu objetivo"],["02","Tomá acción ya"],["03","Medí y ajustá"]].map(([n,t])=>(
-       <div key={n} style={{display:"flex",gap:8,alignItems:"center",marginBottom:7}}>
-         <div style={{background:"#4f46e5",borderRadius:5,padding:"2px 7px",color:"white",fontSize:9,fontWeight:900,flexShrink:0}}>{n}</div>
-         <div style={{color:"white",fontSize:11}}>{t}</div>
-       </div>
-     ))}
-   </div>)},
-
-  {id:"t15",icon:"🤝",name:"UGC / Repost",desc:"Contenido de tus clientes reales",
-   preview:TP("white",<div style={{background:"white",borderRadius:12,padding:12,boxShadow:"0 2px 12px rgba(0,0,0,.1)",width:"100%"}}>
-     <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-       <div style={{width:28,height:28,borderRadius:"50%",background:"#e9d5ff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:900,color:"#6d28d9",flexShrink:0}}>JM</div>
-       <div><div style={{fontSize:11,fontWeight:700,color:"#1a1a2e"}}>Juan Martínez</div><div style={{fontSize:9,color:"#9ca3af"}}>@juanmartinez · cliente</div></div>
-     </div>
-     <div style={{fontSize:11,color:"#581c87",fontStyle:"italic",lineHeight:1.5,marginBottom:8}}>"Lo recomiendo 100%. Cambió mi negocio."</div>
-     <div style={{fontSize:11,color:"#9ca3af"}}>❤️ 234  💬 18  🔁 56</div>
-   </div>)},
-
-  {id:"t16",icon:"💡",name:"Sabías que...",desc:"Dato curioso que sorprende a todos",
-   preview:TP("#1a1a0e",<>
-     <div style={{fontSize:34,marginBottom:8}}>💡</div>
-     <div style={{color:"#fbbf24",fontSize:13,fontWeight:900,letterSpacing:1,marginBottom:6}}>¿SABÍAS QUE...?</div>
-     <div style={{width:36,height:1,background:"rgba(251,191,36,.3)",marginBottom:8}}/>
-     <div style={{color:"rgba(255,255,255,.8)",fontSize:12,textAlign:"center",lineHeight:1.6}}>El 80% del contenido<br/>se olvida en 48 horas</div>
-   </>)},
-
-  {id:"t17",icon:"🏆",name:"Logro / Hito",desc:"Celebrá un milestone de tu marca",
-   preview:TP("linear-gradient(135deg,#78350f,#92400e)",<>
-     <div style={{color:"#fcd34d",fontSize:10,letterSpacing:3,marginBottom:4}}>ALCANZAMOS</div>
-     <div style={{color:"white",fontSize:46,fontWeight:900,lineHeight:1}}>1K</div>
-     <div style={{color:"#fcd34d",fontSize:14,fontWeight:900}}>CLIENTES</div>
-     <div style={{color:"rgba(255,255,255,.6)",fontSize:11,marginTop:8}}>¡Gracias por confiar en nosotros!</div>
-     <div style={{fontSize:18,marginTop:6}}>🏆 🎉 ✨</div>
-   </>)},
-
-  {id:"t18",icon:"📊",name:"Comparativa",desc:"Tabla de comparación visual clara",
-   preview:TP("#0f172a",<div style={{display:"flex",gap:8,width:"100%"}}>
-     <div style={{flex:1,background:"#1e293b",borderRadius:8,padding:"10px 6px"}}>
-       <div style={{color:"#94a3b8",fontSize:10,fontWeight:700,textAlign:"center",marginBottom:8}}>Básico</div>
-       {["Contenido","Auto-pub","IA","Stats"].map(f=><div key={f} style={{color:"#ef4444",fontSize:9,marginBottom:4,textAlign:"center"}}>✗ {f}</div>)}
-     </div>
-     <div style={{flex:1,background:"#0f4c3a",borderRadius:8,padding:"10px 6px",border:"1px solid #34d399"}}>
-       <div style={{color:"#34d399",fontSize:10,fontWeight:700,textAlign:"center",marginBottom:8}}>Con MCM ✨</div>
-       {["Contenido","Auto-pub","IA","Stats"].map(f=><div key={f} style={{color:"#34d399",fontSize:9,marginBottom:4,textAlign:"center"}}>✓ {f}</div>)}
-     </div>
-   </div>)},
-
-  {id:"t19",icon:"🎯",name:"Call to action",desc:"Post directo con acción clara",
-   preview:TP("linear-gradient(135deg,#6d28d9,#ec4899)",<>
-     <div style={{color:"white",fontSize:18,fontWeight:900,textAlign:"center",lineHeight:1.3,marginBottom:16}}>¿Listo para<br/>transformar<br/>tu marca?</div>
-     <div style={{background:"white",borderRadius:25,padding:"10px 24px",color:"#6d28d9",fontSize:13,fontWeight:900}}>EMPEZAR AHORA →</div>
-   </>)},
-
-  {id:"t20",icon:"🌟",name:"Producto destacado",desc:"Foco total en tu producto estrella",
-   preview:TP("#0c0a09",<>
-     <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",width:"100%",fontSize:44,marginBottom:8}}>🛍</div>
-     <div style={{background:"#ec4899",width:"calc(100% + 32px)",margin:"0 -16px -16px",padding:"10px 16px",textAlign:"center"}}>
-       <div style={{color:"white",fontSize:13,fontWeight:900}}>PACK PREMIUM</div>
-       <div style={{color:"rgba(255,255,255,.8)",fontSize:10}}>$2.999 · Stock limitado</div>
-     </div>
-   </>)},
-
-  {id:"t21",icon:"📰",name:"Noticias del sector",desc:"Tendencia o novedad del rubro",
-   preview:TP("#1e293b",<div style={{width:"100%",height:"100%",display:"flex",flexDirection:"column",padding:0}}>
-     <div style={{background:"#0f172a",padding:"8px 12px",display:"flex",alignItems:"center",gap:6}}>
-       <div style={{color:"#38bdf8",fontSize:9,fontWeight:900,letterSpacing:2}}>📰 ACTUALIDAD</div>
-       <div style={{color:"rgba(255,255,255,.3)",fontSize:9}}>Hoy</div>
-     </div>
-     <div style={{padding:"12px",flex:1}}>
-       <div style={{color:"white",fontSize:14,fontWeight:900,lineHeight:1.3,marginBottom:6}}>La gran tendencia<br/><span style={{color:"#38bdf8"}}>del momento</span></div>
-       <div style={{color:"rgba(255,255,255,.5)",fontSize:10,lineHeight:1.5,marginBottom:8}}>Lo que está cambiando el juego en tu industria.</div>
-       <div style={{color:"#38bdf8",fontSize:11,fontWeight:700}}>LEER MÁS →</div>
-     </div>
-   </div>)},
-
-  {id:"t22",icon:"❌",name:"Errores comunes",desc:"Top errores que comete tu audiencia",
-   preview:TP("#1a0505",<div style={{width:"100%"}}>
-     <div style={{borderLeft:"3px solid #ef4444",paddingLeft:10,marginBottom:10}}>
-       <div style={{color:"#fca5a5",fontSize:13,fontWeight:900}}>ERRORES que</div>
-       <div style={{color:"white",fontSize:13,fontWeight:900}}>todos cometen</div>
-     </div>
-     {["No tener estrategia","Publicar sin constancia","Ignorar las métricas","Copiar competencia"].map((t,i)=>(
-       <div key={i} style={{display:"flex",gap:6,alignItems:"flex-start",marginBottom:5}}>
-         <span style={{color:"#ef4444",fontSize:11,flexShrink:0}}>✗</span>
-         <span style={{color:"rgba(255,255,255,.7)",fontSize:11}}>{t}</span>
-       </div>
-     ))}
-   </div>)},
-
-  {id:"t23",icon:"💰",name:"Precio / Inversión",desc:"Comunicá el valor de tu servicio",
-   preview:TP("linear-gradient(160deg,#14532d,#166534)",<>
-     <div style={{color:"#86efac",fontSize:10,letterSpacing:3,marginBottom:4}}>INVERTÍ EN TU FUTURO</div>
-     <div style={{color:"white",fontSize:46,fontWeight:900,lineHeight:1}}>$999</div>
-     <div style={{color:"#4ade80",fontSize:11,marginBottom:12}}>por mes · sin permanencia</div>
-     <div style={{background:"#16a34a",borderRadius:20,padding:"8px 20px",color:"white",fontSize:11,fontWeight:900}}>EMPEZAR HOY →</div>
-   </>)},
-
-  {id:"t24",icon:"🔥",name:"Meme de marca",desc:"Humor adaptado a tu negocio",
-   preview:TP("#0f0f1a",<>
-     <div style={{background:"#1f2937",borderRadius:10,padding:"12px",width:"100%",marginBottom:10}}>
-       <div style={{color:"white",fontSize:12,fontWeight:700,textAlign:"center",marginBottom:4}}>Cuando el cliente dice</div>
-       <div style={{color:"#fbbf24",fontSize:13,fontWeight:900,textAlign:"center"}}>"lo pienso y te aviso"</div>
-       <div style={{color:"rgba(255,255,255,.3)",fontSize:10,textAlign:"center",marginTop:3}}>y nunca más aparece...</div>
-     </div>
-     <div style={{fontSize:28}}>💀😂</div>
-   </>)},
-
-  {id:"t25",icon:"🎓",name:"Educativo / Infografía",desc:"Enseñá algo útil a tu audiencia",
-   preview:TP("#1e1b4b",<div style={{width:"100%",padding:0}}>
-     <div style={{background:"#4338ca",padding:"10px 14px",borderRadius:"8px 8px 0 0",marginBottom:10}}>
-       <div style={{color:"white",fontSize:13,fontWeight:900}}>APRENDÉ HOY</div>
-       <div style={{color:"rgba(255,255,255,.6)",fontSize:10}}>3 conceptos clave</div>
-     </div>
-     {[["📱","Redes","Tu vidriera digital"],["🎯","Estrategia","El mapa al éxito"],["📊","Métricas","Lo que no se mide..."]].map(([e,t,d])=>(
-       <div key={t} style={{display:"flex",gap:8,marginBottom:7,alignItems:"flex-start"}}>
-         <span style={{fontSize:14}}>{e}</span>
-         <div><div style={{color:"white",fontSize:11,fontWeight:700}}>{t}</div><div style={{color:"rgba(255,255,255,.4)",fontSize:9}}>{d}</div></div>
-       </div>
-     ))}
-   </div>)},
-
-  {id:"t26",icon:"🗓",name:"Rutina semanal",desc:"Agenda o planning de contenido",
-   preview:TP("#0f172a",<>
-     <div style={{color:"#38bdf8",fontSize:11,fontWeight:900,letterSpacing:2,marginBottom:10}}>ESTA SEMANA</div>
-     <div style={{display:"flex",gap:4,width:"100%"}}>
-       {[["L","📝"],["M","📊"],["X","🎯"],["J","💡"],["V","✅"]].map(([d,e],i)=>(
-         <div key={d} style={{flex:1,background:i===2?"#0369a1":"#1e293b",borderRadius:6,padding:"6px 2px",textAlign:"center"}}>
-           <div style={{color:i===2?"white":"#64748b",fontSize:9,fontWeight:900}}>{d}</div>
-           <div style={{fontSize:14,margin:"3px 0"}}>{e}</div>
-           <div style={{color:"rgba(255,255,255,.25)",fontSize:8}}>9am</div>
+     <div style={{padding:"16px 18px",flex:1,display:"flex",flexDirection:"column",justifyContent:"center"}}>
+       {[["01","Definí tu objetivo"],["02","Tomá acción ya"],["03","Medí y ajustá"]].map(([n,t])=>(
+         <div key={n} style={{display:"flex",gap:10,alignItems:"center",marginBottom:10}}>
+           <div style={{background:"#4f46e5",borderRadius:6,padding:"4px 8px",color:"white",fontSize:10,fontWeight:900,flexShrink:0}}>{n}</div>
+           <div style={{color:"white",fontSize:12}}>{t}</div>
          </div>
        ))}
      </div>
-   </>)},
+   </div>},
+
+  {id:"t15",icon:"🤝",name:"UGC / Repost",desc:"Contenido de tus clientes reales",
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"#fdf4ff",display:"flex",alignItems:"center",justifyContent:"center",padding:"20px",boxSizing:"border-box"}}>
+     <div style={{background:"white",borderRadius:16,padding:18,boxShadow:"0 4px 20px rgba(0,0,0,.1)",width:"100%"}}>
+       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+         <div style={{width:38,height:38,borderRadius:"50%",background:"#e9d5ff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:900,color:"#6d28d9",flexShrink:0}}>JM</div>
+         <div><div style={{fontSize:12,fontWeight:700,color:"#1e293b"}}>Juan Martínez</div><div style={{fontSize:10,color:"#94a3b8"}}>@juanmartinez · cliente ✓</div></div>
+       </div>
+       <div style={{fontSize:13,color:"#581c87",fontStyle:"italic",lineHeight:1.6,marginBottom:10}}>"Lo recomiendo 100%. Cambió mi negocio por completo."</div>
+       <div style={{fontSize:13,color:"#94a3b8"}}>❤️ 234  💬 18  🔁 56</div>
+     </div>
+   </div>},
+
+  {id:"t16",icon:"💡",name:"Sabías que...",desc:"Dato curioso que sorprende a todos",
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"#1a1a0e",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+     <div style={{fontSize:44,marginBottom:10}}>💡</div>
+     <div style={{color:"#fbbf24",fontSize:16,fontWeight:900,letterSpacing:1,marginBottom:8}}>¿SABÍAS QUE...?</div>
+     <div style={{width:48,height:2,background:"rgba(251,191,36,.3)",marginBottom:12}}/>
+     <div style={{color:"rgba(255,255,255,.8)",fontSize:13,textAlign:"center",lineHeight:1.7}}>El 80% del contenido<br/>se olvida en 48 horas</div>
+   </div>},
+
+  {id:"t17",icon:"🏆",name:"Logro / Hito",desc:"Celebrá un milestone de tu marca",
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"linear-gradient(135deg,#78350f,#92400e)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+     <div style={{color:"#fcd34d",fontSize:11,letterSpacing:3,marginBottom:6}}>ALCANZAMOS</div>
+     <div style={{color:"white",fontSize:56,fontWeight:900,lineHeight:1}}>1K</div>
+     <div style={{color:"#fcd34d",fontSize:18,fontWeight:900}}>CLIENTES</div>
+     <div style={{color:"rgba(255,255,255,.6)",fontSize:12,marginTop:10,textAlign:"center"}}>¡Gracias por confiar en nosotros!</div>
+     <div style={{fontSize:20,marginTop:8}}>🏆 🎉 ✨</div>
+   </div>},
+
+  {id:"t18",icon:"📊",name:"Comparativa",desc:"Tabla de comparación visual clara",
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"#0f172a",display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",gap:12,boxSizing:"border-box"}}>
+     <div style={{flex:1,background:"#1e293b",borderRadius:12,padding:"14px",height:"100%",display:"flex",flexDirection:"column"}}>
+       <div style={{color:"#94a3b8",fontSize:11,fontWeight:700,textAlign:"center",marginBottom:10}}>Básico</div>
+       {["Contenido","Auto-publish","IA","Analytics"].map(f=><div key={f} style={{color:"#ef4444",fontSize:10,marginBottom:6,textAlign:"center"}}>✗ {f}</div>)}
+     </div>
+     <div style={{flex:1,background:"#0f4c3a",borderRadius:12,padding:"14px",border:"1.5px solid #34d399",height:"100%",display:"flex",flexDirection:"column"}}>
+       <div style={{color:"#34d399",fontSize:11,fontWeight:700,textAlign:"center",marginBottom:10}}>Con MCM ✨</div>
+       {["Contenido","Auto-publish","IA","Analytics"].map(f=><div key={f} style={{color:"#34d399",fontSize:10,marginBottom:6,textAlign:"center"}}>✓ {f}</div>)}
+     </div>
+   </div>},
+
+  {id:"t19",icon:"🎯",name:"Call to action",desc:"Post directo con acción clara",
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"linear-gradient(135deg,#6d28d9,#ec4899)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px"}}>
+     <div style={{color:"white",fontSize:22,fontWeight:900,textAlign:"center",lineHeight:1.3,marginBottom:20}}>¿Listo para<br/>transformar<br/>tu marca?</div>
+     <div style={{background:"white",borderRadius:30,padding:"12px 32px",color:"#6d28d9",fontSize:14,fontWeight:900}}>EMPEZAR AHORA →</div>
+   </div>},
+
+  {id:"t20",icon:"🌟",name:"Producto destacado",desc:"Foco total en tu producto estrella",
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"#0c0a09",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+     <div style={{flex:1,background:"#1c1917",display:"flex",alignItems:"center",justifyContent:"center"}}>
+       <div style={{fontSize:60}}>🛍</div>
+     </div>
+     <div style={{background:"#ec4899",padding:"14px 18px"}}>
+       <div style={{color:"white",fontSize:15,fontWeight:900}}>PACK PREMIUM</div>
+       <div style={{color:"rgba(255,255,255,.8)",fontSize:11,marginTop:2}}>$2.999 · Stock limitado → Ver más</div>
+     </div>
+   </div>},
+
+  {id:"t21",icon:"📰",name:"Noticias del sector",desc:"Tendencia o novedad del rubro",
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"#1e293b",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+     <div style={{background:"#0f172a",padding:"10px 16px",display:"flex",alignItems:"center",gap:8}}>
+       <div style={{color:"#38bdf8",fontSize:10,fontWeight:900,letterSpacing:2}}>📰 ACTUALIDAD</div>
+       <div style={{color:"rgba(255,255,255,.3)",fontSize:10}}>Hoy · Tu sector</div>
+     </div>
+     <div style={{padding:"16px",flex:1,display:"flex",flexDirection:"column",justifyContent:"center"}}>
+       <div style={{color:"white",fontSize:18,fontWeight:900,lineHeight:1.3,marginBottom:8}}>La gran tendencia<br/><span style={{color:"#38bdf8"}}>del momento</span></div>
+       <div style={{color:"rgba(255,255,255,.5)",fontSize:11,lineHeight:1.6,marginBottom:10}}>Lo que está cambiando el juego en tu industria este año.</div>
+       <div style={{color:"#38bdf8",fontSize:12,fontWeight:700}}>LEER MÁS →</div>
+     </div>
+   </div>},
+
+  {id:"t22",icon:"❌",name:"Errores comunes",desc:"Top errores que comete tu audiencia",
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"#1a0505",display:"flex",flexDirection:"column",padding:"20px",boxSizing:"border-box",justifyContent:"center"}}>
+     <div style={{borderLeft:"4px solid #ef4444",paddingLeft:12,marginBottom:14}}>
+       <div style={{color:"#fca5a5",fontSize:15,fontWeight:900}}>ERRORES que</div>
+       <div style={{color:"white",fontSize:15,fontWeight:900}}>todos cometen</div>
+     </div>
+     {["No tener estrategia clara","Publicar sin constancia","Ignorar las métricas","Copiar a la competencia"].map((t,i)=>(
+       <div key={i} style={{display:"flex",gap:8,alignItems:"flex-start",marginBottom:8}}>
+         <span style={{color:"#ef4444",fontSize:14,flexShrink:0}}>✗</span>
+         <span style={{color:"rgba(255,255,255,.75)",fontSize:12}}>{t}</span>
+       </div>
+     ))}
+   </div>},
+
+  {id:"t23",icon:"💰",name:"Precio / Inversión",desc:"Comunicá el valor de tu servicio",
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"linear-gradient(160deg,#14532d,#166534)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+     <div style={{color:"#86efac",fontSize:11,letterSpacing:3,marginBottom:6}}>INVERTÍ EN TU FUTURO</div>
+     <div style={{color:"white",fontSize:56,fontWeight:900,lineHeight:1}}>$999</div>
+     <div style={{color:"#4ade80",fontSize:13,marginBottom:14}}>por mes · sin permanencia</div>
+     <div style={{background:"#16a34a",borderRadius:25,padding:"10px 28px",color:"white",fontSize:13,fontWeight:900}}>EMPEZAR HOY →</div>
+   </div>},
+
+  {id:"t24",icon:"🔥",name:"Meme de marca",desc:"Humor adaptado a tu negocio",
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"#0f0f1a",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+     <div style={{background:"#1f2937",borderRadius:12,padding:"16px 20px",width:"100%",marginBottom:14}}>
+       <div style={{color:"white",fontSize:13,fontWeight:700,textAlign:"center",marginBottom:6}}>Cuando el cliente dice</div>
+       <div style={{color:"#fbbf24",fontSize:15,fontWeight:900,textAlign:"center"}}>"lo pienso y te aviso"</div>
+       <div style={{color:"rgba(255,255,255,.3)",fontSize:11,textAlign:"center",marginTop:4}}>y nunca más aparece...</div>
+     </div>
+     <div style={{fontSize:36}}>💀😂</div>
+   </div>},
+
+  {id:"t25",icon:"🎓",name:"Educativo / Infografía",desc:"Enseñá algo útil a tu audiencia",
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"#1e1b4b",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+     <div style={{background:"#4338ca",padding:"12px 16px"}}>
+       <div style={{color:"white",fontSize:16,fontWeight:900}}>APRENDÉ HOY</div>
+       <div style={{color:"rgba(255,255,255,.6)",fontSize:11,marginTop:2}}>3 conceptos clave</div>
+     </div>
+     <div style={{padding:"14px 16px",flex:1,display:"flex",flexDirection:"column",justifyContent:"center"}}>
+       {[["📱","Redes","Tu vidriera digital"],["🎯","Estrategia","El mapa al éxito"],["📊","Métricas","Lo que no se mide..."]].map(([e,t,d])=>(
+         <div key={t} style={{display:"flex",gap:10,marginBottom:10,alignItems:"flex-start"}}>
+           <span style={{fontSize:18}}>{e}</span>
+           <div><div style={{color:"white",fontSize:12,fontWeight:700}}>{t}</div><div style={{color:"rgba(255,255,255,.4)",fontSize:10}}>{d}</div></div>
+         </div>
+       ))}
+     </div>
+   </div>},
+
+  {id:"t26",icon:"🗓",name:"Rutina semanal",desc:"Agenda o planning de contenido",
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"#0f172a",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"16px"}}>
+     <div style={{color:"#38bdf8",fontSize:12,fontWeight:900,letterSpacing:2,marginBottom:14}}>ESTA SEMANA</div>
+     <div style={{display:"flex",gap:6,width:"100%"}}>
+       {[["L","📝"],["M","📊"],["X","🎯"],["J","💡"],["V","✅"]].map(([d,e],i)=>(
+         <div key={d} style={{flex:1,background:i===2?"#0369a1":"#1e293b",borderRadius:8,padding:"10px 4px",textAlign:"center"}}>
+           <div style={{color:i===2?"white":"#64748b",fontSize:10,fontWeight:900,marginBottom:4}}>{d}</div>
+           <div style={{fontSize:18}}>{e}</div>
+           <div style={{color:"rgba(255,255,255,.25)",fontSize:9,marginTop:4}}>9am</div>
+         </div>
+       ))}
+     </div>
+   </div>},
 
   {id:"t27",icon:"💬",name:"Cita de experto",desc:"Quote de una figura referente",
-   preview:TP("#1a1a2e",<>
-     <div style={{color:"rgba(168,85,247,.3)",fontSize:46,lineHeight:0.8,alignSelf:"flex-start"}}>"</div>
-     <div style={{fontStyle:"italic",fontSize:13,color:"white",textAlign:"center",lineHeight:1.5,fontFamily:"Georgia,serif",flex:1,display:"flex",alignItems:"center",textAlign:"center",padding:"0 4px"}}>La creatividad es la inteligencia divirtiéndose.</div>
-     <div style={{color:"rgba(168,85,247,.3)",fontSize:46,lineHeight:0.8,alignSelf:"flex-end"}}>"</div>
-     <div style={{color:"#a855f7",fontSize:10,fontWeight:700,marginTop:4}}>— Albert Einstein</div>
-   </>)},
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"#1a1a2e",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px"}}>
+     <div style={{color:"rgba(168,85,247,.35)",fontSize:56,lineHeight:0.8,alignSelf:"flex-start",marginBottom:8}}>"</div>
+     <div style={{fontStyle:"italic",fontSize:14,color:"white",textAlign:"center",lineHeight:1.6,fontFamily:"Georgia,serif",flex:1,display:"flex",alignItems:"center"}}>La creatividad es la inteligencia divirtiéndose.</div>
+     <div style={{color:"rgba(168,85,247,.35)",fontSize:56,lineHeight:0.8,alignSelf:"flex-end",marginBottom:8}}>"</div>
+     <div style={{color:"#a855f7",fontSize:12,fontWeight:700}}>— Albert Einstein</div>
+   </div>},
 
   {id:"t28",icon:"🤖",name:"IA / Tecnología",desc:"Contenido sobre innovación y tech",
-   preview:TP("#0a0a1a",<>
-     <div style={{width:64,height:64,borderRadius:"50%",border:"2px solid rgba(56,189,248,.3)",display:"flex",alignItems:"center",justifyContent:"center",marginBottom:10,boxShadow:"0 0 20px rgba(56,189,248,.15)"}}>
-       <div style={{fontSize:34}}>🤖</div>
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"#0a0a1a",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+     <div style={{width:80,height:80,borderRadius:"50%",border:"2px solid rgba(56,189,248,.3)",display:"flex",alignItems:"center",justifyContent:"center",marginBottom:14,boxShadow:"0 0 30px rgba(56,189,248,.15)"}}>
+       <div style={{fontSize:44}}>🤖</div>
      </div>
-     <div style={{color:"#38bdf8",fontSize:14,fontWeight:900,letterSpacing:1}}>POWERED BY AI</div>
-     <div style={{color:"rgba(255,255,255,.4)",fontSize:11,textAlign:"center",marginTop:4}}>Tecnología al servicio<br/>de tu marca</div>
-   </>)},
+     <div style={{color:"#38bdf8",fontSize:17,fontWeight:900,letterSpacing:1}}>POWERED BY AI</div>
+     <div style={{color:"rgba(255,255,255,.4)",fontSize:12,textAlign:"center",marginTop:6,lineHeight:1.6}}>Tecnología al servicio<br/>de tu marca</div>
+   </div>},
 
   {id:"t29",icon:"🌍",name:"Impacto / RSE",desc:"Responsabilidad social de tu marca",
-   preview:TP("linear-gradient(135deg,#064e3b,#065f46)",<>
-     <div style={{fontSize:34,marginBottom:8}}>🌱</div>
-     <div style={{color:"#34d399",fontSize:15,fontWeight:900}}>COMPROMETIDOS</div>
-     <div style={{color:"white",fontSize:15,fontWeight:900}}>CON EL PLANETA</div>
-     <div style={{width:36,height:1,background:"rgba(52,211,153,.3)",margin:"8px 0"}}/>
-     <div style={{color:"rgba(255,255,255,.6)",fontSize:11,textAlign:"center",lineHeight:1.5}}>Somos carbono neutral 🌱<br/>Cada compra planta un árbol</div>
-   </>)},
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"linear-gradient(135deg,#064e3b,#065f46)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+     <div style={{fontSize:44,marginBottom:10}}>🌱</div>
+     <div style={{color:"#34d399",fontSize:18,fontWeight:900}}>COMPROMETIDOS</div>
+     <div style={{color:"white",fontSize:18,fontWeight:900}}>CON EL PLANETA</div>
+     <div style={{width:48,height:2,background:"rgba(52,211,153,.3)",margin:"12px 0"}}/>
+     <div style={{color:"rgba(255,255,255,.65)",fontSize:12,textAlign:"center",lineHeight:1.6}}>Somos carbono neutral 🌱<br/>Cada compra planta un árbol</div>
+   </div>},
 
   {id:"t30",icon:"🎨",name:"Identidad de marca",desc:"Paleta y estilo visual de tu negocio",
-   preview:TP("#1a1a2e",<>
-     <div style={{color:"rgba(255,255,255,.35)",fontSize:10,letterSpacing:3,marginBottom:10}}>NUESTRA IDENTIDAD</div>
-     <div style={{display:"flex",width:"100%",height:60,borderRadius:10,overflow:"hidden"}}>
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"#1a1a2e",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+     <div style={{color:"rgba(255,255,255,.3)",fontSize:10,letterSpacing:3,marginBottom:14}}>NUESTRA IDENTIDAD</div>
+     <div style={{display:"flex",width:"100%",height:70,borderRadius:12,overflow:"hidden",marginBottom:12}}>
        {["#6d28d9","#a855f7","#ec4899","#f43f5e","#f97316"].map(c=>(
          <div key={c} style={{flex:1,background:c}}/>
        ))}
      </div>
-     <div style={{color:"rgba(255,255,255,.2)",fontSize:9,letterSpacing:2,marginTop:8}}>COLORES DE MARCA</div>
-   </>)},
+     <div style={{color:"rgba(255,255,255,.2)",fontSize:10,letterSpacing:3}}>COLORES DE MARCA</div>
+   </div>},
 
   {id:"t31",icon:"📍",name:"Local / Ubicación",desc:"Destacá tu local o punto de venta",
-   preview:TP("linear-gradient(135deg,#1e1b4b,#312e81)",<>
-     <div style={{fontSize:34,marginBottom:8}}>📍</div>
-     <div style={{color:"white",fontSize:16,fontWeight:900}}>VISITANOS</div>
-     <div style={{color:"#a5b4fc",fontSize:12,marginTop:4}}>Av. Principal 1234</div>
-     <div style={{width:36,height:1,background:"rgba(255,255,255,.15)",margin:"8px 0"}}/>
-     <div style={{color:"rgba(255,255,255,.4)",fontSize:10}}>Lun–Vie 9 a 18hs · Sáb 9 a 13hs</div>
-   </>)},
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"linear-gradient(135deg,#1e1b4b,#312e81)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+     <div style={{fontSize:44,marginBottom:10}}>📍</div>
+     <div style={{color:"white",fontSize:20,fontWeight:900}}>VISITANOS</div>
+     <div style={{color:"#a5b4fc",fontSize:14,marginTop:6}}>Av. Principal 1234</div>
+     <div style={{width:48,height:2,background:"rgba(255,255,255,.15)",margin:"12px 0"}}/>
+     <div style={{color:"rgba(255,255,255,.4)",fontSize:12}}>Lun–Vie 9 a 18hs · Sáb 9 a 13hs</div>
+   </div>},
 
   {id:"t32",icon:"🔔",name:"Recordatorio urgente",desc:"Última oportunidad, aviso clave",
-   preview:TP("linear-gradient(135deg,#92400e,#b45309)",<>
-     <div style={{fontSize:30,marginBottom:6}}>🔔</div>
-     <div style={{color:"#fcd34d",fontSize:16,fontWeight:900}}>ÚLTIMO DÍA</div>
-     <div style={{color:"white",fontSize:12,textAlign:"center",margin:"6px 0 12px",lineHeight:1.5}}>para aprovechar<br/>la oferta especial</div>
-     <div style={{background:"#fcd34d",borderRadius:20,padding:"8px 20px",color:"#92400e",fontSize:11,fontWeight:900}}>NO TE LO PIERDAS →</div>
-   </>)},
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"linear-gradient(135deg,#92400e,#b45309)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+     <div style={{fontSize:40,marginBottom:8}}>🔔</div>
+     <div style={{color:"#fcd34d",fontSize:20,fontWeight:900}}>ÚLTIMO DÍA</div>
+     <div style={{color:"white",fontSize:13,textAlign:"center",margin:"8px 0 16px",lineHeight:1.6}}>para aprovechar<br/>la oferta especial</div>
+     <div style={{background:"#fcd34d",borderRadius:25,padding:"10px 24px",color:"#92400e",fontSize:13,fontWeight:900}}>NO TE LO PIERDAS →</div>
+   </div>},
 
   {id:"t33",icon:"❤️",name:"Agradecimiento",desc:"Gracias a tu comunidad fiel",
-   preview:TP("linear-gradient(135deg,#4c0519,#881337)",<>
-     <div style={{fontSize:34,marginBottom:8}}>❤️</div>
-     <div style={{color:"white",fontSize:20,fontWeight:900}}>GRACIAS</div>
-     <div style={{color:"#fda4af",fontSize:16,fontWeight:900}}>COMUNIDAD</div>
-     <div style={{width:36,height:1,background:"rgba(253,164,175,.3)",margin:"8px 0"}}/>
-     <div style={{color:"rgba(255,255,255,.6)",fontSize:11,textAlign:"center",lineHeight:1.5}}>Por cada like, comentario<br/>y mensaje de apoyo 🙏</div>
-   </>)},
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"linear-gradient(135deg,#4c0519,#881337)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+     <div style={{fontSize:44,marginBottom:10}}>❤️</div>
+     <div style={{color:"white",fontSize:24,fontWeight:900}}>GRACIAS</div>
+     <div style={{color:"#fda4af",fontSize:18,fontWeight:900}}>COMUNIDAD</div>
+     <div style={{width:48,height:2,background:"rgba(253,164,175,.3)",margin:"12px 0"}}/>
+     <div style={{color:"rgba(255,255,255,.6)",fontSize:12,textAlign:"center",lineHeight:1.6}}>Por cada like, comentario<br/>y mensaje de apoyo 🙏</div>
+   </div>},
 
   {id:"t34",icon:"🎪",name:"Evento / Webinar",desc:"Invitación a un evento especial",
-   preview:TP("#0f172a",<div style={{border:"1.5px solid #a855f7",borderRadius:12,padding:"14px 16px",width:"100%",textAlign:"center"}}>
-     <div style={{color:"#a855f7",fontSize:9,letterSpacing:3,marginBottom:6}}>EVENTO GRATUITO</div>
-     <div style={{color:"white",fontSize:18,fontWeight:900,lineHeight:1.2}}>WEBINAR<br/><span style={{color:"#f0abfc"}}>EN VIVO</span></div>
-     <div style={{color:"rgba(255,255,255,.5)",fontSize:10,margin:"8px 0"}}>📅 Sábado 15 · 18:00hs</div>
-     <div style={{background:"#7c3aed",borderRadius:15,padding:"7px",color:"white",fontSize:10,fontWeight:900}}>RESERVAR LUGAR GRATIS</div>
-   </div>)},
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"#0f172a",display:"flex",alignItems:"center",justifyContent:"center",padding:"20px",boxSizing:"border-box"}}>
+     <div style={{border:"1.5px solid #a855f7",borderRadius:14,padding:"20px",width:"100%",textAlign:"center"}}>
+       <div style={{color:"#a855f7",fontSize:10,letterSpacing:3,marginBottom:8}}>EVENTO GRATUITO</div>
+       <div style={{color:"white",fontSize:22,fontWeight:900,lineHeight:1.2,marginBottom:8}}>WEBINAR<br/><span style={{color:"#f0abfc"}}>EN VIVO</span></div>
+       <div style={{color:"rgba(255,255,255,.5)",fontSize:11,marginBottom:12}}>📅 Sábado 15 · 18:00hs</div>
+       <div style={{background:"#7c3aed",borderRadius:20,padding:"9px",color:"white",fontSize:11,fontWeight:900}}>RESERVAR LUGAR GRATIS</div>
+     </div>
+   </div>},
 
   {id:"t35",icon:"📱",name:"Story interactiva",desc:"Diseño vertical para Instagram Stories",
-   preview:TP("linear-gradient(160deg,#4c1d95,#be185d)",<>
-     <div style={{color:"white",fontSize:14,fontWeight:900,textAlign:"center",marginBottom:14}}>¿Cuál es tu<br/><span style={{color:"#f0abfc"}}>red favorita?</span></div>
-     <div style={{display:"flex",gap:8,width:"100%"}}>
-       <div style={{flex:1,background:"rgba(255,255,255,.25)",border:"1.5px solid white",borderRadius:12,padding:"8px",textAlign:"center"}}>
-         <div style={{fontSize:20}}>📸</div>
-         <div style={{color:"white",fontSize:10,fontWeight:700,marginTop:4}}>Instagram</div>
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"linear-gradient(160deg,#4c1d95,#be185d)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+     <div style={{color:"white",fontSize:17,fontWeight:900,textAlign:"center",marginBottom:18}}>¿Cuál es tu<br/><span style={{color:"#f0abfc"}}>red favorita?</span></div>
+     <div style={{display:"flex",gap:10,width:"100%"}}>
+       <div style={{flex:1,background:"rgba(255,255,255,.25)",border:"2px solid white",borderRadius:14,padding:"12px 8px",textAlign:"center"}}>
+         <div style={{fontSize:26}}>📸</div>
+         <div style={{color:"white",fontSize:11,fontWeight:700,marginTop:6}}>Instagram</div>
        </div>
-       <div style={{flex:1,background:"rgba(255,255,255,.1)",borderRadius:12,padding:"8px",textAlign:"center"}}>
-         <div style={{fontSize:20}}>📘</div>
-         <div style={{color:"rgba(255,255,255,.5)",fontSize:10,marginTop:4}}>Facebook</div>
+       <div style={{flex:1,background:"rgba(255,255,255,.1)",borderRadius:14,padding:"12px 8px",textAlign:"center"}}>
+         <div style={{fontSize:26}}>📘</div>
+         <div style={{color:"rgba(255,255,255,.5)",fontSize:11,marginTop:6}}>Facebook</div>
        </div>
      </div>
-   </>)},
+   </div>},
 
   {id:"t36",icon:"🏅",name:"Premio / Certificación",desc:"Distinción o reconocimiento obtenido",
-   preview:TP("linear-gradient(135deg,#1a1200,#292100)",<>
-     <div style={{fontSize:40,marginBottom:6}}>🏅</div>
-     <div style={{color:"#fcd34d",fontSize:11,fontWeight:900,letterSpacing:2}}>PREMIADOS</div>
-     <div style={{color:"white",fontSize:14,fontWeight:900}}>MEJOR EMPRESA 2024</div>
-     <div style={{width:36,height:1,background:"rgba(252,211,77,.3)",margin:"8px 0"}}/>
-     <div style={{color:"rgba(255,255,255,.4)",fontSize:10}}>Reconocimiento nacional · Sector XYZ</div>
-   </>)},
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"linear-gradient(135deg,#1a1200,#292100)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+     <div style={{fontSize:50,marginBottom:8}}>🏅</div>
+     <div style={{color:"#fcd34d",fontSize:13,fontWeight:900,letterSpacing:2}}>PREMIADOS</div>
+     <div style={{color:"white",fontSize:16,fontWeight:900}}>MEJOR EMPRESA 2024</div>
+     <div style={{width:48,height:2,background:"rgba(252,211,77,.3)",margin:"10px 0"}}/>
+     <div style={{color:"rgba(255,255,255,.4)",fontSize:11}}>Reconocimiento nacional · Sector XYZ</div>
+   </div>},
 
-  {id:"t37",icon:"🌐",name:"Expansión / Global",desc:"Crecimiento o presencia internacional",
-   preview:TP("#0f172a",<>
-     <div style={{fontSize:34,marginBottom:8}}>🌐</div>
-     <div style={{color:"#38bdf8",fontSize:18,fontWeight:900}}>PRESENCIA</div>
-     <div style={{color:"white",fontSize:18,fontWeight:900}}>GLOBAL</div>
-     <div style={{width:36,height:1,background:"rgba(56,189,248,.2)",margin:"8px 0"}}/>
-     <div style={{fontSize:16,marginBottom:4}}>🇦🇷 🇧🇷 🇲🇽 🇨🇱 🇨🇴</div>
-     <div style={{color:"#38bdf8",fontSize:11,fontWeight:700}}>15 países · 50.000 clientes</div>
-   </>)},
+  {id:"t37",icon:"🌐",name:"Expansión / Global",desc:"Presencia o crecimiento internacional",
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"#0f172a",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+     <div style={{fontSize:44,marginBottom:10}}>🌐</div>
+     <div style={{color:"#38bdf8",fontSize:22,fontWeight:900}}>PRESENCIA</div>
+     <div style={{color:"white",fontSize:22,fontWeight:900}}>GLOBAL</div>
+     <div style={{width:48,height:2,background:"rgba(56,189,248,.2)",margin:"10px 0"}}/>
+     <div style={{fontSize:18,marginBottom:6}}>🇦🇷 🇧🇷 🇲🇽 🇨🇱 🇨🇴</div>
+     <div style={{color:"#38bdf8",fontSize:12,fontWeight:700}}>15 países · 50.000 clientes</div>
+   </div>},
 
   {id:"t38",icon:"🔁",name:"Contenido evergreen",desc:"Post atemporal, siempre relevante",
-   preview:TP("#1e1b4b",<div style={{border:"1px solid #6366f1",borderRadius:12,padding:"16px",width:"100%",textAlign:"center",background:"rgba(99,102,241,.1)"}}>
-     <div style={{color:"#a5b4fc",fontSize:13,fontWeight:900,marginBottom:2}}>CONTENIDO</div>
-     <div style={{color:"white",fontSize:13,fontWeight:900,marginBottom:10}}>SIEMPRE ÚTIL</div>
-     <div style={{fontSize:24,marginBottom:8}}>♻️</div>
-     <div style={{color:"rgba(255,255,255,.5)",fontSize:11,lineHeight:1.5}}>Consejos que no tienen<br/>fecha de vencimiento</div>
-   </div>)},
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"#1e1b4b",display:"flex",alignItems:"center",justifyContent:"center",padding:"20px",boxSizing:"border-box"}}>
+     <div style={{border:"1px solid #6366f1",borderRadius:14,padding:"20px",width:"100%",textAlign:"center",background:"rgba(99,102,241,.1)"}}>
+       <div style={{color:"#a5b4fc",fontSize:16,fontWeight:900,marginBottom:4}}>CONTENIDO</div>
+       <div style={{color:"white",fontSize:16,fontWeight:900,marginBottom:14}}>SIEMPRE ÚTIL</div>
+       <div style={{fontSize:30,marginBottom:12}}>♻️</div>
+       <div style={{color:"rgba(255,255,255,.5)",fontSize:12,lineHeight:1.6}}>Consejos que no tienen<br/>fecha de vencimiento</div>
+     </div>
+   </div>},
 
-  {id:"t39",icon:"💌",name:"Newsletter / Email",desc:"Invitá a tu lista de suscriptores",
-   preview:TP("#0f172a",<div style={{background:"#1e293b",borderRadius:12,padding:"16px",width:"100%",textAlign:"center"}}>
-     <div style={{fontSize:26,marginBottom:8}}>💌</div>
-     <div style={{color:"white",fontSize:13,fontWeight:900,marginBottom:4}}>SUSCRIBITE</div>
-     <div style={{color:"rgba(255,255,255,.5)",fontSize:10,lineHeight:1.5,marginBottom:12}}>Contenido exclusivo<br/>cada semana</div>
-     <div style={{background:"#6d28d9",borderRadius:15,padding:"8px",color:"white",fontSize:10,fontWeight:900}}>QUIERO SUSCRIBIRME →</div>
-   </div>)},
+  {id:"t39",icon:"💌",name:"Newsletter / Email",desc:"Invitá a suscribirse a tu lista",
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"#0f172a",display:"flex",alignItems:"center",justifyContent:"center",padding:"20px",boxSizing:"border-box"}}>
+     <div style={{background:"#1e293b",borderRadius:16,padding:"20px",width:"100%",textAlign:"center"}}>
+       <div style={{fontSize:36,marginBottom:10}}>💌</div>
+       <div style={{color:"white",fontSize:16,fontWeight:900,marginBottom:6}}>SUSCRIBITE</div>
+       <div style={{color:"rgba(255,255,255,.5)",fontSize:12,lineHeight:1.6,marginBottom:14}}>Contenido exclusivo<br/>cada semana</div>
+       <div style={{background:"#6d28d9",borderRadius:20,padding:"10px",color:"white",fontSize:12,fontWeight:900}}>QUIERO SUSCRIBIRME →</div>
+     </div>
+   </div>},
 
   {id:"t40",icon:"🚀",name:"Inspiración emprendedor",desc:"Motivación para tu audiencia",
-   preview:TP("radial-gradient(ellipse at center,#2d1b69 0%,#0a0a1a 100%)",<>
-     <div style={{fontSize:34,marginBottom:10}}>🚀</div>
-     <div style={{color:"#a855f7",fontSize:20,fontWeight:900}}>NO PARES</div>
-     <div style={{color:"white",fontSize:20,fontWeight:900}}>DE CRECER</div>
-     <div style={{width:36,height:1,background:"rgba(168,85,247,.3)",margin:"10px 0"}}/>
-     <div style={{color:"rgba(255,255,255,.4)",fontSize:11,fontStyle:"italic",fontFamily:"Georgia,serif"}}>"Tu momento es ahora."</div>
-     <div style={{color:"#a855f7",fontSize:9,fontWeight:700,marginTop:4}}>— MCM · my community manager</div>
-   </>)},
+   preview:<div style={{width:"100%",aspectRatio:"4/3",background:"radial-gradient(ellipse at center,#2d1b69 0%,#0a0a1a 100%)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px"}}>
+     <div style={{fontSize:44,marginBottom:12}}>🚀</div>
+     <div style={{color:"#a855f7",fontSize:24,fontWeight:900}}>NO PARES</div>
+     <div style={{color:"white",fontSize:24,fontWeight:900}}>DE CRECER</div>
+     <div style={{width:48,height:2,background:"rgba(168,85,247,.3)",margin:"14px 0"}}/>
+     <div style={{color:"rgba(255,255,255,.4)",fontSize:13,fontStyle:"italic",fontFamily:"Georgia,serif"}}>"Tu momento es ahora."</div>
+     <div style={{color:"#a855f7",fontSize:10,fontWeight:700,marginTop:6}}>— MCM · my community manager</div>
+   </div>},
 ];
 function BrandScreen({brand,saveBrand,showToast,onNext}) {
   const [form,setForm]=useState({
@@ -2028,7 +2039,7 @@ Responde SOLO con el JSON, sin texto adicional.`,
               </div>
 
               {/* Grid scrolleable — 4 columnas */}
-              <div style={{overflowY:"auto",padding:"28px 32px",display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:24,flex:1}}>
+              <div style={{overflowY:"auto",padding:"28px 32px",display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:20,flex:1}}>
                 {TEMPLATES_40.map(t=>{
                   const selected=(form.selectedTemplates||[]).includes(t.id);
                   return(
@@ -2048,8 +2059,8 @@ Responde SOLO con el JSON, sin texto adicional.`,
                     }}>
                       {/* Check badge */}
                       {selected&&<div style={{position:"absolute",top:8,right:8,background:"#7c3aed",borderRadius:"50%",width:26,height:26,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:"#fff",zIndex:3,boxShadow:"0 2px 8px rgba(0,0,0,.5)"}}>✓</div>}
-                      {/* Preview — altura fija con flex */}
-                      <div style={{height:160,overflow:"hidden",flexShrink:0}}>
+                      {/* Preview — aspectRatio 4/3 */}
+                      <div style={{width:"100%",overflow:"hidden"}}>
                         {t.preview}
                       </div>
                       {/* Info */}
