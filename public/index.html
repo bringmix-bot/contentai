@@ -636,8 +636,8 @@ function App() {
     <div className="app">
       <div className="sidebar">
         <div className="logo">
-          <div className="logo-mark">M</div>
-          <div><div className="logo-text">MCM</div><div className="logo-sub">COMMUNITY MANAGER</div></div>
+          <img src="/logo_MCM.png" alt="MCM Logo" style={{width:38,height:38,borderRadius:"50%",objectFit:"cover",flexShrink:0}}/>
+          <div><div className="logo-text">MCM</div><div className="logo-sub">MY COMMUNITY MANAGER</div></div>
         </div>
         {/* Plan badge */}
         <div style={{margin:"0 10px 12px",background:`rgba(${currentPlan.id==="premium"?"236,72,153":currentPlan.id==="pro"?"109,40,217":"107,107,138"},.15)`,border:`1px solid ${currentPlan.color}44`,borderRadius:8,padding:"5px 10px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
@@ -768,7 +768,7 @@ function LandingPage({onLogin, onRegister}) {
       {/* NAV */}
       <nav style={{position:"fixed",top:0,left:0,right:0,zIndex:200,background:"rgba(255,255,255,0.94)",backdropFilter:"blur(20px)",borderBottom:"1px solid #f0eeff",padding:"0 clamp(20px,5vw,64px)",height:68,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <div style={{width:36,height:36,background:"linear-gradient(135deg,#6d28d9,#ec4899)",borderRadius:10,display:"grid",placeItems:"center",fontWeight:800,fontSize:16,color:"#fff",flexShrink:0,fontFamily:HF}}>M</div>
+          <img src="/logo_MCM.png" alt="MCM Logo" style={{width:36,height:36,borderRadius:"50%",objectFit:"cover",flexShrink:0}}/>
           <span style={{fontFamily:HF,fontWeight:700,fontSize:18,color:"#0f0f1a",letterSpacing:"-0.3px"}}>MCM</span>
         </div>
         <div style={{display:"flex",gap:10,alignItems:"center"}}>
@@ -947,7 +947,7 @@ function LandingPage({onLogin, onRegister}) {
       {/* FOOTER */}
       <footer style={{background:"#0f0f1a",padding:"44px clamp(20px,5vw,64px)",display:"flex",flexDirection:"column",alignItems:"center",gap:14}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <div style={{width:32,height:32,background:"linear-gradient(135deg,#6d28d9,#ec4899)",borderRadius:9,display:"grid",placeItems:"center",fontWeight:800,fontSize:14,color:"#fff",fontFamily:HF}}>M</div>
+          <img src="/logo_MCM.png" alt="MCM Logo" style={{width:32,height:32,borderRadius:"50%",objectFit:"cover",flexShrink:0}}/>
           <span style={{fontFamily:HF,fontWeight:700,fontSize:16,color:"#e0d8f8",letterSpacing:"-0.3px"}}>MCM — My Community Manager</span>
         </div>
         <p style={{color:"#4a4a6a",fontSize:13,fontFamily:BF,textAlign:"center"}}>© 2026 MCM · Powered by Claude AI · Precios ARS al tipo de cambio oficial BCRA</p>
@@ -1008,7 +1008,7 @@ function AuthScreen({mode, setMode, onSuccess, onBack, showToast}) {
       <div style={{width:"100%",maxWidth:420,position:"relative"}}>
         {/* Logo */}
         <div style={{textAlign:"center",marginBottom:32}}>
-          <div style={{width:48,height:48,background:"linear-gradient(135deg,var(--accent),var(--pink))",borderRadius:14,display:"grid",placeItems:"center",fontWeight:800,fontSize:20,color:"#fff",fontFamily:"'Syne',sans-serif",margin:"0 auto 12px"}}>M</div>
+          <img src="/logo_MCM.png" alt="MCM Logo" style={{width:72,height:72,borderRadius:"50%",objectFit:"cover",margin:"0 auto 12px",display:"block"}}/>
           <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22}}>MCM</div>
           <div style={{fontSize:13,color:"var(--muted)",marginTop:4}}>
             {mode==="login"?"Iniciá sesión en tu cuenta":"Creá tu cuenta gratis"}
