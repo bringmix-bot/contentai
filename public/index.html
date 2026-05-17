@@ -1842,47 +1842,65 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
         const tmplForPost = selectedTmpls[i % selectedTmpls.length];
 
         // ── SELECCIÓN DE IMAGEN POR BRIEF ──
-        // Un solo llamado a la API con TODAS las imágenes + el brief.
-        // Claude las ve juntas y elige directamente el índice correcto.
         let imgSrc = imgs[i % imgs.length].preview;
         let imgMatchWarning = false;
 
         if(postBrief && imgs.length > 0) {
           try {
-            setProgressMsg(`Post ${i+1}: buscando imagen de "${postBrief}" entre ${imgs.length} fotos...`);
+            setProgressMsg(`Post ${i+1}: analizando imágenes para "${postBrief}"...`);
 
-            // Preparar todas las imágenes como array de base64 válido
-            const imgData = imgs.map((img, idx) => {
-              const parts = img.preview.split(",");
-              const b64 = parts[1] || "";
-              const mtype = (parts[0]||"data:image/jpeg").split(";")[0].split(":")[1] || "image/jpeg";
+            // Convertir TODAS las imágenes a base64 (incluso blob URLs)
+            const imgData = await Promise.all(imgs.map(async (img, idx) => {
+              let b64 = "", mtype = "image/jpeg";
+              const src = img.preview || "";
+              if(src.startsWith("data:")) {
+                const parts = src.split(",");
+                b64 = parts[1]||"";
+                mtype = (parts[0]||"").split(";")[0].split(":")[1]||"image/jpeg";
+              } else if(src.startsWith("blob:") || src.startsWith("http")) {
+                // Convertir blob/url a base64 via canvas
+                try {
+                  b64 = await new Promise((res,rej)=>{
+                    const im = new Image();
+                    im.crossOrigin="anonymous";
+                    im.onload=()=>{
+                      const c=document.createElement("canvas");
+                      c.width=im.naturalWidth; c.height=im.naturalHeight;
+                      c.getContext("2d").drawImage(im,0,0);
+                      const d=c.toDataURL("image/jpeg",0.85);
+                      res(d.split(",")[1]||"");
+                    };
+                    im.onerror=()=>res("");
+                    im.src=src;
+                  });
+                  mtype="image/jpeg";
+                } catch(e){ b64=""; }
+              }
               return { idx, b64, mtype, valid: b64.length > 200 };
-            }).filter(d => d.valid);
+            }));
 
-            if(imgData.length === 0) {
-              // Ninguna imagen tiene base64 válido — son blob URLs viejas
+            const validImgs = imgData.filter(d=>d.valid);
+
+            if(validImgs.length === 0) {
               imgMatchWarning = true;
             } else {
-              // Llamado único con múltiples imágenes via endpoint dedicado
               const r = await fetch("/api/select-image", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   brief: postBrief,
-                  images: imgData.map(d => ({ idx: d.idx, b64: d.b64, mtype: d.mtype }))
+                  images: validImgs.map(d=>({idx:d.idx, b64:d.b64, mtype:d.mtype}))
                 })
               });
               const d = await r.json();
               if(d.success && d.chosenIdx >= 0 && d.chosenIdx < imgs.length) {
                 imgSrc = imgs[d.chosenIdx].preview;
-                setProgressMsg(`Post ${i+1}: ✓ imagen ${d.chosenIdx+1} elegida para "${postBrief}" — generando texto...`);
+                setProgressMsg(`Post ${i+1}: ✓ imagen elegida para "${postBrief}"`);
               } else {
                 imgMatchWarning = true;
-                setProgressMsg(`Post ${i+1}: sin imagen exacta para "${postBrief}" — generando texto...`);
               }
             }
           } catch(e) {
-            // Fallback silencioso
             imgSrc = imgs[i % imgs.length].preview;
           }
         } else {
@@ -1956,7 +1974,8 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
            imgMatchWarning, slideCount, slides: slideCount>1?makeCarouselSlides(slideCount,imgSrc):null},
           {id:1,style:2,styleName:"Diseño",caption:cap2,overlayText:overlayText2,imgSrc:null,...baseOpt,
            slideCount, slides: null},
-          {id:2,style:3,styleName:"IA Visual",caption:cap3,overlayText:overlayText3,imgSrc:null,...baseOpt,
+          {id:2,style:3,styleName:tmplForPost?.name||"Template",caption:cap3,overlayText:overlayText3,imgSrc:null,...baseOpt,
+           templateHtml:tmplForPost?.html||"", templateBg:tmplForPost?.bg||"#1a1a2e", templateName:tmplForPost?.name||"Template",
            slideCount, slides: null},
         ];
         allPosts.push({postIdx:i,label:"Post "+(i+1),theme:PROMPTS[i].slice(8,40)+"...",options,slideCount});
@@ -2092,7 +2111,7 @@ function WeekPostCard({opt,postIdx,optIdx,selected,onSelect,onEdit}) {
   const [currentSlide,setCurrentSlide]=useState(0);
 
   useEffect(()=>{
-    if(!canvasRef.current) return;
+    if(!canvasRef.current || opt.style===3) return;
     const displayOpt = opt.slides && opt.slides.length>1
       ? {...opt, imgSrc: opt.slides[currentSlide]}
       : opt;
@@ -2101,11 +2120,21 @@ function WeekPostCard({opt,postIdx,optIdx,selected,onSelect,onEdit}) {
 
   const hasCarousel = opt.slides && opt.slides.length > 1;
 
+  // Estilo 3: mostrar template HTML del cliente
+  const tmplPreview = opt.style===3 && opt.templateHtml ? (
+    <div style={{position:"relative",width:"100%",paddingBottom:"100%",overflow:"hidden",background:opt.templateBg||"#1a1a2e"}}>
+      <div style={{position:"absolute",inset:0}} dangerouslySetInnerHTML={{__html:opt.templateHtml}}/>
+    </div>
+  ) : null;
+
   return (
     <div className={"post-option"+(selected?" selected":"")} style={{position:"relative"}}>
       <div className="post-canvas-wrap" onClick={onSelect} style={{position:"relative"}}>
-        <canvas ref={canvasRef} style={{width:"100%",height:"100%",display:"block"}} />
-        <div style={{position:"absolute",top:8,left:8,background:"rgba(0,0,0,.7)",backdropFilter:"blur(4px)",borderRadius:6,padding:"3px 8px",fontSize:11,fontWeight:600}}>{opt.styleName}</div>
+        {opt.style===3 && tmplPreview
+          ? tmplPreview
+          : <canvas ref={canvasRef} style={{width:"100%",height:"100%",display:"block"}} />
+        }
+        <div style={{position:"absolute",top:8,left:8,background:"rgba(0,0,0,.7)",backdropFilter:"blur(4px)",borderRadius:6,padding:"3px 8px",fontSize:11,fontWeight:600}}>{opt.style===3?(opt.templateName||"Template"):"Revista"===opt.styleName?"Revista":opt.styleName}</div>
         {selected&&<div style={{position:"absolute",top:8,right:8,background:"var(--accent)",borderRadius:"50%",width:22,height:22,display:"grid",placeItems:"center",fontSize:12}}>✓</div>}
         {opt.imgMatchWarning&&(
           <div style={{position:"absolute",bottom:hasCarousel?24:8,left:0,right:0,margin:"0 8px",background:"rgba(245,158,11,.9)",borderRadius:6,padding:"4px 8px",fontSize:10,fontWeight:600,color:"#000",textAlign:"center"}}>
