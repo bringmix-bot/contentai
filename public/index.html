@@ -593,7 +593,15 @@ function App() {
 
   const saveBrand=(b)=>{setBrand(b);store.set("brand",b);};
   const saveFiles=(f)=>{setFiles(f);store.set("files",f);};
-  const savePosts=(p)=>{setPosts(p);store.set("posts",p);};
+  const savePosts=(p)=>{
+    setPosts(p);
+    // Guardar sin imgSrc/slides para no explotar localStorage
+    const stripped=p.map(post=>{
+      const {imgSrc,slides,...rest}=post;
+      return rest;
+    });
+    try{ store.set("posts",stripped); }catch(e){ console.warn("localStorage lleno, posts solo en memoria"); }
+  };
   const saveSocials=(s)=>{setSocials(s);store.set("socials",s);};
 
   const steps=[
@@ -1849,34 +1857,30 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
           try {
             setProgressMsg(`Post ${i+1}: analizando imágenes para "${postBrief}"...`);
 
-            // Convertir TODAS las imágenes a base64 (incluso blob URLs)
+            // Convertir cada imagen a base64 con descripción de su contenido
             const imgData = await Promise.all(imgs.map(async (img, idx) => {
               let b64 = "", mtype = "image/jpeg";
-              const src = img.preview || "";
+              const src = img.preview || img.url || "";
+
               if(src.startsWith("data:")) {
-                const parts = src.split(",");
-                b64 = parts[1]||"";
-                mtype = (parts[0]||"").split(";")[0].split(":")[1]||"image/jpeg";
+                const comma = src.indexOf(",");
+                b64 = src.slice(comma+1);
+                mtype = src.slice(5, src.indexOf(";")) || "image/jpeg";
               } else if(src.startsWith("blob:") || src.startsWith("http")) {
-                // Convertir blob/url a base64 via canvas
                 try {
-                  b64 = await new Promise((res,rej)=>{
-                    const im = new Image();
-                    im.crossOrigin="anonymous";
-                    im.onload=()=>{
-                      const c=document.createElement("canvas");
-                      c.width=im.naturalWidth; c.height=im.naturalHeight;
-                      c.getContext("2d").drawImage(im,0,0);
-                      const d=c.toDataURL("image/jpeg",0.85);
-                      res(d.split(",")[1]||"");
-                    };
-                    im.onerror=()=>res("");
-                    im.src=src;
+                  const blob = await fetch(src).then(r=>r.blob());
+                  b64 = await new Promise(res=>{
+                    const fr = new FileReader();
+                    fr.onload = e => res(e.target.result.split(",")[1]||"");
+                    fr.onerror = () => res("");
+                    fr.readAsDataURL(blob);
                   });
-                  mtype="image/jpeg";
+                  mtype = blob.type || "image/jpeg";
                 } catch(e){ b64=""; }
               }
-              return { idx, b64, mtype, valid: b64.length > 200 };
+              // Incluir nombre del archivo como pista para la IA
+              const fileName = img.name || img.fileName || `imagen_${idx+1}`;
+              return { idx, b64, mtype, fileName, valid: b64.length > 100 };
             }));
 
             const validImgs = imgData.filter(d=>d.valid);
@@ -1889,11 +1893,11 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   brief: postBrief,
-                  images: validImgs.map(d=>({idx:d.idx, b64:d.b64, mtype:d.mtype}))
+                  images: validImgs.map(d=>({idx:d.idx, b64:d.b64, mtype:d.mtype, fileName:d.fileName}))
                 })
               });
               const d = await r.json();
-              if(d.success && d.chosenIdx >= 0 && d.chosenIdx < imgs.length) {
+              if(d.success && typeof d.chosenIdx === "number" && d.chosenIdx >= 0 && d.chosenIdx < imgs.length) {
                 imgSrc = imgs[d.chosenIdx].preview;
                 setProgressMsg(`Post ${i+1}: ✓ imagen elegida para "${postBrief}"`);
               } else {
@@ -1969,19 +1973,61 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
           stickers: [],
         };
 
+        // ── PERSONALIZAR TEMPLATE CON DATOS REALES ──
+        // Genera el HTML del template personalizado usando la IA
+        let personalizedHtml = tmplForPost?.html || "";
+        let personalizedBg = tmplForPost?.bg || "#1a1a2e";
+
+        if(tmplForPost) {
+          try {
+            setProgressMsg(`Post ${i+1}: personalizando template "${tmplForPost.name}"...`);
+            const tmplPersonPrompt = `Sos un diseñador gráfico experto. Tenés este template HTML de diseño:
+
+${tmplForPost.html}
+
+El cliente es: ${brand.name} — ${brand.industry||brand.description||""}
+Brief del post: ${postBrief || PROMPTS[i] || tmplForPost.desc}
+Tono: ${brand.tone||"Profesional"}
+Instrucciones especiales: ${brand.cmInstructions||"ninguna"}
+
+Personalizá ÚNICAMENTE los textos del template reemplazando los textos genéricos por contenido real del cliente. 
+Por ejemplo si dice "El éxito no es un destino" → ponés una frase real sobre ${brand.name}.
+Si dice "5 TIPS ESENCIALES" → ponés tips reales sobre el rubro.
+Si dice "Tu Marca" → ponés "${brand.name}".
+Si dice "87%" → ponés una estadística real del rubro.
+
+Mantené EXACTAMENTE la misma estructura HTML, colores, estilos y layout. Solo cambiá los textos.
+Respondé ÚNICAMENTE con el HTML modificado, sin explicaciones ni markdown.`;
+
+            const tmplResp = await callAI(tmplPersonPrompt);
+            if(tmplResp && tmplResp.length > 50 && tmplResp.includes("<")) {
+              personalizedHtml = tmplResp;
+            }
+          } catch(e) {
+            // fallback al html original
+          }
+        }
+
         const options=[
           {id:0,style:1,styleName:"Revista",caption:cap1,overlayText:overlayText1,imgSrc,...baseOpt,
            imgMatchWarning, slideCount, slides: slideCount>1?makeCarouselSlides(slideCount,imgSrc):null},
           {id:1,style:2,styleName:"Diseño",caption:cap2,overlayText:overlayText2,imgSrc:null,...baseOpt,
            slideCount, slides: null},
           {id:2,style:3,styleName:tmplForPost?.name||"Template",caption:cap3,overlayText:overlayText3,imgSrc:null,...baseOpt,
-           templateHtml:tmplForPost?.html||"", templateBg:tmplForPost?.bg||"#1a1a2e", templateName:tmplForPost?.name||"Template",
+           templateHtml:personalizedHtml, templateBg:personalizedBg, templateName:tmplForPost?.name||"Template",
            slideCount, slides: null},
         ];
         allPosts.push({postIdx:i,label:"Post "+(i+1),theme:PROMPTS[i].slice(8,40)+"...",options,slideCount});
         setWeekPosts([...allPosts]);
       }
-      savePosts(allPosts.map((p,i)=>({...p.options[0],postIdx:i,id:Date.now()+i})));
+      // Guardar posts SIN imgSrc (las imágenes quedan en files, se reconstruyen al renderizar)
+      const postsToSave = allPosts.map((p,i)=>{
+        const opt = {...p.options[0], postIdx:i, id:Date.now()+i};
+        delete opt.imgSrc; // no guardar base64 en localStorage
+        delete opt.slides; // no guardar slides en localStorage
+        return opt;
+      });
+      savePosts(postsToSave);
       showToast("7 publicaciones generadas!","ok");
     }catch(e){showToast("Error: "+e.message,"err");}
     finally{setGenerating(false);setProgress(0);setProgressMsg("");}
@@ -2297,7 +2343,7 @@ function EditorModal({opt,brand,onClose,onSave,showToast}) {
       // Guardar en historial
       const hist=store.get("postHistory")||[];
       hist.unshift({id:Date.now(),imgBase64:canvas.toDataURL("image/jpeg",0.5),caption:form.caption,date:new Date().toISOString(),network:"instagram",format:format||"post",status:"published",postId:pubData.id||""});
-      store.set("postHistory",hist.slice(0,50));
+      try{store.set("postHistory",hist.slice(0,50).map(p=>{const{imgSrc,slides,...r}=p;return r;}));}catch(e){}
       const lbl={"post":"Publicación","story":"Historia","reel":"Reel"}[format]||"Post";
       setPubMsg({ok:true,text:lbl+" publicada en @gonvinardell!"}); showToast(lbl+" publicada!","ok");
     }catch(e){setPubMsg({ok:false,text:"Error: "+e.message});}
@@ -2699,7 +2745,7 @@ function ScheduleScreen({socials,showToast}) {
     const postData=posts2.find(p=>p.postIdx===modalData.postNum-1)||{};
     const hist=store.get("postHistory")||[];
     hist.unshift({id:Date.now(),caption:postData.caption||"",date:selectedDate.key+"T"+modalData.hour+":00",network:modalData.net,format:modalData.format||"post",status:"scheduled",postNum:modalData.postNum});
-    store.set("postHistory",hist.slice(0,50));
+    try{store.set("postHistory",hist.slice(0,50).map(p=>{const{imgSrc,slides,...r}=p;return r;}));}catch(e){}
     setShowModal(false); setDragPost(null);
     showToast("Post #"+modalData.postNum+" programado para "+selectedDate.label+" "+modalData.hour,"ok");
   };
@@ -2887,7 +2933,7 @@ function HistoryScreen({socials,showToast}) {
   const toggleSelect=(id)=>setSelected(s=>s.includes(id)?s.filter(x=>x!==id):[...s,id]);
   const deleteSelected=()=>{
     const newHist=history.filter(h=>!selected.includes(h.id));
-    setHistory(newHist); store.set("postHistory",newHist); setSelected([]);
+    setHistory(newHist); try{store.set("postHistory",newHist.map(p=>{const{imgSrc,slides,...r}=p;return r;}));}catch(e){} setSelected([]);
     showToast(selected.length+" post(s) eliminados","ok");
   };
 
