@@ -1730,18 +1730,54 @@ Responde SOLO con el JSON, sin texto adicional.`,
 // ════════════════════════════════════════════════════════════════
 function LibraryScreen({files,saveFiles,showToast,onNext}) {
   const inputRef=useRef();
+  const LOCAL_SERVER="http://localhost:3001";
+  const [serverFiles,setServerFiles]=useState([]);
+  const [serverOk,setServerOk]=useState(null);
+  const [loadingServer,setLoadingServer]=useState(false);
+  const [filtro,setFiltro]=useState("todos");
+  const [busqueda,setBusqueda]=useState("");
+  const [carpetaActiva,setCarpetaActiva]=useState("todas");
+  const [seleccionados,setSeleccionados]=useState(new Set());
+  useEffect(()=>{ checkServer(); },[]);
+  const checkServer=async()=>{
+    setServerOk(null);
+    try{
+      const res=await fetch(LOCAL_SERVER+"/list",{signal:AbortSignal.timeout(3000)});
+      if(res.ok){setServerOk(true);cargarServerFiles();}else setServerOk(false);
+    }catch{setServerOk(false);}
+  };
+  const cargarServerFiles=async()=>{
+    setLoadingServer(true);
+    try{
+      const res=await fetch(LOCAL_SERVER+"/list");
+      const data=await res.json();
+      setServerFiles(data.map((f,i)=>({...f,id:"srv_"+i,tipo:f.name.match(/\.(mp4|mov|webm|avi)$/i)?"video":"imagen"})));
+    }catch(e){showToast("Error servidor","err");}
+    setLoadingServer(false);
+  };
+  const carpetas=["todas",...new Set(serverFiles.map(f=>f.carpeta||"raiz"))];
+  const filtrados=serverFiles.filter(f=>(carpetaActiva==="todas"||(f.carpeta||"raiz")===carpetaActiva)&&(filtro==="todos"||f.tipo===filtro)&&f.name.toLowerCase().includes(busqueda.toLowerCase()));
+  const toggleSel=(id)=>setSeleccionados(prev=>{const n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});
+  const importar=async()=>{
+    const toImport=serverFiles.filter(f=>seleccionados.has(f.id));
+    showToast("Importando "+toImport.length+" archivo(s)...","info");
+    const newFiles=[];
+    for(const sf of toImport){
+      try{
+        const blob=await fetch(sf.url).then(r=>r.blob());
+        const base64=await new Promise(res=>{const fr=new FileReader();fr.onload=e=>res(e.target.result);fr.readAsDataURL(blob);});
+        newFiles.push({id:Date.now()+Math.random(),name:sf.name,type:sf.tipo==="video"?"video":"image",preview:base64,size:blob.size});
+      }catch(e){}
+    }
+    saveFiles([...files,...newFiles]);
+    setSeleccionados(new Set());
+    showToast(newFiles.length+" archivo(s) importados ✓","ok");
+  };
   const handleFiles=async(e)=>{
     const rawFiles=Array.from(e.target.files);
-    showToast("Procesando "+rawFiles.length+" archivo(s)...","info");
-    const newFiles = await Promise.all(rawFiles.map(f => new Promise(resolve => {
-      const reader = new FileReader();
-      reader.onload = ev => resolve({
-        id: Date.now()+Math.random(),
-        name: f.name,
-        type: f.type.startsWith("video") ? "video" : "image",
-        preview: ev.target.result, // base64 real, no blob URL
-        size: f.size,
-      });
+    const newFiles=await Promise.all(rawFiles.map(f=>new Promise(resolve=>{
+      const reader=new FileReader();
+      reader.onload=ev=>resolve({id:Date.now()+Math.random(),name:f.name,type:f.type.startsWith("video")?"video":"image",preview:ev.target.result,size:f.size});
       reader.readAsDataURL(f);
     })));
     saveFiles([...files,...newFiles]);
@@ -1750,31 +1786,29 @@ function LibraryScreen({files,saveFiles,showToast,onNext}) {
   const remove=(id)=>saveFiles(files.filter(f=>f.id!==id));
   return (
     <div style={{padding:"32px 36px"}} className="fade-in">
-      <div style={{marginBottom:24,display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-        <div>
-          <h2 style={{fontSize:22,fontWeight:800,marginBottom:6}}>Mis archivos</h2>
-          <p style={{color:"var(--muted)",fontSize:14}}>La IA elegirá de estos archivos para crear las publicaciones.</p>
-        </div>
-        <button className="btn btn-primary" onClick={()=>inputRef.current.click()}>+ Agregar</button>
+      <div style={{marginBottom:20,display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+        <div><h2 style={{fontSize:22,fontWeight:800,marginBottom:6}}>Mis archivos</h2><p style={{color:"var(--muted)",fontSize:14}}>La IA elegirá de estos archivos para crear las publicaciones.</p></div>
+        <button className="btn btn-primary" onClick={()=>inputRef.current.click()}>+ Subir</button>
       </div>
       <input ref={inputRef} type="file" accept="image/*,video/*" multiple style={{display:"none"}} onChange={handleFiles} />
-      <div className="file-grid">
-        <div className="file-add" onClick={()=>inputRef.current.click()}>
-          <div style={{fontSize:28}}>📷</div><div>Fotos y videos</div>
+      {files.length>0&&(<div style={{marginBottom:20}}><div style={{fontSize:12,color:"var(--muted)",fontWeight:600,marginBottom:8}}>ARCHIVOS SUBIDOS ({files.length})</div><div className="file-grid">{files.map(f=>(<div key={f.id} className="file-thumb">{f.type==="video"?<video src={f.preview} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<img src={f.preview} alt={f.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>}<button onClick={()=>remove(f.id)} style={{position:"absolute",top:4,right:4,background:"rgba(0,0,0,.7)",border:"none",color:"#fff",borderRadius:"50%",width:22,height:22,cursor:"pointer",fontSize:11}}>✕</button></div>))}</div></div>)}
+      <div style={{borderTop:"1px solid var(--border)",paddingTop:18}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+          <div><div style={{fontSize:12,color:"var(--muted)",fontWeight:600,marginBottom:4}}>📁 CARPETA LOCAL</div><div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:8,height:8,borderRadius:"50%",background:serverOk===true?"#22c55e":serverOk===false?"var(--error)":"#888"}}/><span style={{fontSize:12,color:"var(--muted)"}}>{serverOk===null?"Conectando...":serverOk?"Activo · "+serverFiles.length+" archivos":"No detectado"}</span></div></div>
+          <div style={{display:"flex",gap:8}}>{seleccionados.size>0&&<button className="btn btn-primary" style={{fontSize:12,padding:"7px 14px"}} onClick={importar}>⬇ Importar {seleccionados.size}</button>}<button className="btn btn-ghost" style={{fontSize:12,padding:"7px 14px"}} onClick={checkServer}>🔄</button></div>
         </div>
-        {files.map(f=>(
-          <div key={f.id} className="file-thumb">
-            {f.type==="video"?<video src={f.preview} style={{width:"100%",height:"100%",objectFit:"cover"}} />:<img src={f.preview} alt={f.name} style={{width:"100%",height:"100%",objectFit:"cover"}} />}
-            <button onClick={()=>remove(f.id)} style={{position:"absolute",top:4,right:4,background:"rgba(0,0,0,.7)",border:"none",color:"#fff",borderRadius:"50%",width:22,height:22,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
-            {f.type==="video"&&<div style={{position:"absolute",bottom:4,left:4,background:"rgba(0,0,0,.6)",borderRadius:4,padding:"2px 6px",fontSize:10}}>🎬</div>}
-          </div>
-        ))}
+        {serverOk===false&&(<div style={{background:"rgba(244,63,94,.08)",border:"1px solid rgba(244,63,94,.25)",borderRadius:12,padding:"14px",marginBottom:12}}><div style={{fontWeight:700,fontSize:13,color:"var(--error)",marginBottom:6}}>Servidor no detectado</div><div style={{fontFamily:"monospace",fontSize:11,color:"var(--accent2)",background:"#0a0a0a",padding:"8px 12px",borderRadius:8,marginBottom:8}}>cd C:\mcm-server &amp;&amp; node server.js</div><button className="btn btn-ghost" style={{fontSize:11}} onClick={checkServer}>Reintentar</button></div>)}
+        {serverOk===true&&(<>
+          {carpetas.length>1&&(<div style={{display:"flex",gap:5,marginBottom:8,flexWrap:"wrap"}}>{carpetas.map(c=><button key={c} onClick={()=>setCarpetaActiva(c)} className="btn" style={{padding:"4px 10px",fontSize:11,background:carpetaActiva===c?"rgba(109,40,217,.25)":"var(--surface2)",border:"1px solid "+(carpetaActiva===c?"var(--accent2)":"var(--border)"),color:carpetaActiva===c?"var(--accent2)":"var(--muted)"}}>📁 {c==="todas"?"Todas":c}{c!=="todas"&&" ("+serverFiles.filter(f=>(f.carpeta||"raiz")===c).length+")"}</button>)}</div>)}
+          <div style={{display:"flex",gap:6,marginBottom:10}}><input value={busqueda} onChange={e=>setBusqueda(e.target.value)} placeholder="Buscar..." style={{flex:1,fontSize:12,padding:"6px 10px"}}/>{["todos","imagen","video"].map(v=><button key={v} onClick={()=>setFiltro(v)} className="btn" style={{padding:"5px 9px",fontSize:11,background:filtro===v?"rgba(109,40,217,.2)":"var(--surface2)",border:"1px solid "+(filtro===v?"var(--accent2)":"var(--border)"),color:filtro===v?"var(--accent2)":"var(--muted)"}}>{v}</button>)}</div>
+          {loadingServer?(<div style={{textAlign:"center",padding:16,color:"var(--muted)",fontSize:13}}>Cargando...</div>):filtrados.length===0?(<div style={{textAlign:"center",padding:16,color:"var(--muted)",fontSize:13}}>Sin archivos</div>):(<div className="file-grid">{filtrados.map(f=>{const isSel=seleccionados.has(f.id);return(<div key={f.id} className="file-thumb" style={{border:isSel?"2px solid var(--accent2)":"2px solid transparent",cursor:"pointer"}} onClick={()=>toggleSel(f.id)}>{f.tipo==="imagen"?<img src={f.url} alt={f.name} style={{width:"100%",height:"100%",objectFit:"cover"}} loading="lazy"/>:<div style={{width:"100%",height:"100%",background:"var(--surface2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:28}}>🎬</div>}{isSel&&<div style={{position:"absolute",top:4,right:4,background:"var(--accent)",borderRadius:"50%",width:20,height:20,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#fff"}}>✓</div>}<div style={{position:"absolute",bottom:0,left:0,right:0,background:"rgba(0,0,0,.7)",padding:"3px 5px",fontSize:9,color:"rgba(255,255,255,.7)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</div></div>);})}</div>)}
+          <div style={{marginTop:10,fontSize:11,color:"var(--muted)",display:"flex",alignItems:"center",gap:6}}><div style={{width:6,height:6,borderRadius:"50%",background:"#22c55e"}}/>{LOCAL_SERVER}</div>
+        </>)}
       </div>
-      {files.length>0&&<div style={{marginTop:28}}><button className="btn btn-primary" style={{width:"100%"}} onClick={onNext}>Siguiente — Crear Publicaciones →</button></div>}
+      {files.length>0&&<div style={{marginTop:20}}><button className="btn btn-primary" style={{width:"100%"}} onClick={onNext}>Siguiente — Crear Publicaciones →</button></div>}
     </div>
   );
 }
-
 // ════════════════════════════════════════════════════════════════
 // GENERATE SCREEN — 7 briefs individuales + carrusel
 // ════════════════════════════════════════════════════════════════
