@@ -1960,8 +1960,10 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
         // Para carrusel: generar múltiples slides (misma opción pero diferentes imágenes)
         const makeCarouselSlides=(count,baseImgSrc)=>{
           const slides=[];
+          const startIdx=imgs.findIndex(img=>img.preview===baseImgSrc);
+          const base=startIdx>=0?startIdx:i;
           for(let s=0;s<count;s++){
-            slides.push(imgs[(i+s)%imgs.length].preview);
+            slides.push(imgs[(base+s)%imgs.length].preview);
           }
           return slides;
         };
