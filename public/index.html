@@ -1888,7 +1888,7 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
 
         if(postBrief && imgs.length > 0) {
           try {
-            setProgressMsg(`Post ${i+1}: analizando imágenes para "${postBrief}"...`);
+            // analyzing images for brief
             const imgData = await Promise.all(imgs.map(async (img, idx) => {
               const src = img.preview || img.url || "";
               let b64 = "", mtype = "image/jpeg";
@@ -1927,7 +1927,7 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
               if(!isNaN(chosenValidIdx) && chosenValidIdx >= 0 && chosenValidIdx < validImgs.length) {
                 const originalIdx = validImgs[chosenValidIdx].idx;
                 imgSrc = imgs[originalIdx]?.preview || imgs[i % imgs.length].preview;
-                setProgressMsg(`Post ${i+1}: ✓ imagen ${originalIdx + 1} elegida para "${postBrief}"`);
+                console.log(`Post ${i+1}: imagen ${originalIdx + 1} elegida para "${postBrief}"`);
               }
             }
           } catch(e) { /* fallback secuencial */ }
