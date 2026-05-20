@@ -2006,7 +2006,7 @@ Si dice "87%" → ponés una estadística real del rubro.
 Mantené EXACTAMENTE la misma estructura HTML, colores, estilos y layout. Solo cambiá los textos.
 Respondé ÚNICAMENTE con el HTML modificado, sin explicaciones ni markdown.`;
 
-            const tmplResp = await callAI(tmplPersonPrompt);
+           const tmplResp = await generateText(tmplPersonPrompt);
             if(tmplResp && tmplResp.length > 50 && tmplResp.includes("<")) {
               personalizedHtml = tmplResp;
             }
