@@ -1888,7 +1888,6 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
 
         if(postBrief && imgs.length > 0) {
           try {
-            // analyzing images for brief
             const imgData = await Promise.all(imgs.map(async (img, idx) => {
               const src = img.preview || img.url || "";
               let b64 = "", mtype = "image/jpeg";
@@ -1912,46 +1911,24 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
             }));
             const validImgs = imgData.filter(d => d.valid);
             if(validImgs.length > 0) {
-              const visionContent = [
-                { type: "text", text: `Sos un director de arte. Tenés ${validImgs.length} imágenes numeradas del 0 al ${validImgs.length - 1}. El brief del post es: "${postBrief}". Analizá cada imagen y elegí la que mejor se adapta a ese brief. Respondé SOLO con el número de índice (0, 1, 2...), sin texto adicional.` },
-                ...validImgs.map(d => ({ type: "image", source: { type: "base64", media_type: d.mtype, data: d.b64 } }))
-              ];
               const visionResp = await fetch("/api/generate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                  prompt: `Tenés ${validImgs.length} imágenes numeradas del 0 al ${validImgs.length - 1}. El brief del post es: "${postBrief}". Analizá cada imagen y elegí la que mejor representa ese tema. Respondé SOLO con el número de índice (0, 1, 2...), sin texto adicional.`,
+                  prompt: `Tenés ${validImgs.length} imágenes numeradas del 0 al ${validImgs.length - 1}. El brief del post es: "${postBrief}". Analizá cada imagen y elegí la que mejor representa ese tema. Respondé SOLO con el número (0, 1, 2...), sin texto adicional.`,
                   visionImages: validImgs
                 })
               });
               const visionData = await visionResp.json();
-              const raw = (visionData.text || "").trim();
-              const chosenValidIdx = parseInt(raw, 10);
-              if(!isNaN(chosenValidIdx) && chosenValidIdx >= 0 && chosenValidIdx < validImgs.length) {
-                const originalIdx = validImgs[chosenValidIdx].idx;
-                imgSrc = imgs[originalIdx]?.preview || imgs[i % imgs.length].preview;
-              }
-              const chosenValidIdx = parseInt(raw, 10);
-              if(!isNaN(chosenValidIdx) && chosenValidIdx >= 0 && chosenValidIdx < validImgs.length) {
-                const originalIdx = validImgs[chosenValidIdx].idx;
-                imgSrc = imgs[originalIdx]?.preview || imgs[i % imgs.length].preview;
-                console.log(`Post ${i+1}: imagen ${originalIdx + 1} elegida para "${postBrief}"`);
+              const chosenIdx = parseInt((visionData.text || "").trim(), 10);
+              if(!isNaN(chosenIdx) && chosenIdx >= 0 && chosenIdx < validImgs.length) {
+                imgSrc = imgs[validImgs[chosenIdx].idx]?.preview || imgs[i % imgs.length].preview;
               }
             }
           } catch(e) { /* fallback secuencial */ }
         }
 
-    } else {
-        imgSrc = imgs[i % imgs.length].preview;
-      }
-    }
-  } catch(e) {
-    imgSrc = imgs[i % imgs.length].preview;
-  }
-} else {
-          setProgressMsg(`Post ${i+1}: generando contenido...`);
-        }
-        // Template elegido para este post
+                // Template elegido para este post
         const slideCount=slideCounts[i]||1;
         const tmplNote = tmplForPost ? `\nTemplate de diseño para este post: "${tmplForPost.name}" — ${tmplForPost.desc}. Adaptá el caption a este formato visual.` : "";
         const ctx=buildBrandContext(i, tmplNote);
