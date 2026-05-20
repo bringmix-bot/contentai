@@ -1920,12 +1920,17 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                  prompt: visionContent[0].text,
+                  prompt: `Tenés ${validImgs.length} imágenes numeradas del 0 al ${validImgs.length - 1}. El brief del post es: "${postBrief}". Analizá cada imagen y elegí la que mejor representa ese tema. Respondé SOLO con el número de índice (0, 1, 2...), sin texto adicional.`,
                   visionImages: validImgs
                 })
               });
               const visionData = await visionResp.json();
               const raw = (visionData.text || "").trim();
+              const chosenValidIdx = parseInt(raw, 10);
+              if(!isNaN(chosenValidIdx) && chosenValidIdx >= 0 && chosenValidIdx < validImgs.length) {
+                const originalIdx = validImgs[chosenValidIdx].idx;
+                imgSrc = imgs[originalIdx]?.preview || imgs[i % imgs.length].preview;
+              }
               const chosenValidIdx = parseInt(raw, 10);
               if(!isNaN(chosenValidIdx) && chosenValidIdx >= 0 && chosenValidIdx < validImgs.length) {
                 const originalIdx = validImgs[chosenValidIdx].idx;
