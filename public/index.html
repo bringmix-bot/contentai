@@ -1886,6 +1886,53 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
         let imgSrc = imgs[i % imgs.length].preview;
         let imgMatchWarning = false;
 
+        if(postBrief && imgs.length > 0) {
+          try {
+            setProgressMsg(`Post ${i+1}: analizando imágenes para "${postBrief}"...`);
+            const imgData = await Promise.all(imgs.map(async (img, idx) => {
+              const src = img.preview || img.url || "";
+              let b64 = "", mtype = "image/jpeg";
+              if(src.startsWith("data:")) {
+                const comma = src.indexOf(",");
+                b64 = src.slice(comma + 1);
+                mtype = src.slice(5, src.indexOf(";")) || "image/jpeg";
+              } else if(src.startsWith("http") || src.startsWith("blob:")) {
+                try {
+                  const blob = await fetch(src).then(r => r.blob());
+                  b64 = await new Promise(res => {
+                    const fr = new FileReader();
+                    fr.onload = e => res(e.target.result.split(",")[1] || "");
+                    fr.onerror = () => res("");
+                    fr.readAsDataURL(blob);
+                  });
+                  mtype = blob.type || "image/jpeg";
+                } catch(e) { b64 = ""; }
+              }
+              return { idx, b64, mtype, valid: b64.length > 100 };
+            }));
+            const validImgs = imgData.filter(d => d.valid);
+            if(validImgs.length > 0) {
+              const visionContent = [
+                { type: "text", text: `Sos un director de arte. Tenés ${validImgs.length} imágenes numeradas del 0 al ${validImgs.length - 1}. El brief del post es: "${postBrief}". Analizá cada imagen y elegí la que mejor se adapta a ese brief. Respondé SOLO con el número de índice (0, 1, 2...), sin texto adicional.` },
+                ...validImgs.map(d => ({ type: "image", source: { type: "base64", media_type: d.mtype, data: d.b64 } }))
+              ];
+              const visionResp = await fetch("https://api.anthropic.com/v1/messages", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 10, messages: [{ role: "user", content: visionContent }] })
+              });
+              const visionData = await visionResp.json();
+              const raw = visionData.content?.[0]?.text?.trim() || "";
+              const chosenValidIdx = parseInt(raw, 10);
+              if(!isNaN(chosenValidIdx) && chosenValidIdx >= 0 && chosenValidIdx < validImgs.length) {
+                const originalIdx = validImgs[chosenValidIdx].idx;
+                imgSrc = imgs[originalIdx]?.preview || imgs[i % imgs.length].preview;
+                setProgressMsg(`Post ${i+1}: ✓ imagen ${originalIdx + 1} elegida para "${postBrief}"`);
+              }
+            }
+          } catch(e) { /* fallback secuencial */ }
+        }
+
     if(postBrief && imgs.length > 0) {
   try {
     setProgressMsg(`Post ${i+1}: analizando imágenes para "${postBrief}"...`);
