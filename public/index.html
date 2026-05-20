@@ -304,8 +304,7 @@ async function drawTemplate1(canvas, opt) {
   const bgImg = opt.imgSrc ? await loadImg(opt.imgSrc) : null;
   const text = (opt.overlayText||"").replace(/[\*\_\#]/g,"").trim().toUpperCase();
 
-  if(bgImg) { coverImg(ctx, bgImg, 0, 0, W, H); }
-  else {
+  if(bgImg) { coverImg(ctx, bgImg, 0, 0, W, H); } else {
     const bg=ctx.createLinearGradient(0,0,W,H);
     bg.addColorStop(0,`rgb(${r},${g},${b})`); bg.addColorStop(1,"#000");
     ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
@@ -1916,45 +1915,6 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
       return { idx, b64, mtype, fileName: img.name || `imagen_${idx+1}`, valid: b64.length > 100 };
     }));
 
-<<<<<<< HEAD
-            if(validImgs.length > 0) {
-              // Selección con Claude Vision directo desde el browser.
-              // El browser tiene acceso a localhost:3001 — sin pasar por Vercel.
-              const visionContent = [
-                {
-                  type: "text",
-                  text: `Sos un director de arte. Tenés ${validImgs.length} imágenes numeradas del 0 al ${validImgs.length - 1}. El brief del post es: "${postBrief}". Analizá cada imagen y elegí la que mejor se adapta a ese brief. Respondé SOLO con el número de índice (0, 1, 2...), sin texto adicional.`
-                },
-                ...validImgs.map(d => ({
-                  type: "image",
-                  source: { type: "base64", media_type: d.mtype, data: d.b64 }
-                }))
-              ];
-              const visionResp = await fetch("https://api.anthropic.com/v1/messages", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  model: "claude-sonnet-4-20250514",
-                  max_tokens: 10,
-                  messages: [{ role: "user", content: visionContent }]
-                })
-              });
-              const visionData = await visionResp.json();
-              const raw = visionData.content?.[0]?.text?.trim() || "";
-              const chosenValidIdx = parseInt(raw, 10);
-              if(!isNaN(chosenValidIdx) && chosenValidIdx >= 0 && chosenValidIdx < validImgs.length) {
-                const originalIdx = validImgs[chosenValidIdx].idx;
-                imgSrc = imgs[originalIdx]?.preview || imgs[i % imgs.length].preview;
-                setProgressMsg(`Post ${i+1}: ✓ imagen ${originalIdx + 1} elegida para "${postBrief}"`);
-              } else {
-                imgSrc = imgs[i % imgs.length].preview;
-              }
-            }
-          } catch(e) {
-            imgSrc = imgs[i % imgs.length].preview;
-          }
-        } else {
-=======
     const validImgs = imgData.filter(d => d.valid);
 
     if(validImgs.length > 0) {
@@ -1996,9 +1956,7 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
   } catch(e) {
     imgSrc = imgs[i % imgs.length].preview;
   }
-}
-        else {
->>>>>>> 58e5c6bfba399b205b59e1146916fc52e5d02ccf
+} else {
           setProgressMsg(`Post ${i+1}: generando contenido...`);
         }
         // Template elegido para este post
