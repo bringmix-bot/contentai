@@ -1919,23 +1919,37 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
 
             const validImgs = imgData.filter(d=>d.valid);
 
-            if(validImgs.length === 0) {
-              imgMatchWarning = true;
-            } else {
-              const r = await fetch("/api/select-image", {
+            if(validImgs.length > 0) {
+              // Selección con Claude Vision directo desde el browser.
+              // El browser tiene acceso a localhost:3001 — sin pasar por Vercel.
+              const visionContent = [
+                {
+                  type: "text",
+                  text: `Sos un director de arte. Tenés ${validImgs.length} imágenes numeradas del 0 al ${validImgs.length - 1}. El brief del post es: "${postBrief}". Analizá cada imagen y elegí la que mejor se adapta a ese brief. Respondé SOLO con el número de índice (0, 1, 2...), sin texto adicional.`
+                },
+                ...validImgs.map(d => ({
+                  type: "image",
+                  source: { type: "base64", media_type: d.mtype, data: d.b64 }
+                }))
+              ];
+              const visionResp = await fetch("https://api.anthropic.com/v1/messages", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                  brief: postBrief,
-                  images: validImgs.map(d=>({idx:d.idx, b64:d.b64, mtype:d.mtype, fileName:d.fileName}))
+                  model: "claude-sonnet-4-20250514",
+                  max_tokens: 10,
+                  messages: [{ role: "user", content: visionContent }]
                 })
               });
-              const d = await r.json();
-              if(d.success && typeof d.chosenIdx === "number" && d.chosenIdx >= 0 && d.chosenIdx < imgs.length) {
-                imgSrc = imgs[d.chosenIdx].preview;
-                setProgressMsg(`Post ${i+1}: ✓ imagen elegida para "${postBrief}"`);
+              const visionData = await visionResp.json();
+              const raw = visionData.content?.[0]?.text?.trim() || "";
+              const chosenValidIdx = parseInt(raw, 10);
+              if(!isNaN(chosenValidIdx) && chosenValidIdx >= 0 && chosenValidIdx < validImgs.length) {
+                const originalIdx = validImgs[chosenValidIdx].idx;
+                imgSrc = imgs[originalIdx]?.preview || imgs[i % imgs.length].preview;
+                setProgressMsg(`Post ${i+1}: ✓ imagen ${originalIdx + 1} elegida para "${postBrief}"`);
               } else {
-                imgMatchWarning = true;
+                imgSrc = imgs[i % imgs.length].preview;
               }
             }
           } catch(e) {
