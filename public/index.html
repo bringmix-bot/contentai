@@ -1887,38 +1887,36 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
         let imgSrc = imgs[i % imgs.length].preview;
         let imgMatchWarning = false;
 
-        if(postBrief && imgs.length > 0) {
-          try {
-            setProgressMsg(`Post ${i+1}: analizando imágenes para "${postBrief}"...`);
+    if(postBrief && imgs.length > 0) {
+  try {
+    setProgressMsg(`Post ${i+1}: analizando imágenes para "${postBrief}"...`);
 
-            // Convertir cada imagen a base64 con descripción de su contenido
-            const imgData = await Promise.all(imgs.map(async (img, idx) => {
-              let b64 = "", mtype = "image/jpeg";
-              const src = img.preview || img.url || "";
+    // Convertir cada imagen a base64 en el browser
+    const imgData = await Promise.all(imgs.map(async (img, idx) => {
+      const src = img.preview || img.url || "";
+      let b64 = "", mtype = "image/jpeg";
 
-              if(src.startsWith("data:")) {
-                const comma = src.indexOf(",");
-                b64 = src.slice(comma+1);
-                mtype = src.slice(5, src.indexOf(";")) || "image/jpeg";
-              } else if(src.startsWith("blob:") || src.startsWith("http")) {
-                try {
-                  const blob = await fetch(src).then(r=>r.blob());
-                  b64 = await new Promise(res=>{
-                    const fr = new FileReader();
-                    fr.onload = e => res(e.target.result.split(",")[1]||"");
-                    fr.onerror = () => res("");
-                    fr.readAsDataURL(blob);
-                  });
-                  mtype = blob.type || "image/jpeg";
-                } catch(e){ b64=""; }
-              }
-              // Incluir nombre del archivo como pista para la IA
-              const fileName = img.name || img.fileName || `imagen_${idx+1}`;
-              return { idx, b64, mtype, fileName, valid: b64.length > 100 };
-            }));
+      if(src.startsWith("data:")) {
+        const comma = src.indexOf(",");
+        b64 = src.slice(comma + 1);
+        mtype = src.slice(5, src.indexOf(";")) || "image/jpeg";
+      } else if(src.startsWith("http") || src.startsWith("blob:")) {
+        try {
+          const blob = await fetch(src).then(r => r.blob());
+          b64 = await new Promise(res => {
+            const fr = new FileReader();
+            fr.onload = e => res(e.target.result.split(",")[1] || "");
+            fr.onerror = () => res("");
+            fr.readAsDataURL(blob);
+          });
+          mtype = blob.type || "image/jpeg";
+        } catch(e) { b64 = ""; }
+      }
 
-            const validImgs = imgData.filter(d=>d.valid);
+      return { idx, b64, mtype, fileName: img.name || `imagen_${idx+1}`, valid: b64.length > 100 };
+    }));
 
+<<<<<<< HEAD
             if(validImgs.length > 0) {
               // Selección con Claude Vision directo desde el browser.
               // El browser tiene acceso a localhost:3001 — sin pasar por Vercel.
@@ -1956,6 +1954,51 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
             imgSrc = imgs[i % imgs.length].preview;
           }
         } else {
+=======
+    const validImgs = imgData.filter(d => d.valid);
+
+    if(validImgs.length > 0) {
+      // Selección con Claude Vision directo desde el browser
+      const content = [
+        {
+          type: "text",
+          text: `Sos un director de arte. Tenés ${validImgs.length} imágenes numeradas del 0 al ${validImgs.length - 1}. El brief del post es: "${postBrief}". Analizá cada imagen y elegí la que mejor se adapta a ese brief. Respondé SOLO con el número de índice (0, 1, 2...), sin texto adicional.`
+        },
+        ...validImgs.map(d => ({
+          type: "image",
+          source: { type: "base64", media_type: d.mtype, data: d.b64 }
+        }))
+      ];
+
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 10,
+          messages: [{ role: "user", content }]
+        })
+      });
+
+      const data = await response.json();
+      const raw = data.content?.[0]?.text?.trim() || "";
+      const chosen = parseInt(raw, 10);
+
+      if(!isNaN(chosen) && chosen >= 0 && chosen < imgs.length) {
+        // Mapear el índice de validImgs al índice original en imgs
+        const originalIdx = validImgs[chosen]?.idx ?? chosen;
+        imgSrc = imgs[originalIdx]?.preview || imgs[i % imgs.length].preview;
+        setProgressMsg(`Post ${i+1}: ✓ imagen ${originalIdx + 1} elegida para "${postBrief}"`);
+      } else {
+        imgSrc = imgs[i % imgs.length].preview;
+      }
+    }
+  } catch(e) {
+    imgSrc = imgs[i % imgs.length].preview;
+  }
+}
+        else {
+>>>>>>> 58e5c6bfba399b205b59e1146916fc52e5d02ccf
           setProgressMsg(`Post ${i+1}: generando contenido...`);
         }
         // Template elegido para este post
