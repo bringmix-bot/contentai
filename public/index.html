@@ -2303,7 +2303,7 @@ if(chosenIndices.length > 0) {
   if(window._visionSlides && window._visionSlides.length > 0) {
     const slides = window._visionSlides.slice(0, count);
     while(slides.length < count) slides.push(slides[slides.length-1]);
-    window._visionSlides = null;
+    visionSlides = null;
     return slides;
   }
   const slides=[];
