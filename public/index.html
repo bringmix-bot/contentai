@@ -81,17 +81,67 @@ select option{background:var(--surface)}
 const { useState, useRef, useEffect, useCallback } = React;
 
 // ════════════════════════════════════════════════════════════════
-// STORE — por usuario (cada cliente tiene sus datos separados)
+// SUPABASE — cliente inicializado desde variables de entorno
+// ════════════════════════════════════════════════════════════════
+const SUPABASE_URL = "https://ffbmazlunqbtyzrajqnk.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_wvzVHNBIF93XhEpPplHVMg_6Y2IfUhg";
+
+// Cliente Supabase usando CDN
+let _supabase = null;
+async function getSupabase() {
+  if(_supabase) return _supabase;
+  const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm");
+  _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  return _supabase;
+}
+
+// ════════════════════════════════════════════════════════════════
+// STORE — caché local + Supabase en la nube
 // ════════════════════════════════════════════════════════════════
 const store = {
-  uid: () => { try { return JSON.parse(localStorage.getItem("mcm_session"))?.uid||""; } catch { return ""; } },
+  _uid: null,
+  uid: () => store._uid || (()=>{ try { return JSON.parse(localStorage.getItem("mcm_session"))?.uid||""; } catch { return ""; }})(),
   key: k => { const u=store.uid(); return u ? `mcm_u_${u}_${k}` : `mcm_${k}`; },
+  // Caché local (rápido, para la sesión activa)
   get: k => { try { return JSON.parse(localStorage.getItem(store.key(k))); } catch { return null; } },
-  set: (k,v) => localStorage.setItem(store.key(k), JSON.stringify(v)),
-  // Globales (no por usuario)
+  set: (k,v) => { localStorage.setItem(store.key(k), JSON.stringify(v)); },
+  // Supabase (persistente, para todos los dispositivos)
+  saveToCloud: async (table, data) => {
+    try {
+      const sb = await getSupabase();
+      const uid = store.uid();
+      if(!uid) return;
+      await sb.from(table).upsert({user_id: uid, ...data, updated_at: new Date().toISOString()});
+    } catch(e) { console.warn("Cloud save failed:", e.message); }
+  },
+  loadFromCloud: async (table) => {
+    try {
+      const sb = await getSupabase();
+      const uid = store.uid();
+      if(!uid) return null;
+      const { data } = await sb.from(table).select('*').eq('user_id', uid).single();
+      return data;
+    } catch(e) { return null; }
+  },
+  uploadFile: async (file, path) => {
+    try {
+      const sb = await getSupabase();
+      const { data, error } = await sb.storage.from('mcm-files').upload(path, file, { upsert: true });
+      if(error) throw error;
+      const { data: urlData } = sb.storage.from('mcm-files').getPublicUrl(path);
+      return urlData.publicUrl;
+    } catch(e) { console.warn("Upload failed:", e.message); return null; }
+  },
+  deleteFile: async (path) => {
+    try {
+      const sb = await getSupabase();
+      await sb.storage.from('mcm-files').remove([path]);
+    } catch(e) { console.warn("Delete failed:", e.message); }
+  },
   getG: k => { try { return JSON.parse(localStorage.getItem("mcm_"+k)); } catch { return null; } },
   setG: (k,v) => localStorage.setItem("mcm_"+k, JSON.stringify(v)),
 };
+
 
 // ════════════════════════════════════════════════════════════════
 // PLANES
@@ -109,37 +159,213 @@ const PLAN_FEATURES = {
 };
 
 // ════════════════════════════════════════════════════════════════
-// AUTH HELPERS
+// AUTH HELPERS — Supabase Auth
 // ════════════════════════════════════════════════════════════════
 function getSession() {
   try { return JSON.parse(localStorage.getItem("mcm_session"))||null; } catch { return null; }
 }
 function setSession(data) {
   localStorage.setItem("mcm_session", JSON.stringify(data));
+  store._uid = data?.uid || null;
 }
 function clearSession() {
   localStorage.removeItem("mcm_session");
-}
-function getAllUsers() {
-  try { return JSON.parse(localStorage.getItem("mcm_users"))||{}; } catch { return {}; }
-}
-function saveUser(uid, data) {
-  const users = getAllUsers();
-  users[uid] = {...(users[uid]||{}), ...data};
-  localStorage.setItem("mcm_users", JSON.stringify(users));
-}
-function getUser(uid) {
-  return getAllUsers()[uid]||null;
-}
-function hashPassword(pwd) {
-  // Simple hash para demo — en producción usar bcrypt en backend
-  let hash = 0;
-  for(let i=0;i<pwd.length;i++) { hash = ((hash<<5)-hash)+pwd.charCodeAt(i); hash|=0; }
-  return hash.toString(36);
+  store._uid = null;
 }
 
+// getUser/saveUser — ahora usan Supabase profiles
+async function getUserFromCloud(uid) {
+  try {
+    const sb = await getSupabase();
+    const { data } = await sb.from('profiles').select('*').eq('id', uid).single();
+    return data;
+  } catch { return null; }
+}
+
+// Compatibilidad con código viejo que llama getUser() síncronamente
+function getUser(uid) {
+  // Intentar desde caché local primero
+  try {
+    const cached = JSON.parse(localStorage.getItem("mcm_user_"+uid));
+    if(cached) return cached;
+  } catch {}
+  return null;
+}
+
+function saveUser(uid, data) {
+  // Guardar en caché local
+  const existing = getUser(uid) || {};
+  const updated = {...existing, ...data, uid};
+  localStorage.setItem("mcm_user_"+uid, JSON.stringify(updated));
+  // Sincronizar con Supabase en background
+  getSupabase().then(sb => {
+    sb.from('profiles').upsert({id: uid, ...data}).catch(()=>{});
+  });
+}
+
+async function registerWithSupabase(email, password, name, company) {
+  const sb = await getSupabase();
+  const { data, error } = await sb.auth.signUp({ email, password });
+  if(error) throw new Error(error.message);
+  const uid = data.user?.id;
+  if(!uid) throw new Error("No se pudo crear el usuario");
+  // Crear perfil en tabla profiles
+  await sb.from('profiles').upsert({id: uid, email, name, company, plan: 'free'});
+  // Caché local
+  const userData = {uid, email, name, company, plan:'free', createdAt: Date.now()};
+  localStorage.setItem("mcm_user_"+uid, JSON.stringify(userData));
+  return userData;
+}
+
+async function loginWithSupabase(email, password) {
+  const sb = await getSupabase();
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if(error) throw new Error(error.message);
+  const uid = data.user?.id;
+  // Cargar perfil desde Supabase
+  const { data: profile } = await sb.from('profiles').select('*').eq('id', uid).single();
+  const userData = {uid, email, name: profile?.name||email, company: profile?.company||"", plan: profile?.plan||"free", createdAt: profile?.created_at};
+  localStorage.setItem("mcm_user_"+uid, JSON.stringify(userData));
+  store._uid = uid;
+  return userData;
+}
+
+async function loadUserDataFromCloud(uid) {
+  try {
+    const sb = await getSupabase();
+    store._uid = uid;
+    // Cargar brand
+    const { data: brand } = await sb.from('brand_settings').select('*').eq('user_id', uid).single();
+    if(brand) {
+      const brandData = {
+        name: brand.name, industry: brand.industry,
+        subIndustries: brand.sub_industries||[], customIndustry: brand.custom_industry||"",
+        description: brand.description, target: brand.target, tone: brand.tone,
+        color: brand.color||"#6d28d9", logoBase64: brand.logo_url||null,
+        cmInstructions: brand.cm_instructions||"", selectedTemplates: brand.selected_templates||[]
+      };
+      store.set("brand", brandData);
+    }
+    // Cargar preferencias
+    const { data: prefs } = await sb.from('client_preferences').select('*').eq('user_id', uid).single();
+    if(prefs) {
+      const prefsData = {
+        fontFamily: prefs.font_family, fontSize: prefs.font_size,
+        fontColor: prefs.font_color, fontWeight: prefs.font_weight,
+        logoX: prefs.logo_x, logoY: prefs.logo_y, logoSize: prefs.logo_size,
+        preferredMusicGenres: prefs.preferred_music_genres||[],
+        preferredMusicMoods: prefs.preferred_music_moods||[],
+        lastMusicChoices: prefs.last_music_choices||[],
+        lastUpdated: Date.now()
+      };
+      store.set("stylePrefs", prefsData);
+    }
+    // Cargar archivos (metadata)
+    const { data: files } = await sb.from('files').select('*').eq('user_id', uid).order('created_at', {ascending: false});
+    if(files && files.length > 0) {
+      const filesData = files.map(f => ({
+        id: f.id, name: f.name, type: f.type,
+        preview: f.public_url, url: f.public_url,
+        size: f.size, storagePath: f.storage_path
+      }));
+      store.set("files", filesData);
+    }
+    return {
+      brand: store.get("brand")||{},
+      files: store.get("files")||[],
+      prefs: store.get("stylePrefs")||{}
+    };
+  } catch(e) {
+    console.warn("Error loading from cloud:", e.message);
+    return null;
+  }
+}
+
+async function saveBrandToCloud(uid, brandData) {
+  try {
+    const sb = await getSupabase();
+    await sb.from('brand_settings').upsert({
+      user_id: uid,
+      name: brandData.name, industry: brandData.industry,
+      sub_industries: brandData.subIndustries||[], custom_industry: brandData.customIndustry||"",
+      description: brandData.description, target: brandData.target, tone: brandData.tone,
+      color: brandData.color||"#6d28d9", logo_url: brandData.logoBase64||null,
+      cm_instructions: brandData.cmInstructions||"", selected_templates: brandData.selectedTemplates||[],
+      updated_at: new Date().toISOString()
+    });
+  } catch(e) { console.warn("Brand save failed:", e.message); }
+}
+
+async function savePrefsToCloud(uid, prefs) {
+  try {
+    const sb = await getSupabase();
+    await sb.from('client_preferences').upsert({
+      user_id: uid,
+      font_family: prefs.fontFamily, font_size: prefs.fontSize,
+      font_color: prefs.fontColor, font_weight: prefs.fontWeight,
+      logo_x: prefs.logoX, logo_y: prefs.logoY, logo_size: prefs.logoSize,
+      preferred_music_genres: prefs.preferredMusicGenres||[],
+      preferred_music_moods: prefs.preferredMusicMoods||[],
+      last_music_choices: prefs.lastMusicChoices||[],
+      updated_at: new Date().toISOString()
+    });
+  } catch(e) { console.warn("Prefs save failed:", e.message); }
+}
+
+async function saveFileToCloud(uid, file, base64) {
+  try {
+    const sb = await getSupabase();
+    // Subir archivo a Storage
+    const ext = file.name.split('.').pop();
+    const path = `${uid}/${Date.now()}_${file.name}`;
+    const blob = await fetch(base64).then(r => r.blob());
+    const { error } = await sb.storage.from('mcm-files').upload(path, blob, {
+      contentType: file.type, upsert: true
+    });
+    if(error) throw error;
+    const { data: urlData } = sb.storage.from('mcm-files').getPublicUrl(path);
+    const publicUrl = urlData.publicUrl;
+    // Guardar metadata en tabla files
+    await sb.from('files').insert({
+      user_id: uid, name: file.name,
+      type: file.type?.startsWith('video') ? 'video' : 'image',
+      storage_path: path, public_url: publicUrl, size: file.size
+    });
+    return publicUrl;
+  } catch(e) {
+    console.warn("File upload failed:", e.message);
+    return null;
+  }
+}
+
+async function deleteFileFromCloud(uid, fileId, storagePath) {
+  try {
+    const sb = await getSupabase();
+    if(storagePath) await sb.storage.from('mcm-files').remove([storagePath]);
+    await sb.from('files').delete().eq('id', fileId);
+  } catch(e) { console.warn("File delete failed:", e.message); }
+}
+
+async function savePostHistoryToCloud(uid, historyItem) {
+  try {
+    const sb = await getSupabase();
+    await sb.from('post_history').insert({
+      user_id: uid,
+      caption: historyItem.caption,
+      image_url: historyItem.imgBase64 ? null : historyItem.imageUrl,
+      network: historyItem.network,
+      format: historyItem.format,
+      status: historyItem.status,
+      brief: historyItem.brief,
+      scheduled_at: historyItem.date ? new Date(historyItem.date).toISOString() : null,
+      published_at: historyItem.status === 'published' ? new Date().toISOString() : null
+    });
+  } catch(e) { console.warn("History save failed:", e.message); }
+}
+
+
 // ════════════════════════════════════════════════════════════════
-// APRENDIZAJE — guarda preferencias de edición persistentes
+// APRENDIZAJE — guarda preferencias de edición persistentes + Supabase
 // ════════════════════════════════════════════════════════════════
 function learnFromEdit(original, edited) {
   const prefs = store.get("stylePrefs")||{};
@@ -153,17 +379,19 @@ function learnFromEdit(original, edited) {
   }
   const updated = {...prefs, ...delta, lastUpdated: Date.now()};
   store.set("stylePrefs", updated);
+  // Sincronizar con Supabase en background
+  const uid = store.uid();
+  if(uid) savePrefsToCloud(uid, updated).catch(()=>{});
   return updated;
 }
 
 function applyStylePrefs(opt) {
   const prefs = store.get("stylePrefs")||{};
-  return {...opt, ...prefs, ...opt}; // opt values override prefs, but prefs fill defaults
+  return {...opt, ...prefs, ...opt};
 }
 
 function applyStylePrefsToNew(opt) {
   const prefs = store.get("stylePrefs")||{};
-  // Only apply learned preferences for fields not explicitly set
   const result = {...opt};
   ["fontFamily","fontWeight","fontSize","fontColor","logoX","logoY","logoSize"].forEach(f => {
     if(prefs[f] !== undefined) result[f] = prefs[f];
@@ -554,13 +782,17 @@ const STICKER_SETS = [
 // ════════════════════════════════════════════════════════════════
 // APP ROOT — maneja landing / auth / app principal
 // ════════════════════════════════════════════════════════════════
+
+// ════════════════════════════════════════════════════════════════
+// APP ROOT — maneja landing / auth / app principal
+// ════════════════════════════════════════════════════════════════
 function App() {
   const [appMode, setAppMode] = useState(() => {
     const s = getSession();
     if(s && s.uid && getUser(s.uid)) return "app";
     return "landing";
   });
-  const [authMode, setAuthMode] = useState("login"); // login | register
+  const [authMode, setAuthMode] = useState("login");
   const [session, setSessionState] = useState(getSession);
   const [screen, setScreen] = useState("connect");
   const [brand, setBrand] = useState(store.get("brand")||{});
@@ -568,40 +800,84 @@ function App() {
   const [posts, setPosts] = useState(store.get("posts")||[]);
   const [socials, setSocials] = useState(store.get("socials")||SOCIALS_DEFAULT);
   const [toast, showToast] = useToast();
+  const [loadingCloud, setLoadingCloud] = useState(false);
 
   const currentUser = session ? getUser(session.uid) : null;
   const currentPlan = PLANS[currentUser?.plan||"free"];
 
-  const handleLogin = (uid, userData) => {
+  // Verificar sesión Supabase al cargar
+  useEffect(() => {
+    getSupabase().then(sb => {
+      sb.auth.getSession().then(({ data }) => {
+        if(data.session && !getSession()) {
+          // Sesión Supabase activa pero no en localStorage — restaurar
+          const uid = data.session.user.id;
+          const email = data.session.user.email;
+          const s = { uid, email, name: email, ts: Date.now() };
+          setSession(s); setSessionState(s); store._uid = uid;
+          setAppMode("app");
+          loadDataFromCloud(uid);
+        }
+      });
+    });
+  }, []);
+
+  const loadDataFromCloud = async (uid) => {
+    setLoadingCloud(true);
+    try {
+      const cloudData = await loadUserDataFromCloud(uid);
+      if(cloudData) {
+        if(cloudData.brand && cloudData.brand.name) setBrand(cloudData.brand);
+        if(cloudData.files && cloudData.files.length > 0) setFiles(cloudData.files);
+      }
+    } catch(e) { console.warn("Cloud load error:", e); }
+    setLoadingCloud(false);
+  };
+
+  const handleLogin = async (uid, userData) => {
     const s = { uid, email: userData.email, name: userData.name, ts: Date.now() };
-    setSession(s); setSessionState(s);
-    // Reload user data into state
+    setSession(s); setSessionState(s); store._uid = uid;
+    // Cargar datos desde Supabase
     setBrand(store.get("brand")||{});
     setFiles(store.get("files")||[]);
     setPosts(store.get("posts")||[]);
     setSocials(store.get("socials")||SOCIALS_DEFAULT);
     setAppMode("app");
     setScreen("connect");
+    // Cargar datos de la nube en background
+    loadDataFromCloud(uid).then(() => {
+      setBrand(store.get("brand")||{});
+      setFiles(store.get("files")||[]);
+    });
   };
 
-  const handleLogout = () => {
-    clearSession(); setSessionState(null);
+  const handleLogout = async () => {
+    try {
+      const sb = await getSupabase();
+      await sb.auth.signOut();
+    } catch {}
+    clearSession();
+    setSessionState(null);
     setBrand({}); setFiles([]); setPosts([]); setSocials(SOCIALS_DEFAULT);
     setAppMode("landing"); setAuthMode("login");
   };
 
-  const saveBrand=(b)=>{setBrand(b);store.set("brand",b);};
-  const saveFiles=(f)=>{setFiles(f);store.set("files",f);};
-  const savePosts=(p)=>{
-    setPosts(p);
-    // Guardar sin imgSrc/slides para no explotar localStorage
-    const stripped=p.map(post=>{
-      const {imgSrc,slides,...rest}=post;
-      return rest;
-    });
-    try{ store.set("posts",stripped); }catch(e){ console.warn("localStorage lleno, posts solo en memoria"); }
+  const saveBrand = (b) => {
+    setBrand(b); store.set("brand", b);
+    // Sincronizar con Supabase en background
+    const uid = store.uid();
+    if(uid) saveBrandToCloud(uid, b).catch(()=>{});
   };
-  const saveSocials=(s)=>{setSocials(s);store.set("socials",s);};
+
+  const saveFiles = (f) => { setFiles(f); store.set("files", f); };
+
+  const savePosts = (p) => {
+    setPosts(p);
+    const stripped = p.map(post => { const {imgSrc,slides,...rest}=post; return rest; });
+    try { store.set("posts", stripped); } catch(e) { console.warn("localStorage lleno"); }
+  };
+
+  const saveSocials = (s) => { setSocials(s); store.set("socials", s); };
 
   const steps=[
     {id:"connect",icon:"🔗",label:"Conectar redes",done:socials.some(s=>s.connected)},
@@ -613,7 +889,6 @@ function App() {
     {id:"stats",icon:"📊",label:"Estadísticas",done:false},
   ];
 
-  // ── LANDING ──
   if(appMode==="landing") return (
     <>
       <LandingPage
@@ -624,7 +899,6 @@ function App() {
     </>
   );
 
-  // ── AUTH ──
   if(appMode==="auth") return (
     <>
       <AuthScreen
@@ -638,7 +912,6 @@ function App() {
     </>
   );
 
-  // ── APP PRINCIPAL ──
   return (
     <div className="app">
       <div className="sidebar">
@@ -647,15 +920,14 @@ function App() {
             <svg viewBox="0 0 90 38" width="72" height="30" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="lg1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#6d28d9"/><stop offset="100%" stopColor="#ec4899"/></linearGradient></defs><rect x="1" y="1" width="88" height="36" rx="8" fill="url(#lg1)"/><text x="45" y="28" fontFamily="'Playfair Display',Georgia,serif" fontSize="22" fontWeight="700" fill="white" textAnchor="middle" letterSpacing="3">MCM</text></svg>
           </div>
         </div>
-        {/* Plan badge */}
         <div style={{margin:"0 10px 12px",background:`rgba(${currentPlan.id==="premium"?"236,72,153":currentPlan.id==="pro"?"109,40,217":"107,107,138"},.15)`,border:`1px solid ${currentPlan.color}44`,borderRadius:8,padding:"5px 10px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <span style={{fontSize:11,fontWeight:700,color:currentPlan.color}}>Plan {currentPlan.name}</span>
           <button onClick={()=>setScreen("plan")} style={{background:"none",border:"none",color:currentPlan.color,fontSize:10,cursor:"pointer",fontWeight:600}}>↑ Mejorar</button>
         </div>
+        {loadingCloud&&<div style={{fontSize:10,color:"var(--accent2)",textAlign:"center",padding:"4px",marginBottom:4}}>☁ Sincronizando...</div>}
         <div className="nav-section">FLUJO</div>
         {steps.map(s=>(
           <button key={s.id} className={"nav-item"+(screen===s.id?" active":"")} onClick={()=>{
-            // Bloquear stats si no es premium
             if(s.id==="stats"&&!currentPlan.stats){showToast("Estadísticas disponibles en Plan Premium","info");return;}
             setScreen(s.id);
           }}>
@@ -677,7 +949,7 @@ function App() {
       <div className="main">
         {screen==="connect"  && <ConnectScreen  socials={socials} saveSocials={saveSocials} showToast={showToast} onNext={()=>setScreen("brand")} />}
         {screen==="brand"    && <BrandScreen    brand={brand} saveBrand={saveBrand} showToast={showToast} onNext={()=>setScreen("library")} />}
-        {screen==="library"  && <LibraryScreen  files={files} saveFiles={saveFiles} showToast={showToast} onNext={()=>setScreen("generate")} />}
+        {screen==="library"  && <LibraryScreen  files={files} saveFiles={saveFiles} showToast={showToast} onNext={()=>setScreen("generate")} session={session} />}
         {screen==="generate" && <GenerateScreen brand={brand} files={files} posts={posts} savePosts={savePosts} showToast={showToast} onNext={()=>setScreen("schedule")} plan={currentPlan} />}
         {screen==="schedule" && <ScheduleScreen socials={socials} showToast={showToast} />}
         {screen==="history"  && <HistoryScreen  socials={socials} showToast={showToast} />}
@@ -689,9 +961,6 @@ function App() {
   );
 }
 
-// ════════════════════════════════════════════════════════════════
-// LANDING PAGE
-// ════════════════════════════════════════════════════════════════
 function LandingPage({onLogin, onRegister}) {
   const [billingARS, setBillingARS] = useState(true); // Argentina primero
   const [usdRate, setUsdRate] = useState(null);
@@ -1057,7 +1326,9 @@ function LandingPage({onLogin, onRegister}) {
 
 
 // ════════════════════════════════════════════════════════════════
-// AUTH SCREEN — Login + Registro
+
+// ════════════════════════════════════════════════════════════════
+// AUTH SCREEN — Login + Registro con Supabase
 // ════════════════════════════════════════════════════════════════
 function AuthScreen({mode, setMode, onSuccess, onBack, showToast}) {
   const [email, setEmail] = useState("");
@@ -1071,95 +1342,55 @@ function AuthScreen({mode, setMode, onSuccess, onBack, showToast}) {
     if(mode==="register"&&!name){showToast("Ingresá tu nombre","err");return;}
     if(password.length<6){showToast("La contraseña debe tener al menos 6 caracteres","err");return;}
     setLoading(true);
-    await new Promise(r=>setTimeout(r,600)); // simula request
-
-    const users = getAllUsers();
-    const uid = btoa(email).replace(/[^a-z0-9]/gi,"").slice(0,16);
-
-    if(mode==="login") {
-      const user = Object.values(users).find(u=>u.email===email);
-      if(!user||user.passwordHash!==hashPassword(password)){
-        showToast("Email o contraseña incorrectos","err"); setLoading(false); return;
+    try {
+      if(mode==="login") {
+        const userData = await loginWithSupabase(email, password);
+        showToast("Bienvenido/a de nuevo, "+userData.name+"!","ok");
+        onSuccess(userData.uid, userData);
+      } else {
+        const userData = await registerWithSupabase(email, password, name, company);
+        showToast("Cuenta creada! Bienvenido/a, "+name+"!","ok");
+        onSuccess(userData.uid, userData);
       }
-      showToast("Bienvenido/a de nuevo, "+user.name+"!","ok");
-      onSuccess(user.uid, user);
-    } else {
-      if(Object.values(users).find(u=>u.email===email)){
-        showToast("Ya existe una cuenta con ese email","err"); setLoading(false); return;
+    } catch(e) {
+      // Fallback a autenticación local si Supabase falla
+      if(e.message.includes("Invalid login credentials")||e.message.includes("invalid_credentials")) {
+        showToast("Email o contraseña incorrectos","err");
+      } else if(e.message.includes("already registered")||e.message.includes("already been registered")) {
+        showToast("Ya existe una cuenta con ese email","err");
+      } else {
+        showToast("Error: "+e.message,"err");
       }
-      const newUser = { uid, email, name, company, passwordHash: hashPassword(password), plan:"free", createdAt: Date.now() };
-      saveUser(uid, newUser);
-      showToast("Cuenta creada! Bienvenido/a, "+name+"!","ok");
-      onSuccess(uid, newUser);
     }
     setLoading(false);
   };
 
   return (
     <div style={{minHeight:"100vh",background:"var(--bg)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:20,position:"relative"}}>
-      {/* Background glow */}
       <div style={{position:"fixed",top:"20%",left:"50%",transform:"translateX(-50%)",width:500,height:500,background:"radial-gradient(circle,rgba(109,40,217,.15) 0%,transparent 70%)",pointerEvents:"none"}} />
-
-      <button onClick={onBack} style={{position:"absolute",top:24,left:24,background:"none",border:"none",color:"var(--muted)",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",gap:6}}>
-        ← Volver
-      </button>
-
+      <button onClick={onBack} style={{position:"absolute",top:24,left:24,background:"none",border:"none",color:"var(--muted)",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",gap:6}}>← Volver</button>
       <div style={{width:"100%",maxWidth:420,position:"relative"}}>
-        {/* Logo */}
         <div style={{textAlign:"center",marginBottom:32}}>
           <svg viewBox="0 0 90 38" width="140" height="60" xmlns="http://www.w3.org/2000/svg" style={{display:"block",margin:"0 auto 12px"}}><defs><linearGradient id="lg4" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#6d28d9"/><stop offset="100%" stopColor="#ec4899"/></linearGradient></defs><rect x="1" y="1" width="88" height="36" rx="8" fill="url(#lg4)"/><text x="45" y="28" fontFamily="'Playfair Display',Georgia,serif" fontSize="22" fontWeight="700" fill="white" textAnchor="middle" letterSpacing="3">MCM</text></svg>
           <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22}}>MCM</div>
-          <div style={{fontSize:13,color:"var(--muted)",marginTop:4}}>
-            {mode==="login"?"Iniciá sesión en tu cuenta":"Creá tu cuenta gratis"}
-          </div>
+          <div style={{fontSize:13,color:"var(--muted)",marginTop:4}}>{mode==="login"?"Iniciá sesión en tu cuenta":"Creá tu cuenta gratis"}</div>
         </div>
-
-        {/* Card */}
         <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:20,padding:"32px"}}>
           <div style={{display:"flex",gap:4,background:"var(--surface2)",borderRadius:12,padding:4,marginBottom:24}}>
             {[["login","Iniciar sesión"],["register","Registrarse"]].map(([m,l])=>(
-              <button key={m} onClick={()=>setMode(m)}
-                style={{flex:1,padding:"9px",borderRadius:9,border:"none",cursor:"pointer",fontSize:13,fontWeight:600,
-                  background:mode===m?"var(--surface)":"transparent",
-                  color:mode===m?"var(--text)":"var(--muted)"}}>
-                {l}
-              </button>
+              <button key={m} onClick={()=>setMode(m)} style={{flex:1,padding:"9px",borderRadius:9,border:"none",cursor:"pointer",fontSize:13,fontWeight:600,background:mode===m?"var(--surface)":"transparent",color:mode===m?"var(--text)":"var(--muted)"}}>{l}</button>
             ))}
           </div>
-
           <div style={{display:"flex",flexDirection:"column",gap:14}}>
-            {mode==="register"&&(
-              <div>
-                <span className="lbl">Nombre completo</span>
-                <input value={name} onChange={e=>setName(e.target.value)} placeholder="Juan García" />
-              </div>
-            )}
-            {mode==="register"&&(
-              <div>
-                <span className="lbl">Empresa (opcional)</span>
-                <input value={company} onChange={e=>setCompany(e.target.value)} placeholder="La Josefa S.A." />
-              </div>
-            )}
-            <div>
-              <span className="lbl">Email</span>
-              <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="tu@email.com" />
-            </div>
-            <div>
-              <span className="lbl">Contraseña</span>
-              <input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Mínimo 6 caracteres"
-                onKeyDown={e=>e.key==="Enter"&&handleSubmit()} />
-            </div>
-
+            {mode==="register"&&(<div><span className="lbl">Nombre completo</span><input value={name} onChange={e=>setName(e.target.value)} placeholder="Juan García" /></div>)}
+            {mode==="register"&&(<div><span className="lbl">Empresa (opcional)</span><input value={company} onChange={e=>setCompany(e.target.value)} placeholder="La Josefa S.A." /></div>)}
+            <div><span className="lbl">Email</span><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="tu@email.com" /></div>
+            <div><span className="lbl">Contraseña</span><input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Mínimo 6 caracteres" onKeyDown={e=>e.key==="Enter"&&handleSubmit()} /></div>
             <button onClick={handleSubmit} disabled={loading} className="btn btn-primary" style={{width:"100%",padding:"13px",fontSize:15,borderRadius:12,marginTop:4}}>
               {loading?<><div className="spin"/>Procesando...</>:mode==="login"?"Iniciar sesión →":"Crear cuenta gratis →"}
             </button>
           </div>
-
-          {mode==="register"&&(
-            <div style={{marginTop:16,fontSize:11,color:"var(--muted)",textAlign:"center",lineHeight:1.6}}>
-              Al registrarte aceptás los Términos de Servicio y la Política de Privacidad. Plan Free incluye 7 posts para probar.
-            </div>
-          )}
+          {mode==="register"&&(<div style={{marginTop:16,fontSize:11,color:"var(--muted)",textAlign:"center",lineHeight:1.6}}>Al registrarte aceptás los Términos de Servicio y la Política de Privacidad. Plan Free incluye 7 posts para probar.</div>)}
         </div>
       </div>
     </div>
@@ -1387,29 +1618,6 @@ function renderTmplGrid(selected, upd) {
   wrap.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:20px;';
   TEMPLATES_40.forEach(t => {
     const isSel = (selected||[]).includes(t.id);
-    const card = document.createElement('div');
-    card.style.cssText = `border-radius:14px;overflow:hidden;cursor:pointer;border:${isSel?'3px solid #7c3aed':'2px solid rgba(255,255,255,.1)'};background:#1a1a2e;display:flex;flex-direction:column;position:relative;`;
-    card.innerHTML = `
-      ${isSel?'<div style="position:absolute;top:8px;right:8px;background:#7c3aed;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;z-index:3;box-shadow:0 2px 8px rgba(0,0,0,.5)">✓</div>':''}
-      <div style="height:200px;background:${t.bg};overflow:hidden;flex-shrink:0;display:flex;align-items:stretch;">
-        <div style="width:100%;height:200px;">${t.html}</div>
-      </div>
-      <div style="padding:12px 14px 14px;background:#1e1e30;">
-        <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:4px">${t.icon} ${t.name}</div>
-        <div style="font-size:11px;color:rgba(255,255,255,.5);line-height:1.5">${t.desc}</div>
-      </div>`;
-    card.onclick = () => {
-      const curr = window._mcmSelected || [];
-      const next = curr.includes(t.id) ? curr.filter(x=>x!==t.id) : [...curr, t.id];
-      window._mcmSelected = next;
-      upd("selectedTemplates", next);
-      renderTmplGrid(next, upd);
-    };
-    wrap.appendChild(card);
-  });
-  grid.appendChild(wrap);
-}
-
 function BrandScreen({brand,saveBrand,showToast,onNext}) {
   const [form,setForm]=useState({
     industry: brand.industry||"",
@@ -1727,17 +1935,24 @@ Responde SOLO con el JSON, sin texto adicional.`,
 // ════════════════════════════════════════════════════════════════
 // LIBRARY SCREEN
 // ════════════════════════════════════════════════════════════════
-function LibraryScreen({files,saveFiles,showToast,onNext}) {
+
+// ════════════════════════════════════════════════════════════════
+// LIBRARY SCREEN — con Supabase Storage
+// ════════════════════════════════════════════════════════════════
+function LibraryScreen({files,saveFiles,showToast,onNext,session}) {
   const inputRef=useRef();
   const LOCAL_SERVER="http://localhost:3001";
   const [serverFiles,setServerFiles]=useState([]);
   const [serverOk,setServerOk]=useState(null);
   const [loadingServer,setLoadingServer]=useState(false);
+  const [uploading,setUploading]=useState(false);
   const [filtro,setFiltro]=useState("todos");
   const [busqueda,setBusqueda]=useState("");
   const [carpetaActiva,setCarpetaActiva]=useState("todas");
   const [seleccionados,setSeleccionados]=useState(new Set());
+
   useEffect(()=>{ checkServer(); },[]);
+
   const checkServer=async()=>{
     setServerOk(null);
     try{
@@ -1745,6 +1960,7 @@ function LibraryScreen({files,saveFiles,showToast,onNext}) {
       if(res.ok){setServerOk(true);cargarServerFiles();}else setServerOk(false);
     }catch{setServerOk(false);}
   };
+
   const cargarServerFiles=async()=>{
     setLoadingServer(true);
     try{
@@ -1754,9 +1970,11 @@ function LibraryScreen({files,saveFiles,showToast,onNext}) {
     }catch(e){showToast("Error servidor","err");}
     setLoadingServer(false);
   };
+
   const carpetas=["todas",...new Set(serverFiles.map(f=>f.carpeta||"raiz"))];
   const filtrados=serverFiles.filter(f=>(carpetaActiva==="todas"||(f.carpeta||"raiz")===carpetaActiva)&&(filtro==="todos"||f.tipo===filtro)&&f.name.toLowerCase().includes(busqueda.toLowerCase()));
   const toggleSel=(id)=>setSeleccionados(prev=>{const n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});
+
   const importar=async()=>{
     const toImport=serverFiles.filter(f=>seleccionados.has(f.id));
     showToast("Importando "+toImport.length+" archivo(s)...","info");
@@ -1772,31 +1990,105 @@ function LibraryScreen({files,saveFiles,showToast,onNext}) {
     setSeleccionados(new Set());
     showToast(newFiles.length+" archivo(s) importados ✓","ok");
   };
+
   const handleFiles=async(e)=>{
     const rawFiles=Array.from(e.target.files);
-    const newFiles=await Promise.all(rawFiles.map(f=>new Promise(resolve=>{
-      const reader=new FileReader();
-      reader.onload=ev=>resolve({id:Date.now()+Math.random(),name:f.name,type:f.type.startsWith("video")?"video":"image",preview:ev.target.result,size:f.size});
-      reader.readAsDataURL(f);
-    })));
+    if(!rawFiles.length) return;
+    setUploading(true);
+    showToast("Subiendo "+rawFiles.length+" archivo(s)...","info");
+    const newFiles=[];
+    const uid = store.uid();
+
+    for(const f of rawFiles) {
+      try {
+        // Leer como base64 para preview local
+        const base64 = await new Promise(resolve=>{
+          const reader=new FileReader();
+          reader.onload=ev=>resolve(ev.target.result);
+          reader.readAsDataURL(f);
+        });
+
+        let publicUrl = null;
+        // Subir a Supabase Storage si hay sesión
+        if(uid) {
+          publicUrl = await saveFileToCloud(uid, f, base64);
+        }
+
+        newFiles.push({
+          id: Date.now()+Math.random(),
+          name: f.name,
+          type: f.type.startsWith("video")?"video":"image",
+          preview: publicUrl || base64, // URL pública o base64 como fallback
+          url: publicUrl || base64,
+          size: f.size,
+          storagePath: uid ? `${uid}/${Date.now()}_${f.name}` : null
+        });
+      } catch(e) {
+        console.warn("Error subiendo archivo:", e);
+      }
+    }
+
     saveFiles([...files,...newFiles]);
-    showToast(newFiles.length+" archivo(s) agregado(s)","ok");
+    setUploading(false);
+    showToast(newFiles.length+" archivo(s) subido(s) ✓","ok");
   };
-  const remove=(id)=>saveFiles(files.filter(f=>f.id!==id));
+
+  const remove=async(id)=>{
+    const file = files.find(f=>f.id===id);
+    saveFiles(files.filter(f=>f.id!==id));
+    // Eliminar de Supabase si tiene storagePath
+    if(file?.storagePath) {
+      const uid = store.uid();
+      if(uid) deleteFileFromCloud(uid, id, file.storagePath).catch(()=>{});
+    }
+  };
+
   return (
     <div style={{padding:"32px 36px"}} className="fade-in">
       <div style={{marginBottom:20,display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-        <div><h2 style={{fontSize:22,fontWeight:800,marginBottom:6}}>Mis archivos</h2><p style={{color:"var(--muted)",fontSize:14}}>La IA elegirá de estos archivos para crear las publicaciones.</p></div>
-        <button className="btn btn-primary" onClick={()=>inputRef.current.click()}>+ Subir</button>
+        <div>
+          <h2 style={{fontSize:22,fontWeight:800,marginBottom:6}}>Mis archivos</h2>
+          <p style={{color:"var(--muted)",fontSize:14}}>La IA elegirá de estos archivos para crear las publicaciones. Los archivos se guardan en la nube ☁</p>
+        </div>
+        <button className="btn btn-primary" onClick={()=>inputRef.current.click()} disabled={uploading}>
+          {uploading?<><div className="spin"/>Subiendo...</>:"+ Subir"}
+        </button>
       </div>
       <input ref={inputRef} type="file" accept="image/*,video/*" multiple style={{display:"none"}} onChange={handleFiles} />
-      {files.length>0&&(<div style={{marginBottom:20}}><div style={{fontSize:12,color:"var(--muted)",fontWeight:600,marginBottom:8}}>ARCHIVOS SUBIDOS ({files.length})</div><div className="file-grid">{files.map(f=>(<div key={f.id} className="file-thumb">{f.type==="video"?<video src={f.preview} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<img src={f.preview} alt={f.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>}<button onClick={()=>remove(f.id)} style={{position:"absolute",top:4,right:4,background:"rgba(0,0,0,.7)",border:"none",color:"#fff",borderRadius:"50%",width:22,height:22,cursor:"pointer",fontSize:11}}>✕</button></div>))}</div></div>)}
+      {files.length>0&&(
+        <div style={{marginBottom:20}}>
+          <div style={{fontSize:12,color:"var(--muted)",fontWeight:600,marginBottom:8}}>ARCHIVOS ({files.length}) {store.uid()&&<span style={{color:"var(--success)"}}>☁ guardados en la nube</span>}</div>
+          <div className="file-grid">
+            {files.map(f=>(<div key={f.id} className="file-thumb">
+              {f.type==="video"
+                ?<video src={f.preview||f.url} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                :<img src={f.preview||f.url} alt={f.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>}
+              <button onClick={()=>remove(f.id)} style={{position:"absolute",top:4,right:4,background:"rgba(0,0,0,.7)",border:"none",color:"#fff",borderRadius:"50%",width:22,height:22,cursor:"pointer",fontSize:11}}>✕</button>
+            </div>))}
+          </div>
+        </div>
+      )}
       <div style={{borderTop:"1px solid var(--border)",paddingTop:18}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-          <div><div style={{fontSize:12,color:"var(--muted)",fontWeight:600,marginBottom:4}}>📁 CARPETA LOCAL</div><div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:8,height:8,borderRadius:"50%",background:serverOk===true?"#22c55e":serverOk===false?"var(--error)":"#888"}}/><span style={{fontSize:12,color:"var(--muted)"}}>{serverOk===null?"Conectando...":serverOk?"Activo · "+serverFiles.length+" archivos":"No detectado"}</span></div></div>
-          <div style={{display:"flex",gap:8}}>{seleccionados.size>0&&<button className="btn btn-primary" style={{fontSize:12,padding:"7px 14px"}} onClick={importar}>⬇ Importar {seleccionados.size}</button>}<button className="btn btn-ghost" style={{fontSize:12,padding:"7px 14px"}} onClick={checkServer}>🔄</button></div>
+          <div>
+            <div style={{fontSize:12,color:"var(--muted)",fontWeight:600,marginBottom:4}}>📁 CARPETA LOCAL</div>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <div style={{width:8,height:8,borderRadius:"50%",background:serverOk===true?"#22c55e":serverOk===false?"var(--error)":"#888"}}/>
+              <span style={{fontSize:12,color:"var(--muted)"}}>{serverOk===null?"Conectando...":serverOk?"Activo · "+serverFiles.length+" archivos":"No detectado"}</span>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            {seleccionados.size>0&&<button className="btn btn-primary" style={{fontSize:12,padding:"7px 14px"}} onClick={importar}>⬇ Importar {seleccionados.size}</button>}
+            <button className="btn btn-ghost" style={{fontSize:12,padding:"7px 14px"}} onClick={checkServer}>🔄</button>
+          </div>
         </div>
-        {serverOk===false&&(<div style={{background:"rgba(244,63,94,.08)",border:"1px solid rgba(244,63,94,.25)",borderRadius:12,padding:"14px",marginBottom:12}}><div style={{fontWeight:700,fontSize:13,color:"var(--error)",marginBottom:6}}>Servidor no detectado</div><div style={{fontFamily:"monospace",fontSize:11,color:"var(--accent2)",background:"#0a0a0a",padding:"8px 12px",borderRadius:8,marginBottom:8}}>cd C:\mcm-server &amp;&amp; node server.js</div><button className="btn btn-ghost" style={{fontSize:11}} onClick={checkServer}>Reintentar</button></div>)}
+        {serverOk===false&&(
+          <div style={{background:"rgba(244,63,94,.08)",border:"1px solid rgba(244,63,94,.25)",borderRadius:12,padding:"14px",marginBottom:12}}>
+            <div style={{fontWeight:700,fontSize:13,color:"var(--error)",marginBottom:6}}>Servidor no detectado</div>
+            <div style={{fontFamily:"monospace",fontSize:11,color:"var(--accent2)",background:"#0a0a0a",padding:"8px 12px",borderRadius:8,marginBottom:8}}>cd C:\mcm-server &amp;&amp; node server.js</div>
+            <button className="btn btn-ghost" style={{fontSize:11}} onClick={checkServer}>Reintentar</button>
+          </div>
+        )}
         {serverOk===true&&(<>
           {carpetas.length>1&&(<div style={{display:"flex",gap:5,marginBottom:8,flexWrap:"wrap"}}>{carpetas.map(c=><button key={c} onClick={()=>setCarpetaActiva(c)} className="btn" style={{padding:"4px 10px",fontSize:11,background:carpetaActiva===c?"rgba(109,40,217,.25)":"var(--surface2)",border:"1px solid "+(carpetaActiva===c?"var(--accent2)":"var(--border)"),color:carpetaActiva===c?"var(--accent2)":"var(--muted)"}}>📁 {c==="todas"?"Todas":c}{c!=="todas"&&" ("+serverFiles.filter(f=>(f.carpeta||"raiz")===c).length+")"}</button>)}</div>)}
           <div style={{display:"flex",gap:6,marginBottom:10}}><input value={busqueda} onChange={e=>setBusqueda(e.target.value)} placeholder="Buscar..." style={{flex:1,fontSize:12,padding:"6px 10px"}}/>{["todos","imagen","video"].map(v=><button key={v} onClick={()=>setFiltro(v)} className="btn" style={{padding:"5px 9px",fontSize:11,background:filtro===v?"rgba(109,40,217,.2)":"var(--surface2)",border:"1px solid "+(filtro===v?"var(--accent2)":"var(--border)"),color:filtro===v?"var(--accent2)":"var(--muted)"}}>{v}</button>)}</div>
@@ -1808,6 +2100,7 @@ function LibraryScreen({files,saveFiles,showToast,onNext}) {
     </div>
   );
 }
+
 // ════════════════════════════════════════════════════════════════
 // GENERATE SCREEN — 7 briefs individuales + carrusel
 // ════════════════════════════════════════════════════════════════
@@ -1886,38 +2179,72 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
         let imgSrc = imgs[i % imgs.length].preview;
         let imgMatchWarning = false;
 
-        if(postBrief) {
+        if(postBrief && imgs.length > 0) {
           try {
+            // analyzing images for brief
             const imgData = await Promise.all(imgs.map(async (img, idx) => {
-              const src = img.preview || "";
+              const src = img.preview || img.url || "";
               let b64 = "", mtype = "image/jpeg";
               if(src.startsWith("data:")) {
                 const comma = src.indexOf(",");
                 b64 = src.slice(comma + 1);
                 mtype = src.slice(5, src.indexOf(";")) || "image/jpeg";
+              } else if(src.startsWith("http") || src.startsWith("blob:")) {
+                try {
+                  const blob = await fetch(src).then(r => r.blob());
+                  b64 = await new Promise(res => {
+                    const fr = new FileReader();
+                    fr.onload = e => res(e.target.result.split(",")[1] || "");
+                    fr.onerror = () => res("");
+                    fr.readAsDataURL(blob);
+                  });
+                  mtype = blob.type || "image/jpeg";
+                } catch(e) { b64 = ""; }
               }
               return { idx, b64, mtype, valid: b64.length > 100 };
             }));
             const validImgs = imgData.filter(d => d.valid);
             if(validImgs.length > 0) {
+              const visionContent = [
+                { type: "text", text: `Sos un director de arte. Tenés ${validImgs.length} imágenes numeradas del 0 al ${validImgs.length - 1}. El brief del post es: "${postBrief}". Analizá cada imagen y elegí la que mejor se adapta a ese brief. Respondé SOLO con el número de índice (0, 1, 2...), sin texto adicional.` },
+                ...validImgs.map(d => ({ type: "image", source: { type: "base64", media_type: d.mtype, data: d.b64 } }))
+              ];
               const visionResp = await fetch("/api/generate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                  prompt: `Tenés ${validImgs.length} imágenes (índices 0 a ${validImgs.length-1}). Brief: "${postBrief}". Elegí la imagen que mejor representa ese tema. Respondé SOLO con el número de índice, sin texto.`,
+                  prompt: `Tenés ${validImgs.length} imágenes numeradas del 0 al ${validImgs.length - 1}. El brief del post es: "${postBrief}". Analizá cada imagen y elegí la que mejor representa ese tema. Respondé SOLO con el número de índice (0, 1, 2...), sin texto adicional.`,
                   visionImages: validImgs
                 })
               });
-              const vd = await visionResp.json();
-              const chosen = parseInt((vd.text || "").trim(), 10);
-              if(!isNaN(chosen) && chosen >= 0 && chosen < validImgs.length) {
-                imgSrc = imgs[validImgs[chosen].idx]?.preview || imgSrc;
+              const visionData = await visionResp.json();
+              const raw = (visionData.text || "").trim();
+              const chosenValidIdx = parseInt(raw, 10);
+              if(!isNaN(chosenValidIdx) && chosenValidIdx >= 0 && chosenValidIdx < validImgs.length) {
+                const originalIdx = validImgs[chosenValidIdx].idx;
+                imgSrc = imgs[originalIdx]?.preview || imgs[i % imgs.length].preview;
+              }
+              const chosenValidIdx = parseInt(raw, 10);
+              if(!isNaN(chosenValidIdx) && chosenValidIdx >= 0 && chosenValidIdx < validImgs.length) {
+                const originalIdx = validImgs[chosenValidIdx].idx;
+                imgSrc = imgs[originalIdx]?.preview || imgs[i % imgs.length].preview;
+                console.log(`Post ${i+1}: imagen ${originalIdx + 1} elegida para "${postBrief}"`);
               }
             }
           } catch(e) { /* fallback secuencial */ }
         }
 
-                // Template elegido para este post
+    } else {
+        imgSrc = imgs[i % imgs.length].preview;
+      }
+    }
+  } catch(e) {
+    imgSrc = imgs[i % imgs.length].preview;
+  }
+} else {
+          setProgressMsg(`Post ${i+1}: generando contenido...`);
+        }
+        // Template elegido para este post
         const slideCount=slideCounts[i]||1;
         const tmplNote = tmplForPost ? `\nTemplate de diseño para este post: "${tmplForPost.name}" — ${tmplForPost.desc}. Adaptá el caption a este formato visual.` : "";
         const ctx=buildBrandContext(i, tmplNote);
@@ -1960,10 +2287,10 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
         // Para carrusel: generar múltiples slides (misma opción pero diferentes imágenes)
         const makeCarouselSlides=(count,baseImgSrc)=>{
           const slides=[];
-          const startIdx=imgs.findIndex(img=>img.preview===baseImgSrc);
+          const startIdx=imgs.findIndex(img=>(img.preview||img.url)===baseImgSrc);
           const base=startIdx>=0?startIdx:i;
           for(let s=0;s<count;s++){
-            slides.push(imgs[(base+s)%imgs.length].preview);
+            slides.push(imgs[(base+s)%imgs.length].preview||imgs[(base+s)%imgs.length].url);
           }
           return slides;
         };
@@ -2008,7 +2335,7 @@ Si dice "87%" → ponés una estadística real del rubro.
 Mantené EXACTAMENTE la misma estructura HTML, colores, estilos y layout. Solo cambiá los textos.
 Respondé ÚNICAMENTE con el HTML modificado, sin explicaciones ni markdown.`;
 
-           const tmplResp = await generateText(tmplPersonPrompt);
+            const tmplResp = await generateText(tmplPersonPrompt);
             if(tmplResp && tmplResp.length > 50 && tmplResp.includes("<")) {
               personalizedHtml = tmplResp;
             }
@@ -3250,4 +3577,3 @@ ReactDOM.createRoot(document.getElementById("root")).render(<App />);
 </script>
 </body>
 </html>
-  
