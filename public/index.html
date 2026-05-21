@@ -2237,7 +2237,7 @@ if(validImgs.length > 0) {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                  prompt: `Tenés ${validImgs.length} imágenes numeradas del 0 al ${validImgs.length - 1}. El brief del post es: "${postBrief}". Analizá cada imagen y elegí la que mejor representa ese tema. Respondé SOLO con el número de índice (0, 1, 2...), sin texto adicional.`,
+                  prompt: `Tenés ${validImgs.length} imágenes numeradas del 0 al ${validImgs.length - 1}. El brief del post es: "${postBrief}". Analizá cada imagen y elegí las ${slideCount} que mejor representan ese tema, ordenadas de más a menos relevante. Respondé SOLO con los números separados por comas (ej: 3,7,1), sin texto adicional.`,
                   visionImages: validImgs.map(d => ({ url: d.url }))
                 })
               });
