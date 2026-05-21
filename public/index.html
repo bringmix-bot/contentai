@@ -2455,6 +2455,43 @@ Respondé ÚNICAMENTE con el HTML modificado, sin explicaciones ni markdown.`;
         </div>
       )}
 
+      {/* ── SECCIÓN REELS ── */}
+<div style={{marginTop:32,borderTop:"1px solid var(--border)",paddingTop:24}}>
+  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+    <div style={{fontSize:22}}>🎬</div>
+    <div>
+      <div style={{fontWeight:800,fontSize:18}}>Reels</div>
+      <div style={{fontSize:13,color:"var(--muted)"}}>Creá un Reel a partir de tus videos</div>
+    </div>
+  </div>
+  {files.filter(f=>f.type==="video").length===0?(
+    <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:12,padding:"32px",textAlign:"center",color:"var(--muted)"}}>
+      <div style={{fontSize:32,marginBottom:8}}>🎥</div>
+      <div style={{fontSize:14}}>No hay videos en tus archivos. Subí un video desde Mis Archivos.</div>
+    </div>
+  ):(
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:12}}>
+      {files.filter(f=>f.type==="video").map((video,vi)=>(
+        <div key={vi} style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:14,overflow:"hidden",cursor:"pointer"}}
+          onClick={()=>showToast("Feature de Reel próximamente ✨","info")}>
+          <div style={{aspectRatio:"9/16",background:"#000",display:"flex",alignItems:"center",justifyContent:"center",position:"relative"}}>
+            <video src={video.preview||video.url} style={{width:"100%",height:"100%",objectFit:"cover"}} />
+            <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.4)"}}>
+              <div style={{fontSize:40}}>▶</div>
+            </div>
+          </div>
+          <div style={{padding:"10px 12px"}}>
+            <div style={{fontSize:12,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{video.name}</div>
+            <button className="btn btn-primary" style={{width:"100%",marginTop:8,fontSize:12,padding:"8px"}}>
+              🎬 Crear Reel
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
+</div>
+
       {editing&&ReactDOM.createPortal(
         <EditorModal
           opt={weekPosts[editing.postIdx]?.options[editing.optIdx]}
