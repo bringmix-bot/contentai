@@ -3327,49 +3327,47 @@ function ReelModal({video, brand, onClose, showToast, pixabayKey}) {
     return frames;
   };
 
-  const analyze = async () => {
-    if(!videoRef.current) return;
-    setAnalyzing(true);
-    try {
-      showToast("Extrayendo frames del video...","info");
-      const frames = await extractFrames(videoRef.current, 6);
-      showToast("Analizando con IA...","info");
-      const briefNote = brief ? `El brief del Reel es: "${brief}".` : "";
-      const prompt = `Sos un director creativo experto en Reels de Instagram. ${briefNote} Analizá estos frames de video de ${brand.name} (${brand.industry||""}) y:
-1. Describí en 2 líneas qué muestra el video
-2. Generá un texto overlay impactante de 3-5 palabras para superponer
-3. Sugerí 3 palabras clave en inglés para buscar música de fondo (ej: "upbeat organic farm")
-Respondé en JSON: {"description":"...","overlay":"...","musicKeywords":"..."}`;
-
-      const r = await fetch("/api/generate", {
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({
-          prompt,
-          visionImages: frames.map(b64 => ({b64, mtype:"image/jpeg"}))
-        })
-      });
-      const d = await r.json();
-      let result = {};
-      try { result = JSON.parse(d.text.replace(/```json|```/g,"").trim()); } catch {}
-      setAnalysis(result);
-      setOverlayText(result.overlay || "");
-
-      // Buscar música en Pixabay
-      if(result.musicKeywords) {
-        showToast("Buscando música...","info");
-        const q = encodeURIComponent(result.musicKeywords);
-        const musicRes = await fetch(`https://pixabay.com/api/videos/?key=${pixabayKey}&q=${q}&video_type=film&per_page=5`);
-        const musicData = await musicRes.json();
-        // Pixabay no tiene API de música directa, usamos su API de audio
-        const audioRes = await fetch(`https://pixabay.com/api/?key=${pixabayKey}&q=${q}&per_page=5`);
-        setMusic(musicData.hits||[]);
-      }
-      showToast("Análisis completo ✓","ok");
-    } catch(e) {
-      showToast("Error: "+e.message,"err");
+ const analyze = async () => {
+  if(!videoRef.current) return;
+  setAnalyzing(true);
+  try {
+    // Esperar que el video esté listo
+    const videoEl = videoRef.current;
+    if(videoEl.readyState < 2) {
+      await new Promise(r => { videoEl.onloadeddata = r; });
     }
-    setAnalyzing(false);
-  };
+    showToast("Extrayendo frames del video...","info");
+    const frames = await extractFrames(videoEl, 6);
+    showToast("Analizando con IA... (puede tardar 30 segundos)","info");
+    const briefNote = brief ? `El brief del Reel es: "${brief}".` : "";
+    const prompt = `Sos un director creativo experto en Reels de Instagram. ${briefNote} Analizá estos frames de video de ${brand.name} (${brand.industry||""}) y respondé en JSON con exactamente este formato:
+{"description":"descripción de 2 líneas de qué muestra el video","overlay":"texto impactante de 3-5 palabras para superponer","musicKeywords":"3 palabras en inglés para buscar música"}`;
+
+    const r = await fetch("/api/generate", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        prompt,
+        visionImages: frames.map(b64 => ({b64, mtype:"image/jpeg"}))
+      })
+    });
+    const d = await r.json();
+    console.log("Vision response:", d.text);
+    let result = {};
+    try { 
+      const cleaned = d.text.replace(/```json|```/g,"").trim();
+      result = JSON.parse(cleaned); 
+    } catch(e) { 
+      result = {description: d.text, overlay: brief||"NATURALEZA PURA", musicKeywords: "nature organic peaceful"};
+    }
+    setAnalysis(result);
+    setOverlayText(result.overlay || "");
+    showToast("Análisis completo ✓","ok");
+  } catch(e) {
+    console.error("Analyze error:", e);
+    showToast("Error: "+e.message,"err");
+  }
+  setAnalyzing(false);
+};  };
 
   const publishReel = async () => {
     setPublishing(true);
