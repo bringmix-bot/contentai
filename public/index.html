@@ -2222,39 +2222,23 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
         if(postBrief && imgs.length > 0) {
           try {
             // analyzing images for brief
-            const imgData = await Promise.all(imgs.map(async (img, idx) => {
-              const src = img.preview || img.url || "";
-              let b64 = "", mtype = "image/jpeg";
-              if(src.startsWith("data:")) {
-                const comma = src.indexOf(",");
-                b64 = src.slice(comma + 1);
-                mtype = src.slice(5, src.indexOf(";")) || "image/jpeg";
-              } else if(src.startsWith("http") || src.startsWith("blob:")) {
-                try {
-                  const blob = await fetch(src).then(r => r.blob());
-                  b64 = await new Promise(res => {
-                    const fr = new FileReader();
-                    fr.onload = e => res(e.target.result.split(",")[1] || "");
-                    fr.onerror = () => res("");
-                    fr.readAsDataURL(blob);
-                  });
-                  mtype = blob.type || "image/jpeg";
-                } catch(e) { b64 = ""; }
-              }
-              return { idx, b64, mtype, valid: b64.length > 100 };
-            }));
-            const validImgs = imgData.filter(d => d.valid);
-            if(validImgs.length > 0) {
-              const visionContent = [
-                { type: "text", text: `Sos un director de arte. Tenés ${validImgs.length} imágenes numeradas del 0 al ${validImgs.length - 1}. El brief del post es: "${postBrief}". Analizá cada imagen y elegí la que mejor se adapta a ese brief. Respondé SOLO con el número de índice (0, 1, 2...), sin texto adicional.` },
-                ...validImgs.map(d => ({ type: "image", source: { type: "base64", media_type: d.mtype, data: d.b64 } }))
-              ];
-              const visionResp = await fetch("/api/generate", {
+            const imgData = imgs.map((img, idx) => {
+  const url = img.preview || img.url || "";
+  return { idx, url, valid: url.startsWith("http") };
+});
+
+const validImgs = imgData.filter(d => d.valid);
+if(validImgs.length > 0) {
+  const visionContent = [
+    { type: "text", text: `Sos un director de arte. Tenés ${validImgs.length} imágenes numeradas del 0 al ${validImgs.length - 1}. El brief del post es: "${postBrief}". Analizá cada imagen y elegí la que mejor representa ese tema. Respondé SOLO con el número.` },
+    ...validImgs.map(d => ({ type: "image", source: { type: "url", url: d.url } }))
+  ];
+  const visionResp = await fetch("/api/generate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   prompt: `Tenés ${validImgs.length} imágenes numeradas del 0 al ${validImgs.length - 1}. El brief del post es: "${postBrief}". Analizá cada imagen y elegí la que mejor representa ese tema. Respondé SOLO con el número de índice (0, 1, 2...), sin texto adicional.`,
-                  visionImages: validImgs
+                  visionImages: validImgs.map(d => ({ url: d.url }))
                 })
               });
               const visionData = await visionResp.json();
