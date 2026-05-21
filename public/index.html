@@ -2131,7 +2131,7 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
 
   const updBrief=(i,v)=>{ const b=[...briefs]; b[i]=v; setBriefs(b); store.set("weekBriefs",b); };
   const updSlideCount=(i,v)=>{ const s=[...slideCounts]; s[i]=v; setSlideCounts(s); store.set("slideCounts",s); };
-
+const selectOption=(pi,oi)=>setSelections(p=>({...p,[pi]:oi}));
   const PROMPTS=[
     "Genera un caption profesional sobre el trabajo o servicio principal que ofrece la empresa.",
     "Genera un caption con un testimonio o caso de éxito de un cliente de esta empresa.",
