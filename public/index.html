@@ -2224,7 +2224,7 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
             // analyzing images for brief
       const imgData = imgs.map((img, idx) => {
           const url = img.preview || img.url || "";
-          return { idx, url, valid: url.startsWith("http") };
+          return { idx, url, valid: url.length > 10 };
         });
 
 const validImgs = imgData.filter(d => d.valid);
