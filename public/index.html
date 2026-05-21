@@ -2218,6 +2218,7 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
         // ── SELECCIÓN DE IMAGEN POR BRIEF ──
         let imgSrc = imgs[i % imgs.length].preview;
         let imgMatchWarning = false;
+        let visionSlides = null;
 
         if(postBrief && imgs.length > 0) {
           try {
@@ -2300,8 +2301,8 @@ if(chosenIndices.length > 0) {
 
         // Para carrusel: generar múltiples slides (misma opción pero diferentes imágenes)
         const makeCarouselSlides=(count,baseImgSrc)=>{
-  if(window._visionSlides && window._visionSlides.length > 0) {
-    const slides = window._visionSlides.slice(0, count);
+  if(visionSlides && visionSlides.length > 0) {
+    const slides = visionSlides.slice(0, count);
     while(slides.length < count) slides.push(slides[slides.length-1]);
     visionSlides = null;
     return slides;
