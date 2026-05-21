@@ -2222,26 +2222,12 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
               const chosenValidIdx = parseInt(raw, 10);
               if(!isNaN(chosenValidIdx) && chosenValidIdx >= 0 && chosenValidIdx < validImgs.length) {
                 const originalIdx = validImgs[chosenValidIdx].idx;
-                imgSrc = imgs[originalIdx]?.preview || imgs[i % imgs.length].preview;
-              }
-              const chosenValidIdx = parseInt(raw, 10);
-              if(!isNaN(chosenValidIdx) && chosenValidIdx >= 0 && chosenValidIdx < validImgs.length) {
-                const originalIdx = validImgs[chosenValidIdx].idx;
-                imgSrc = imgs[originalIdx]?.preview || imgs[i % imgs.length].preview;
-                console.log(`Post ${i+1}: imagen ${originalIdx + 1} elegida para "${postBrief}"`);
+                imgSrc = imgs[originalIdx]?.preview || imgs[originalIdx]?.url || imgs[i % imgs.length].preview;
               }
             }
           } catch(e) { /* fallback secuencial */ }
         }
 
-    } else {
-        imgSrc = imgs[i % imgs.length].preview;
-      }
-    }
-  } catch(e) {
-    imgSrc = imgs[i % imgs.length].preview;
-  }
-} else {
           setProgressMsg(`Post ${i+1}: generando contenido...`);
         }
         // Template elegido para este post
