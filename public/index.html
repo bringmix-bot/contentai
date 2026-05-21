@@ -2228,8 +2228,7 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
           } catch(e) { /* fallback secuencial */ }
         }
 
-          setProgressMsg(`Post ${i+1}: generando contenido...`);
-        }
+        setProgressMsg(`Post ${i+1}: generando contenido...`);
         // Template elegido para este post
         const slideCount=slideCounts[i]||1;
         const tmplNote = tmplForPost ? `\nTemplate de diseño para este post: "${tmplForPost.name}" — ${tmplForPost.desc}. Adaptá el caption a este formato visual.` : "";
