@@ -2248,7 +2248,7 @@ if(chosenIndices.length > 0) {
   const originalIdx = validImgs[chosenIndices[0]].idx;
   imgSrc = imgs[originalIdx]?.preview || imgs[originalIdx]?.url || imgs[i % imgs.length].preview;
   // Guardar todos los índices elegidos para el carrusel
-  window._visionSlides = chosenIndices.map(ci => {
+  visionSlides = chosenIndices.map(ci => {
     const oi = validImgs[ci].idx;
     return imgs[oi]?.preview || imgs[oi]?.url;
   }).filter(Boolean);
