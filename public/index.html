@@ -2222,7 +2222,7 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
         if(postBrief && imgs.length > 0) {
           try {
             // analyzing images for brief
-            const imgData = imgs.map((img, idx) => {
+       const imgData = imgs.map((img, idx) => {
   const url = img.preview || img.url || "";
   return { idx, url, valid: url.startsWith("http") };
 });
