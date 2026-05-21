@@ -325,7 +325,8 @@ async function saveFileToCloud(uid, file, base64) {
     const sb = getSupabase();
     // Subir archivo a Storage
     const ext = file.name.split('.').pop();
-    const path = `${uid}/${Date.now()}_${file.name}`;
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+const path = `${uid}/${Date.now()}_${safeName}`;
     const blob = await fetch(base64).then(r => r.blob());
     const { error } = await sb.storage.from('mcm-files').upload(path, blob, {
       contentType: file.type, upsert: true
