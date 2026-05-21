@@ -2363,6 +2363,7 @@ Respondé ÚNICAMENTE con el HTML modificado, sin explicaciones ni markdown.`;
   };
 
   const [progressMsg, setProgressMsg] = useState("");
+  const [reelModal, setReelModal] = useState(null);
   const allSelected=weekPosts.length===7&&Object.keys(selections).length===7;
 
   return (
@@ -2473,7 +2474,7 @@ Respondé ÚNICAMENTE con el HTML modificado, sin explicaciones ni markdown.`;
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:12}}>
       {files.filter(f=>f.type==="video").map((video,vi)=>(
         <div key={vi} style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:14,overflow:"hidden",cursor:"pointer"}}
-          onClick={()=>showToast("Feature de Reel próximamente ✨","info")}>
+          onClick={()=>setReelModal(video)}
           <div style={{aspectRatio:"9/16",background:"#000",display:"flex",alignItems:"center",justifyContent:"center",position:"relative"}}>
             <video src={video.preview||video.url} style={{width:"100%",height:"100%",objectFit:"cover"}} />
             <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.4)"}}>
@@ -2491,7 +2492,17 @@ Respondé ÚNICAMENTE con el HTML modificado, sin explicaciones ni markdown.`;
     </div>
   )}
 </div>
-
+{reelModal&&ReactDOM.createPortal(
+  <ReelModal
+    video={reelModal}
+    brand={brand}
+    onClose={()=>setReelModal(null)}
+    showToast={showToast}
+    pixabayKey="55967298-763db9b1cebbd409766093b27"
+  />,
+  document.body
+)}
+    
       {editing&&ReactDOM.createPortal(
         <EditorModal
           opt={weekPosts[editing.postIdx]?.options[editing.optIdx]}
