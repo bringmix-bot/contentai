@@ -3294,7 +3294,193 @@ function ScheduleScreen({socials,showToast}) {
     </div>
   );
 }
+// ════════════════════════════════════════════════════════════════
+// REEL MODAL
+// ════════════════════════════════════════════════════════════════
+function ReelModal({video, brand, onClose, showToast, pixabayKey}) {
+  const videoRef = useRef();
+  const canvasRef = useRef();
+  const [brief, setBrief] = useState("");
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysis, setAnalysis] = useState(null);
+  const [overlayText, setOverlayText] = useState("");
+  const [music, setMusic] = useState([]);
+  const [selectedMusic, setSelectedMusic] = useState(null);
+  const [textX, setTextX] = useState(0.1);
+  const [textY, setTextY] = useState(0.8);
+  const [fontSize, setFontSize] = useState(40);
+  const [fontColor, setFontColor] = useState("#ffffff");
+  const [publishing, setPublishing] = useState(false);
 
+  const extractFrames = async (videoEl, count=10) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 320; canvas.height = 568;
+    const ctx = canvas.getContext("2d");
+    const frames = [];
+    const duration = videoEl.duration;
+    for(let i=0; i<count; i++) {
+      videoEl.currentTime = (duration / count) * i;
+      await new Promise(r => videoEl.onseeked = r);
+      ctx.drawImage(videoEl, 0, 0, 320, 568);
+      frames.push(canvas.toDataURL("image/jpeg", 0.5).split(",")[1]);
+    }
+    return frames;
+  };
+
+  const analyze = async () => {
+    if(!videoRef.current) return;
+    setAnalyzing(true);
+    try {
+      showToast("Extrayendo frames del video...","info");
+      const frames = await extractFrames(videoRef.current, 6);
+      showToast("Analizando con IA...","info");
+      const briefNote = brief ? `El brief del Reel es: "${brief}".` : "";
+      const prompt = `Sos un director creativo experto en Reels de Instagram. ${briefNote} Analizá estos frames de video de ${brand.name} (${brand.industry||""}) y:
+1. Describí en 2 líneas qué muestra el video
+2. Generá un texto overlay impactante de 3-5 palabras para superponer
+3. Sugerí 3 palabras clave en inglés para buscar música de fondo (ej: "upbeat organic farm")
+Respondé en JSON: {"description":"...","overlay":"...","musicKeywords":"..."}`;
+
+      const r = await fetch("/api/generate", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+          prompt,
+          visionImages: frames.map(b64 => ({b64, mtype:"image/jpeg"}))
+        })
+      });
+      const d = await r.json();
+      let result = {};
+      try { result = JSON.parse(d.text.replace(/```json|```/g,"").trim()); } catch {}
+      setAnalysis(result);
+      setOverlayText(result.overlay || "");
+
+      // Buscar música en Pixabay
+      if(result.musicKeywords) {
+        showToast("Buscando música...","info");
+        const q = encodeURIComponent(result.musicKeywords);
+        const musicRes = await fetch(`https://pixabay.com/api/videos/?key=${pixabayKey}&q=${q}&video_type=film&per_page=5`);
+        const musicData = await musicRes.json();
+        // Pixabay no tiene API de música directa, usamos su API de audio
+        const audioRes = await fetch(`https://pixabay.com/api/?key=${pixabayKey}&q=${q}&per_page=5`);
+        setMusic(musicData.hits||[]);
+      }
+      showToast("Análisis completo ✓","ok");
+    } catch(e) {
+      showToast("Error: "+e.message,"err");
+    }
+    setAnalyzing(false);
+  };
+
+  const publishReel = async () => {
+    setPublishing(true);
+    try {
+      const videoUrl = video.url || video.preview;
+      const r = await fetch("/api/instagram?action=publish", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+          caption: analysis?.description || brief || "Reel de "+brand.name,
+          videoUrl,
+          format: "reel",
+          overlayText,
+        })
+      });
+      const d = await r.json();
+      if(!d.success) throw new Error(d.error);
+      showToast("Reel publicado en Instagram ✓","ok");
+      onClose();
+    } catch(e) {
+      showToast("Error: "+e.message,"err");
+    }
+    setPublishing(false);
+  };
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.92)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:16,backdropFilter:"blur(24px)"}}>
+      <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:20,width:"min(98vw,900px)",maxHeight:"94vh",overflow:"auto",display:"flex",gap:20,padding:24}}>
+        
+        {/* LEFT: Video preview */}
+        <div style={{flex:"0 0 280px",display:"flex",flexDirection:"column",gap:10}}>
+          <div className="lbl">Preview del Reel</div>
+          <div style={{position:"relative",borderRadius:14,overflow:"hidden",aspectRatio:"9/16",background:"#000"}}>
+            <video ref={videoRef} src={video.url||video.preview} style={{width:"100%",height:"100%",objectFit:"cover"}} controls />
+            {overlayText&&(
+              <div style={{position:"absolute",left:`${textX*100}%`,top:`${textY*100}%`,transform:"translate(-50%,-50%)",color:fontColor,fontSize:fontSize,fontWeight:900,fontFamily:"Impact",textShadow:"2px 2px 8px rgba(0,0,0,.8)",textAlign:"center",pointerEvents:"none",maxWidth:"80%",wordBreak:"break-word"}}>
+                {overlayText.toUpperCase()}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* RIGHT: Controls */}
+        <div style={{flex:1,display:"flex",flexDirection:"column",gap:12}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <h3 style={{fontSize:16,fontWeight:700}}>🎬 Crear Reel</h3>
+            <button onClick={onClose} style={{background:"var(--surface2)",border:"none",color:"var(--muted)",width:28,height:28,borderRadius:8,cursor:"pointer"}}>✕</button>
+          </div>
+
+          {/* Brief */}
+          <div>
+            <span className="lbl">Brief del Reel (opcional)</span>
+            <input value={brief} onChange={e=>setBrief(e.target.value)}
+              placeholder="Ej: mostrar el proceso de cosecha de tomates..."
+              style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:10,color:"var(--text)",fontSize:13,padding:"9px 11px",width:"100%",outline:"none"}} />
+          </div>
+
+          {/* Analizar */}
+          <button className="btn btn-primary" onClick={analyze} disabled={analyzing}>
+            {analyzing?<><div className="spin"/>Analizando video...</>:"🤖 Analizar con IA"}
+          </button>
+
+          {/* Resultado análisis */}
+          {analysis&&(
+            <div style={{background:"rgba(109,40,217,.08)",border:"1px solid rgba(168,85,247,.2)",borderRadius:12,padding:"12px 14px"}}>
+              <div style={{fontSize:11,color:"var(--accent2)",fontWeight:700,marginBottom:6}}>ANÁLISIS DE LA IA</div>
+              <div style={{fontSize:12,color:"var(--text)",lineHeight:1.6}}>{analysis.description}</div>
+            </div>
+          )}
+
+          {/* Texto overlay */}
+          {analysis&&(
+            <div>
+              <span className="lbl">Texto sobre el video</span>
+              <input value={overlayText} onChange={e=>setOverlayText(e.target.value)}
+                style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:10,color:"var(--text)",fontSize:13,padding:"9px 11px",width:"100%",outline:"none",marginBottom:8}} />
+              <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                <div style={{flex:1}}>
+                  <span className="lbl">Tamaño ({fontSize}px)</span>
+                  <input type="range" min={20} max={80} value={fontSize} onChange={e=>setFontSize(+e.target.value)} style={{width:"100%",accentColor:"var(--accent)"}} />
+                </div>
+                <div>
+                  <span className="lbl">Color</span>
+                  <input type="color" value={fontColor} onChange={e=>setFontColor(e.target.value)} style={{width:40,height:34,borderRadius:8,border:"1px solid var(--border)",cursor:"pointer",padding:2}} />
+                </div>
+              </div>
+              <div style={{fontSize:11,color:"var(--muted)",marginTop:4}}>Posición Y del texto ({Math.round(textY*100)}%)</div>
+              <input type="range" min={10} max={90} value={Math.round(textY*100)} onChange={e=>setTextY(+e.target.value/100)} style={{width:"100%",accentColor:"var(--accent2)"}} />
+            </div>
+          )}
+
+          {/* Música sugerida */}
+          {analysis?.musicKeywords&&(
+            <div>
+              <span className="lbl">🎵 Música sugerida para: "{analysis.musicKeywords}"</span>
+              <div style={{fontSize:12,color:"var(--muted)",marginBottom:8}}>Buscá en Pixabay: <a href={`https://pixabay.com/music/search/${encodeURIComponent(analysis.musicKeywords)}`} target="_blank" style={{color:"var(--accent2)"}}>{analysis.musicKeywords} →</a></div>
+            </div>
+          )}
+
+          {/* Publicar */}
+          {analysis&&(
+            <button className="btn btn-primary" onClick={publishReel} disabled={publishing}
+              style={{background:"linear-gradient(135deg,#E1306C,#833AB4)",marginTop:"auto"}}>
+              {publishing?<><div className="spin"/>Publicando...</>:"🚀 Publicar como Reel en Instagram"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+      
 // ════════════════════════════════════════════════════════════════
 // HISTORY SCREEN — historial de posteos
 // ════════════════════════════════════════════════════════════════
