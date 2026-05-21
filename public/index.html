@@ -816,7 +816,7 @@ function App() {
   // Verificar sesión Supabase al cargar
   useEffect(() => {
     const _sb = getSupabase(); if(_sb) {
-      sb.auth.getSession().then(({ data }) => {
+      _sb.auth.getSession().then(({ data }) => {
         if(data.session && !getSession()) {
           // Sesión Supabase activa pero no en localStorage — restaurar
           const uid = data.session.user.id;
