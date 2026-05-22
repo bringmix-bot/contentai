@@ -433,7 +433,17 @@ const TONE_INSTRUCTIONS = {
   "Urgente": "Llamados a la acción directos y urgentes. Frases cortas. Palabras como 'Ahora', 'Hoy', 'No te lo pierdas', 'Últimas unidades'. Crear sensación de escasez o urgencia real.",
   "Educativo": "Explicar conceptos de forma clara y didáctica. Usar listas, tips numerados, preguntas retóricas. Posicionarse como experto que enseña. Aportar valor real con cada post.",
 };
-
+async function searchPixabay(query, count=3) {
+  try {
+    const r = await fetch("/api/pixabay", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({query, count})
+    });
+    const d = await r.json();
+    if(d.success && d.results?.length>0) return d.results.map(r=>r.url);
+    return [];
+  } catch(e) { return []; }
+}
 async function generateText(prompt) {
   const r = await fetch("/api/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt})});
   const d = await r.json();
@@ -2212,19 +2222,39 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
     let creative={};
     try{ const match=r.match(/\{[\s\S]*\}/); creative=JSON.parse(match?match[0]:r); }
     catch(e){ creative={format:idea.format||"post",slideCount:1,templateId:"t01",fontFamily:"Impact",fontSize:56,fontColor:"#ffffff",overlayText:idea.title.split(" ").slice(0,4).join(" "),caption:idea.hook||idea.title}; }
+    const industryKeywords=[brand.industry||"",...(brand.subIndustries||[]),brand.customIndustry||""].filter(Boolean).join(" ");
     let imgSrc=imgs[idx%Math.max(1,imgs.length)]?.preview||null;
     if(imgs.length>0){
       try{
         const validImgs=imgs.map((img,i)=>({idx:i,url:img.preview||img.url||""})).filter(d=>d.url.length>10);
-        if(validImgs.length>0){
+    if(validImgs.length>0){
           const vd=await fetch("/api/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt:`Tenés ${validImgs.length} imágenes. El post es sobre: "${idea.title}". Elegí la más relevante. Respondé SOLO con el número.`,visionImages:validImgs.map(d=>({url:d.url}))})}).then(r=>r.json());
           const chosen=parseInt((vd.text||"0").trim());
           if(!isNaN(chosen)&&chosen>=0&&chosen<validImgs.length) imgSrc=imgs[validImgs[chosen].idx]?.preview||imgSrc;
         }
       }catch(e){}
     }
+    if(!imgSrc){
+      const pbQuery=idea.title+" "+industryKeywords;
+      const pbImgs=await searchPixabay(pbQuery,1);
+      if(pbImgs.length>0) imgSrc=pbImgs[0];
+    }
     const slideCount=creative.format==="carrusel"?Math.min(creative.slideCount||2,5):1;
-    const slides=slideCount>1?Array.from({length:slideCount},(_,s)=>imgs[(idx+s)%Math.max(1,imgs.length)]?.preview||imgSrc):null;
+    let slides=null;
+    if(slideCount>1){
+      const allSlideImgs=[imgSrc];
+      const used=new Set([imgSrc]);
+      for(let s=1;s<slideCount;s++){
+        const available=imgs.filter(img=>{const u=img.preview||img.url||"";return u.length>10&&!used.has(u);});
+        if(available.length>0){const u=available[0].preview||available[0].url;used.add(u);allSlideImgs.push(u);}
+        else{
+          const pbExtra=await searchPixabay(idea.title+" "+industryKeywords,1);
+          if(pbExtra.length>0&&!used.has(pbExtra[0])){used.add(pbExtra[0]);allSlideImgs.push(pbExtra[0]);}
+          else allSlideImgs.push(imgSrc);
+        }
+      }
+      slides=allSlideImgs;
+    }
     const tmpl=TEMPLATES_40.find(t=>t.id===creative.templateId)||TEMPLATES_40[idx%TEMPLATES_40.length];
     return {
       id:idx,style:3,styleName:tmpl.name,caption:creative.caption||idea.hook||idea.title,
