@@ -3471,6 +3471,17 @@ const jsonStr = jsonMatch ? jsonMatch[0] : d.text; result = JSON.parse(jsonStr);
                   <input type="color" value={fontColor} onChange={e=>setFontColor(e.target.value)} style={{width:40,height:34,borderRadius:8,border:"1px solid var(--border)",cursor:"pointer",padding:2}} />
                 </div>
               </div>
+              <div>
+                <span className="lbl">Fuente</span>
+                <select value={fontFamily} onChange={e=>setFontFamily(e.target.value)} style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:10,color:"var(--text)",fontSize:13,padding:"9px 11px",width:"100%",outline:"none",cursor:"pointer"}}>
+                  <option value="Impact">Impact — DISPLAY</option>
+                  <option value="Arial">Arial — Sans-Serif</option>
+                  <option value="Georgia">Georgia — Serif</option>
+                  <option value="'Courier New'">Courier New — Mono</option>
+                  <option value="'Times New Roman'">Times New Roman — Clásica</option>
+                  <option value="Verdana">Verdana — Legible</option>
+                </select>
+              </div>
               <div style={{fontSize:11,color:"var(--muted)",marginTop:4}}>Posición Y del texto ({Math.round(textY*100)}%)</div>
               <input type="range" min={10} max={90} value={Math.round(textY*100)} onChange={e=>setTextY(+e.target.value/100)} style={{width:"100%",accentColor:"var(--accent2)"}} />
             </div>
