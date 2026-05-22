@@ -1794,7 +1794,8 @@ function BrandScreen({brand,saveBrand,showToast,onNext}) {
   };
 
   return (
-    <div style={{padding:"32px 36px",maxWidth:680}} className="fade-in">
+    <div style={{padding:"32px 36px",display:"flex",gap:28,alignItems:"flex-start",maxWidth:1200}} className="fade-in">
+      <div style={{flex:"0 0 600px",maxWidth:600}}>
       <div style={{marginBottom:24}}>
         <h2 style={{fontSize:22,fontWeight:800,marginBottom:6}}>Perfil de tu marca</h2>
         <p style={{color:"var(--muted)",fontSize:14}}>MCM guarda todo esto y lo usa cada vez que genera contenido.</p>
@@ -1829,6 +1830,19 @@ function BrandScreen({brand,saveBrand,showToast,onNext}) {
               {form.customIndustryDesc&&(
                 <div style={{background:"rgba(109,40,217,.1)",border:"1px solid rgba(168,85,247,.2)",borderRadius:10,padding:"10px 14px",fontSize:12,color:"var(--text)",lineHeight:1.6}}>
                   <strong style={{color:"var(--accent2)"}}>IA analizó tu rubro:</strong><br/>{form.customIndustryDesc}
+                  <button className="btn btn-primary" style={{marginTop:10,fontSize:11,padding:"5px 14px"}} onClick={()=>{
+                    const nombre=form.customIndustry.trim();
+                    if(!nombre) return;
+                    // Agregar al array de rubros secundarios si no está ya
+                    const subs=form.subIndustries||[];
+                    if(!subs.includes(nombre)&&form.industry!==nombre){
+                      upd("subIndustries",[...subs,nombre]);
+                      upd("industry",form.industry||nombre);
+                    }
+                    upd("customIndustry","");
+                    upd("customIndustryDesc","");
+                    showToast("Rubro '"+nombre+"' agregado ✓","ok");
+                  }}>+ Agregar a mis rubros</button>
                 </div>
               )}
             </div>
@@ -1885,57 +1899,21 @@ function BrandScreen({brand,saveBrand,showToast,onNext}) {
           <p style={{fontSize:12,color:"var(--muted)",marginBottom:10,lineHeight:1.6}}>Contale a tu community manager IA qué tipo de posts querés, ideas especiales, eventos próximos...</p>
           <textarea value={form.cmInstructions} onChange={e=>upd("cmInstructions",e.target.value)} rows={4} placeholder="Ej: Me gustan los posts con mucha energía..." />
         </div>
-        <div style={{background:"rgba(109,40,217,.05)",border:"1px solid rgba(109,40,217,.2)",borderRadius:14,padding:"16px"}}>
-          <span className="lbl" style={{marginBottom:8}}>🎨 Templates de contenido</span>
-          <p style={{fontSize:12,color:"var(--muted)",marginBottom:12,lineHeight:1.6}}>
-            Elegí los templates que más te gustan.
-            {(form.selectedTemplates||[]).length>0&&<span style={{color:"var(--accent2)",fontWeight:600}}> {(form.selectedTemplates||[]).length} seleccionados</span>}
-          </p>
-          <button className="btn btn-primary" style={{fontSize:13,padding:"9px 20px"}}
-            onClick={()=>{upd("showTemplateModal",true);window._mcmSelected=form.selectedTemplates||[];setTimeout(()=>renderTmplGrid(form.selectedTemplates||[],upd),100);}}>
-            🎨 Seleccionar templates
-          </button>
-          {(form.selectedTemplates||[]).length>0&&(
-            <div style={{marginTop:12,display:"flex",gap:6,flexWrap:"wrap"}}>
-              {(form.selectedTemplates||[]).map((tid,i)=>{
-                const t=TEMPLATES_40.find(t=>t.id===tid);
-                if(!t) return null;
-                return(
-                  <div key={i} style={{background:"rgba(109,40,217,.1)",border:"1px solid rgba(109,40,217,.3)",borderRadius:8,padding:"4px 10px",fontSize:11,color:"var(--accent2)",display:"flex",alignItems:"center",gap:5}}>
-                    {t.icon} {t.name}
-                    <button onClick={()=>upd("selectedTemplates",(form.selectedTemplates||[]).filter(x=>x!==tid))} style={{background:"none",border:"none",color:"var(--muted)",cursor:"pointer",fontSize:10,padding:0}}>✕</button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-        {form.showTemplateModal&&ReactDOM.createPortal(
-          <div style={{position:"fixed",inset:0,zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.85)"}}>
-            <div style={{background:"var(--surface)",borderRadius:20,width:"min(98vw,1280px)",height:"94vh",display:"flex",flexDirection:"column",boxShadow:"0 24px 80px rgba(0,0,0,.6)"}}>
-              <div style={{padding:"22px 32px 18px",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
-                <div>
-                  <div style={{fontSize:22,fontWeight:800,fontFamily:"'Syne',sans-serif"}}>🎨 Elegí tus templates</div>
-                  <div style={{fontSize:13,color:"var(--muted)",marginTop:3}}>Seleccioná los que más se adapten · <span style={{color:"var(--accent2)",fontWeight:700}}>{(form.selectedTemplates||[]).length} elegidos</span></div>
-                </div>
-                <button onClick={()=>upd("showTemplateModal",false)} style={{background:"var(--surface2)",border:"none",color:"var(--text)",borderRadius:10,width:40,height:40,cursor:"pointer",fontSize:20}}>✕</button>
-              </div>
-              <div id="tmpl-grid" style={{overflowY:"auto",padding:"24px 28px",flex:1}}/>
-              <div style={{padding:"14px 24px",borderTop:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
-                <button onClick={()=>{upd("selectedTemplates",TEMPLATES_40.map(t=>t.id));setTimeout(()=>renderTmplGrid(TEMPLATES_40.map(t=>t.id),upd),50);}} className="btn btn-ghost" style={{fontSize:12}}>Seleccionar todos</button>
-                <div style={{display:"flex",gap:10}}>
-                  <button onClick={()=>{upd("selectedTemplates",[]);setTimeout(()=>renderTmplGrid([],upd),50);}} className="btn btn-ghost" style={{fontSize:12}}>Limpiar</button>
-                  <button onClick={()=>upd("showTemplateModal",false)} className="btn btn-primary" style={{fontSize:13}}>Confirmar selección →</button>
-                </div>
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
+      </div>
+
+
+      <div style={{display:"flex",gap:10,marginTop:28}}>
+        <button className="btn btn-ghost" style={{flex:1}} onClick={save}>💾 Guardar</button>
+        <button className="btn btn-ghost" style={{flex:1,borderColor:"rgba(168,85,247,.4)",color:"var(--accent2)"}} onClick={researchTrends} disabled={researching}>
+          {researching?<><div className="spin"/>Investigando...</>:"🔍 Investigar tendencias"}
+        </button>
+        <button className="btn btn-primary" style={{flex:1}} onClick={()=>{save();onNext();}}>Siguiente →</button>
+      </div>
       </div>
 
       {intelligence&&(
-        <div style={{marginTop:24,display:"flex",flexDirection:"column",gap:14}} className="fade-in">
+        <div style={{flex:1,minWidth:320,maxWidth:500,display:"flex",flexDirection:"column",gap:14,position:"sticky",top:24,maxHeight:"90vh",overflowY:"auto"}} className="fade-in">
+          <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:15,color:"var(--accent2)",paddingBottom:8,borderBottom:"1px solid var(--border)"}}>🔍 Tendencias de la semana</div>
           <div style={{background:"rgba(109,40,217,.1)",border:"1px solid rgba(168,85,247,.3)",borderRadius:14,padding:"16px 18px"}}>
             <div style={{fontSize:12,color:"var(--accent2)",fontWeight:700,marginBottom:6}}>✦ RESUMEN DE LA SEMANA</div>
             <div style={{fontSize:13,color:"var(--text)",lineHeight:1.7}}>{intelligence.weekly_summary}</div>
@@ -2000,18 +1978,13 @@ function BrandScreen({brand,saveBrand,showToast,onNext}) {
             </div>
           </div>
         </div>
+        </div>
       )}
-
-      <div style={{display:"flex",gap:10,marginTop:28}}>
-        <button className="btn btn-ghost" style={{flex:1}} onClick={save}>💾 Guardar</button>
-        <button className="btn btn-ghost" style={{flex:1,borderColor:"rgba(168,85,247,.4)",color:"var(--accent2)"}} onClick={researchTrends} disabled={researching}>
-          {researching?<><div className="spin"/>Investigando...</>:"🔍 Investigar tendencias"}
-        </button>
-        <button className="btn btn-primary" style={{flex:1}} onClick={()=>{save();onNext();}}>Siguiente →</button>
-      </div>
     </div>
   );
 }
+
+
 
 // ════════════════════════════════════════════════════════════════
 // LIBRARY SCREEN
@@ -2441,25 +2414,40 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
           const textYD=(typeof dd.textY==="number"&&dd.textY>0.1&&dd.textY<0.95)?dd.textY:0.75;
           const styleDerecha=dd.style===3?3:1;
 
-          // Carrusel: si el brief pide carrusel, buscar imágenes distintas de Pixabay
+          // Carrusel: imágenes todas distintas de Pixabay, ninguna repetida
           let slidesDerecha=null;
           let slideCountDerecha=1;
           if(slideCount>1){
             slideCountDerecha=slideCount;
-            const pbImgsExtra=await searchPixabay(pbQueryD,slideCount+2);
-            const usedD=new Set([imgSrcDerecha]);
-            slidesDerecha=[imgSrcDerecha];
-            for(let s=1;s<slideCountDerecha;s++){
+            // Pedir más imágenes de las necesarias para tener margen de filtrado
+            const pbImgsExtra=await searchPixabay(pbQueryD,slideCount+4);
+            const usedD=new Set([...usedImgsDerecha]);
+            slidesDerecha=[];
+            for(let s=0;s<slideCountDerecha;s++){
               const next=pbImgsExtra.find(u=>!usedD.has(u));
               if(next){usedD.add(next);slidesDerecha.push(next);}
-              else slidesDerecha.push(imgSrcDerecha);
+            }
+            // Si no alcanzaron imágenes únicas, buscar con query alternativa
+            if(slidesDerecha.length<slideCountDerecha){
+              const altQuery=industryForQuery.split(" ").slice(0,2).join(" ")+" food";
+              const pbAlt=await searchPixabay(altQuery,slideCount+2);
+              for(const u of pbAlt){
+                if(!usedD.has(u)){usedD.add(u);slidesDerecha.push(u);}
+                if(slidesDerecha.length>=slideCountDerecha) break;
+              }
+            }
+            // Imagen principal = primer slide
+            if(slidesDerecha.length>0) {
+              // reemplazar imgSrcDerecha por el primer slide
+              derechaOption_imgSrc=slidesDerecha[0];
             }
           }
 
+          const finalImgDerecha=slidesDerecha&&slidesDerecha.length>0?slidesDerecha[0]:imgSrcDerecha;
           derechaOption={
             id:2,style:styleDerecha,styleName:"Diseño IA",
             caption:capDerecha,overlayText:overlayDerecha,
-            imgSrc:imgSrcDerecha,...baseOpt,
+            imgSrc:finalImgDerecha,...baseOpt,
             fontColor:(typeof dd.fontColor==="string")?dd.fontColor:"#ffffff",
             fontSize:(typeof dd.fontSize==="number"&&dd.fontSize>20)?dd.fontSize:58,
             textY:textYD,textX:0.05,
