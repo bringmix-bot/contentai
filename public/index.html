@@ -2400,26 +2400,6 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
               <button className="btn btn-ghost" style={{fontSize:12,padding:"8px 16px"}} onClick={useIntelligenceIdeas}>
                 Cargar en briefs
               </button>
-              <button className="btn btn-primary" style={{fontSize:12,padding:"8px 16px"}} onClick={async()=>{
-                if(!files.filter(f=>f.type==="image").length){showToast("Agregá al menos una imagen","err");return;}
-                setGenerating(true); setWeekPosts([]); setSelections({}); setProgress(0);
-                try{
-                  const allPosts=[];
-                  const ideas=intelligence.content_ideas.slice(0,7);
-                  for(let i=0;i<ideas.length;i++){
-                    setProgress(i+1);
-                    setProgressMsg(`Generando post ${i+1} de ${ideas.length}...`);
-                    const post=await generateFullPost(ideas[i],i);
-                    allPosts.push({postIdx:i,label:"Post "+(i+1),theme:ideas[i].title,options:[post],slideCount:post.slideCount,aiGenerated:true});
-                    setWeekPosts([...allPosts]);
-                  }
-                  savePosts(allPosts.map((p,i)=>({...p.options[0],postIdx:i,id:Date.now()+i})));
-                  showToast("7 publicaciones generadas por IA ✓","ok");
-                }catch(e){showToast("Error: "+e.message,"err");}
-                finally{setGenerating(false);setProgress(0);setProgressMsg("");}
-              }} disabled={generating}>
-                {generating?<><div className="spin"/>Generando...</>:"✦ Generar con IA →"}
-              </button>
             </div>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
