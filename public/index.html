@@ -1679,20 +1679,19 @@ function BrandScreen({brand,saveBrand,showToast,onNext}) {
   const logoRef=useRef();
   const templateRefInput=useRef();
   const [analyzingRubro, setAnalyzingRubro]=useState(false);
+  const [intelligence, setIntelligence]=useState(null);
+  const [researching, setResearching]=useState(false);
 
   const upd=(k,v)=>setForm(p=>({...p,[k]:v}));
 
-  // Manejo de rubro principal
   const selectIndustry=(ind)=>{
     if(ind===form.industry){ upd("industry",""); return; }
     upd("industry",ind);
-    // Si el nuevo principal estaba en sub, sacarlo
     upd("subIndustries",(form.subIndustries||[]).filter(s=>s!==ind));
   };
 
-  // Manejo de sub-rubros (máx 3)
   const toggleSubIndustry=(ind)=>{
-    if(ind===form.industry) return; // no puede ser principal y secundario
+    if(ind===form.industry) return;
     const subs=form.subIndustries||[];
     if(subs.includes(ind)){
       upd("subIndustries",subs.filter(s=>s!==ind));
@@ -1702,7 +1701,6 @@ function BrandScreen({brand,saveBrand,showToast,onNext}) {
     }
   };
 
-  // Cuando se elige "Otro" como principal, analizar con IA
   const analyzeCustomRubro=async()=>{
     if(!form.customIndustry.trim()){showToast("Escribí el nombre de tu rubro primero","err");return;}
     setAnalyzingRubro(true);
@@ -1714,7 +1712,6 @@ function BrandScreen({brand,saveBrand,showToast,onNext}) {
     finally{setAnalyzingRubro(false);}
   };
 
-  // Logo upload
   const handleLogo=(e)=>{
     const file=e.target.files[0]; if(!file)return;
     const reader=new FileReader();
@@ -1722,7 +1719,6 @@ function BrandScreen({brand,saveBrand,showToast,onNext}) {
     reader.readAsDataURL(file);
   };
 
-  // Templates de referencia upload + análisis IA
   const handleTemplateRefs=async(e)=>{
     const newFiles=Array.from(e.target.files);
     if(!newFiles.length) return;
@@ -1732,23 +1728,10 @@ function BrandScreen({brand,saveBrand,showToast,onNext}) {
       const base64=await new Promise(res=>{
         const r=new FileReader(); r.onload=ev=>res(ev.target.result); r.readAsDataURL(file);
       });
-      // Analizar con IA Vision
       try{
         const mediaType=file.type||"image/jpeg";
         const b64data=base64.split(",")[1];
-        const analysis=await generateTextWithImage(
-          `Sos un director de arte experto en diseño de posts para redes sociales. Analizá este template de diseño y describí en formato JSON los siguientes atributos:
-{
-  "layout": "descripción del layout (ej: foto full bleed con texto arriba, split design izquierda/derecha, etc)",
-  "colorPalette": "colores dominantes y su uso",
-  "fontStyle": "estilo tipográfico (grande/pequeño, serif/sans, etc)",
-  "textPlacement": "dónde se ubica el texto principal (arriba/abajo/centro/izquierda/etc)",
-  "mood": "sensación general del diseño (minimalista, bold, elegante, etc)",
-  "elements": "elementos decorativos presentes (líneas, formas, gradientes, etc)"
-}
-Responde SOLO con el JSON, sin texto adicional.`,
-          b64data, mediaType
-        );
+        const analysis=await generateTextWithImage(`Analizá este template de diseño y respondé SOLO con JSON: {"layout":"","colorPalette":"","fontStyle":"","textPlacement":"","mood":"","elements":""}`, b64data, mediaType);
         let styleData={};
         try{ styleData=JSON.parse(analysis.replace(/```json|```/g,"").trim()); }catch{}
         refs.push({preview:base64, style:styleData});
@@ -1757,54 +1740,35 @@ Responde SOLO con el JSON, sin texto adicional.`,
       }
     }
     upd("templateRefs",refs);
-    // Guardar en stylePrefs para que influence los templates
     const existingPrefs=store.get("stylePrefs")||{};
     store.set("stylePrefs",{...existingPrefs, templateRefs: refs, lastTemplateAnalysis: Date.now()});
     showToast(newFiles.length+" template(s) analizados ✓","ok");
   };
 
   const removeTemplateRef=(idx)=>upd("templateRefs",(form.templateRefs||[]).filter((_,i)=>i!==idx));
-const [intelligence, setIntelligence] = useState(null);
-  const [researching, setResearching] = useState(false);
 
-  const researchTrends = async () => {
+  const researchTrends=async()=>{
     if(!form.industry && !form.customIndustry){ showToast("Primero elegí el rubro de tu marca","err"); return; }
     setResearching(true);
     showToast("Investigando tendencias... puede tardar 30 segundos","info");
     try {
-      const r = await fetch("/api/research", {
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({
-          industry: form.industry,
-          subIndustries: form.subIndustries||[],
-          customIndustry: form.customIndustry||"",
-          brandName: form.name,
-          target: form.target,
-          description: form.description,
-        })
-      });
-      const d = await r.json();
+      const r=await fetch("/api/research",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({industry:form.industry,subIndustries:form.subIndustries||[],customIndustry:form.customIndustry||"",brandName:form.name,target:form.target,description:form.description})});
+      const d=await r.json();
       if(!d.success) throw new Error(d.error);
       setIntelligence(d.data);
-      const uid = store.uid();
-      if(uid) {
-        const sb = getSupabase();
-        const weekOf = new Date().toISOString().split("T")[0];
-        await sb.from("brand_intelligence").upsert({
-          user_id: uid, week_of: weekOf, industry: form.industry,
-          trends: d.data.trends||[], commercial_dates: d.data.commercial_dates||[],
-          hashtags: d.data.hashtags||[], competitor_insights: d.data.competitor_insights||[],
-          content_ideas: d.data.content_ideas||[], best_posting_times: d.data.best_posting_times||{},
-          weekly_summary: d.data.weekly_summary||"",
-        });
+      const uid=store.uid();
+      if(uid){
+        const sb=getSupabase();
+        const weekOf=new Date().toISOString().split("T")[0];
+        await sb.from("brand_intelligence").upsert({user_id:uid,week_of:weekOf,industry:form.industry,trends:d.data.trends||[],commercial_dates:d.data.commercial_dates||[],hashtags:d.data.hashtags||[],competitor_insights:d.data.competitor_insights||[],content_ideas:d.data.content_ideas||[],best_posting_times:d.data.best_posting_times||{},weekly_summary:d.data.weekly_summary||""});
       }
-      store.set("brandIntelligence", d.data);
+      store.set("brandIntelligence",d.data);
       showToast("Investigación completada ✓","ok");
-    } catch(e) { showToast("Error: "+e.message,"err"); }
+    }catch(e){showToast("Error: "+e.message,"err");}
     setResearching(false);
   };
 
-    const save=()=>{
+  const save=()=>{
     const {showTemplateModal,...toSave}=form;
     saveBrand(toSave);
     showToast("Perfil guardado — MCM lo recordará siempre ✓","ok");
@@ -1826,12 +1790,8 @@ const [intelligence, setIntelligence] = useState(null);
         <p style={{color:"var(--muted)",fontSize:14}}>MCM guarda todo esto y lo usa cada vez que genera contenido.</p>
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:18}}>
-
-        {/* Nombre */}
         <div><span className="lbl">Nombre de la empresa</span>
           <input value={form.name} onChange={e=>upd("name",e.target.value)} placeholder="Ej: La Josefa Granja Orgánica" /></div>
-
-        {/* Rubro con multi-select */}
         <div>
           <span className="lbl">Rubro principal (1) y secundarios (hasta 3)</span>
           <div style={{fontSize:11,color:"var(--muted)",marginBottom:8}}>
@@ -1849,17 +1809,11 @@ const [intelligence, setIntelligence] = useState(null);
               );
             })}
           </div>
-          {form.industry&&<div style={{fontSize:11,color:"var(--muted)",marginTop:8}}>
-            Click en uno sin marcar → secundario. Click en el principal → deseleccionar.
-          </div>}
-
-          {/* Rubro personalizado si elige "Otro" */}
+          {form.industry&&<div style={{fontSize:11,color:"var(--muted)",marginTop:8}}>Click en uno sin marcar → secundario. Click en el principal → deseleccionar.</div>}
           {(form.industry==="Otro"||(form.subIndustries||[]).includes("Otro"))&&(
             <div style={{marginTop:12,display:"flex",flexDirection:"column",gap:8}}>
-              <input value={form.customIndustry} onChange={e=>upd("customIndustry",e.target.value)}
-                placeholder="Describí tu rubro (ej: Veterinaria especializada en animales exóticos)" />
-              <button className="btn btn-ghost" style={{alignSelf:"flex-start",fontSize:12,padding:"7px 14px"}}
-                onClick={analyzeCustomRubro} disabled={analyzingRubro}>
+              <input value={form.customIndustry} onChange={e=>upd("customIndustry",e.target.value)} placeholder="Describí tu rubro" />
+              <button className="btn btn-ghost" style={{alignSelf:"flex-start",fontSize:12,padding:"7px 14px"}} onClick={analyzeCustomRubro} disabled={analyzingRubro}>
                 {analyzingRubro?<><div className="spin"/>Analizando...</>:"🤖 Analizar rubro con IA"}
               </button>
               {form.customIndustryDesc&&(
@@ -1870,18 +1824,10 @@ const [intelligence, setIntelligence] = useState(null);
             </div>
           )}
         </div>
-
-        {/* Descripción */}
         <div><span className="lbl">Descripción del negocio</span>
-          <textarea value={form.description} onChange={e=>upd("description",e.target.value)} rows={3}
-            placeholder="Qué ofrecés, qué te diferencia de la competencia..." /></div>
-
-        {/* Cliente ideal */}
+          <textarea value={form.description} onChange={e=>upd("description",e.target.value)} rows={3} placeholder="Qué ofrecés, qué te diferencia..." /></div>
         <div><span className="lbl">Cliente ideal</span>
-          <input value={form.target} onChange={e=>upd("target",e.target.value)}
-            placeholder="Ej: Familias que valoran la alimentación saludable" /></div>
-
-        {/* Tono */}
+          <input value={form.target} onChange={e=>upd("target",e.target.value)} placeholder="Ej: Familias que valoran la alimentación saludable" /></div>
         <div>
           <span className="lbl">Tono de comunicación</span>
           <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
@@ -1898,18 +1844,13 @@ const [intelligence, setIntelligence] = useState(null);
             </div>
           )}
         </div>
-
-        {/* Color de marca */}
         <div>
           <span className="lbl">Color de marca</span>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
-            <input type="color" value={form.color||"#6d28d9"} onChange={e=>upd("color",e.target.value)}
-              style={{width:48,height:40,borderRadius:8,border:"1px solid var(--border)",cursor:"pointer",padding:4}} />
+            <input type="color" value={form.color||"#6d28d9"} onChange={e=>upd("color",e.target.value)} style={{width:48,height:40,borderRadius:8,border:"1px solid var(--border)",cursor:"pointer",padding:4}} />
             <span style={{fontSize:13,color:"var(--muted)"}}>Se usa en los fondos de las imágenes</span>
           </div>
         </div>
-
-        {/* Logo */}
         <div>
           <span className="lbl">Logo de la marca</span>
           <input ref={logoRef} type="file" accept="image/*" style={{display:"none"}} onChange={handleLogo} />
@@ -1920,7 +1861,7 @@ const [intelligence, setIntelligence] = useState(null);
                 <button onClick={()=>upd("logoBase64",null)} style={{position:"absolute",top:-6,right:-6,background:"var(--error)",border:"none",color:"#fff",borderRadius:"50%",width:18,height:18,cursor:"pointer",fontSize:10,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
               </div>
             ):(
-              <div onClick={()=>logoRef.current.click()} style={{width:72,height:72,borderRadius:10,border:"2px dashed var(--border)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:"pointer",gap:4,color:"var(--muted)",fontSize:11,transition:"all .2s"}}
+              <div onClick={()=>logoRef.current.click()} style={{width:72,height:72,borderRadius:10,border:"2px dashed var(--border)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:"pointer",gap:4,color:"var(--muted)",fontSize:11}}
                 onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--accent2)";e.currentTarget.style.color="var(--accent2)";}}
                 onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)";e.currentTarget.style.color="var(--muted)";}}>
                 <span style={{fontSize:22}}>🖼</span><span>Subir</span>
@@ -1929,22 +1870,15 @@ const [intelligence, setIntelligence] = useState(null);
             <div style={{fontSize:12,color:"var(--muted)",lineHeight:1.6}}>PNG o SVG con fondo transparente.<br/>Se puede mostrar/ocultar desde el editor.</div>
           </div>
         </div>
-
-        {/* Contale a tu CM */}
         <div style={{background:"rgba(109,40,217,.06)",border:"1px solid rgba(168,85,247,.2)",borderRadius:14,padding:"16px"}}>
           <span className="lbl" style={{marginBottom:8}}>💬 Contale a tu CM</span>
-          <p style={{fontSize:12,color:"var(--muted)",marginBottom:10,lineHeight:1.6}}>
-            Contale a tu community manager IA qué tipo de posts querés, qué cosas te gustan o no te gustan, ideas especiales, eventos próximos, lo que se te ocurra. La IA lo va a tener en cuenta en cada publicación.
-          </p>
-          <textarea value={form.cmInstructions} onChange={e=>upd("cmInstructions",e.target.value)} rows={4}
-            placeholder="Ej: Me gustan los posts con mucha energía y colores vivos. Próximo mes tenemos el aniversario número 5 de la empresa. No quiero posts que hablen de precios. Me gustaría mostrar más el equipo de trabajo..." />
+          <p style={{fontSize:12,color:"var(--muted)",marginBottom:10,lineHeight:1.6}}>Contale a tu community manager IA qué tipo de posts querés, ideas especiales, eventos próximos...</p>
+          <textarea value={form.cmInstructions} onChange={e=>upd("cmInstructions",e.target.value)} rows={4} placeholder="Ej: Me gustan los posts con mucha energía..." />
         </div>
-
-        {/* Seleccionar Templates */}
         <div style={{background:"rgba(109,40,217,.05)",border:"1px solid rgba(109,40,217,.2)",borderRadius:14,padding:"16px"}}>
           <span className="lbl" style={{marginBottom:8}}>🎨 Templates de contenido</span>
           <p style={{fontSize:12,color:"var(--muted)",marginBottom:12,lineHeight:1.6}}>
-            Elegí los templates que más te gustan. La IA los usará para crear tus publicaciones de la semana.
+            Elegí los templates que más te gustan.
             {(form.selectedTemplates||[]).length>0&&<span style={{color:"var(--accent2)",fontWeight:600}}> {(form.selectedTemplates||[]).length} seleccionados</span>}
           </p>
           <button className="btn btn-primary" style={{fontSize:13,padding:"9px 20px"}}
@@ -1966,34 +1900,21 @@ const [intelligence, setIntelligence] = useState(null);
             </div>
           )}
         </div>
-
-        {/* Modal 40 templates */}
         {form.showTemplateModal&&ReactDOM.createPortal(
           <div style={{position:"fixed",inset:0,zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.85)"}}>
             <div style={{background:"var(--surface)",borderRadius:20,width:"min(98vw,1280px)",height:"94vh",display:"flex",flexDirection:"column",boxShadow:"0 24px 80px rgba(0,0,0,.6)"}}>
-              {/* Header */}
               <div style={{padding:"22px 32px 18px",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
                 <div>
                   <div style={{fontSize:22,fontWeight:800,fontFamily:"'Syne',sans-serif"}}>🎨 Elegí tus templates</div>
-                  <div style={{fontSize:13,color:"var(--muted)",marginTop:3}}>Seleccioná los que más se adapten a tu marca · <span style={{color:"var(--accent2)",fontWeight:700}}>{(form.selectedTemplates||[]).length} elegidos</span></div>
+                  <div style={{fontSize:13,color:"var(--muted)",marginTop:3}}>Seleccioná los que más se adapten · <span style={{color:"var(--accent2)",fontWeight:700}}>{(form.selectedTemplates||[]).length} elegidos</span></div>
                 </div>
                 <button onClick={()=>upd("showTemplateModal",false)} style={{background:"var(--surface2)",border:"none",color:"var(--text)",borderRadius:10,width:40,height:40,cursor:"pointer",fontSize:20}}>✕</button>
               </div>
-
-              {/* Grid — HTML puro inyectado */}
               <div id="tmpl-grid" style={{overflowY:"auto",padding:"24px 28px",flex:1}}/>
-
-              {/* Footer */}
               <div style={{padding:"14px 24px",borderTop:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
-                <button onClick={()=>{
-                  upd("selectedTemplates",TEMPLATES_40.map(t=>t.id));
-                  setTimeout(()=>renderTmplGrid(form.selectedTemplates||TEMPLATES_40.map(t=>t.id),upd),50);
-                }} className="btn btn-ghost" style={{fontSize:12}}>Seleccionar todos</button>
+                <button onClick={()=>{upd("selectedTemplates",TEMPLATES_40.map(t=>t.id));setTimeout(()=>renderTmplGrid(TEMPLATES_40.map(t=>t.id),upd),50);}} className="btn btn-ghost" style={{fontSize:12}}>Seleccionar todos</button>
                 <div style={{display:"flex",gap:10}}>
-                  <button onClick={()=>{
-                    upd("selectedTemplates",[]);
-                    setTimeout(()=>renderTmplGrid([],upd),50);
-                  }} className="btn btn-ghost" style={{fontSize:12}}>Limpiar</button>
+                  <button onClick={()=>{upd("selectedTemplates",[]);setTimeout(()=>renderTmplGrid([],upd),50);}} className="btn btn-ghost" style={{fontSize:12}}>Limpiar</button>
                   <button onClick={()=>upd("showTemplateModal",false)} className="btn btn-primary" style={{fontSize:13}}>Confirmar selección →</button>
                 </div>
               </div>
@@ -2001,9 +1922,8 @@ const [intelligence, setIntelligence] = useState(null);
           </div>,
           document.body
         )}
+      </div>
 
-
-        
       {intelligence&&(
         <div style={{marginTop:24,display:"flex",flexDirection:"column",gap:14}} className="fade-in">
           <div style={{background:"rgba(109,40,217,.1)",border:"1px solid rgba(168,85,247,.3)",borderRadius:14,padding:"16px 18px"}}>
@@ -2071,12 +1991,14 @@ const [intelligence, setIntelligence] = useState(null);
           </div>
         </div>
       )}
+
       <div style={{display:"flex",gap:10,marginTop:28}}>
         <button className="btn btn-ghost" style={{flex:1}} onClick={save}>💾 Guardar</button>
         <button className="btn btn-ghost" style={{flex:1,borderColor:"rgba(168,85,247,.4)",color:"var(--accent2)"}} onClick={researchTrends} disabled={researching}>
           {researching?<><div className="spin"/>Investigando...</>:"🔍 Investigar tendencias"}
         </button>
         <button className="btn btn-primary" style={{flex:1}} onClick={()=>{save();onNext();}}>Siguiente →</button>
+      </div>
     </div>
   );
 }
