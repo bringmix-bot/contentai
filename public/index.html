@@ -2412,30 +2412,49 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
         // ── COLUMNA IZQUIERDA: foto cliente + style:1 (Revista) — sin cambios ──
         const izqOption={id:0,style:1,styleName:"Revista",caption:cap1,overlayText:overlayText1,imgSrc,...baseOpt,imgMatchWarning,slideCount,slides:slideCount>1?makeCarouselSlides(slideCount,imgSrc):null};
 
-        // ── COLUMNA DERECHA: Diseño IA — Pixabay fondo real, imagen relevante al rubro ──
+        // ── COLUMNA DERECHA: Diseño IA — sigue el brief, carrusel si corresponde, Pixabay único ──
         setProgressMsg(`Post ${i+1}: diseñando columna derecha con IA...`);
         let derechaOption;
         try {
           const industryForQuery=[brand.industry||"",...(brand.subIndustries||[]),brand.customIndustry||""].filter(Boolean).join(" ");
-          const briefForQuery=postBrief||"";
-          // IA genera query Pixabay muy específica al rubro real
-          const derechaPrompt=`Sos el mejor publicista de marketing. Marca: ${brand.name}. Rubro exacto: ${industryForQuery}. Brief: "${briefForQuery}". Creá el diseño perfecto. Respondé SOLO con JSON puro sin backticks: {"overlayText":"máximo 4 palabras en mayúsculas","caption":"caption con emojis y hashtags","pixabayQuery":"2 a 3 palabras en INGLÉS para buscar en Pixabay una foto limpia SIN texto ni marcas de agua, muy específica del rubro. Para huerta/orgánica: 'organic vegetable harvest' o 'fresh farm produce'. Para gastronomía: 'restaurant food chef'. Para fitness: 'gym workout training'. Para moda: 'fashion clothing style'. Siempre relacionada al rubro REAL de la marca.","style":1,"fontColor":"#ffffff","fontSize":58,"textY":0.75}. REGLAS: style solo 1 o 3. NO incluyas stickers.`;
+          const briefForQuery=postBrief||PROMPTS[i]||"";
+
+          // IA genera diseño siguiendo el mismo brief que las otras columnas
+          const derechaPrompt=`Sos el mejor publicista de marketing. Marca: ${brand.name}. Rubro: ${industryForQuery}. Brief EXACTO del post: "${briefForQuery}". Diseñá la columna derecha siguiendo ese brief. Respondé SOLO con JSON puro sin backticks: {"overlayText":"máximo 4 palabras en mayúsculas relacionadas al brief","caption":"caption diferente al resto, con emojis y hashtags, sobre el brief","pixabayQuery":"2 a 3 palabras en INGLÉS para Pixabay, foto limpia SIN texto ni logos, muy específica del brief Y rubro. Ej huerta+meriendas sanas: 'organic snack healthy food'. Ej huerta+temporada: 'seasonal vegetables harvest'. Ej gastronomía+pizza: 'homemade pizza ingredients'. Siempre relacionada al brief real.","style":1,"fontColor":"#ffffff","fontSize":58,"textY":0.75}. REGLAS CRÍTICAS: style solo 1 o 3. NO incluyas stickers. La imagen y el texto DEBEN hablar del brief.`;
           const derechaResp=await generateText(derechaPrompt);
           let dd={};
           try{ const m=derechaResp.match(/\{[\s\S]*\}/); dd=JSON.parse(m?m[0]:derechaResp); }catch{}
 
-          // Query siempre específica al rubro — nunca genérica
+          // Query específica al brief+rubro
           const pbQueryD=(typeof dd.pixabayQuery==="string"&&dd.pixabayQuery.trim().length>3)
             ? dd.pixabayQuery.trim()
-            : industryForQuery.split(" ").slice(0,3).join(" ").toLowerCase();
+            : (briefForQuery.split(" ").slice(0,2).join(" ")+" "+industryForQuery.split(" ")[0]).toLowerCase();
 
-          const pbImgsD=await searchPixabay(pbQueryD,3);
-          const imgSrcDerecha=pbImgsD[0]||imgSrc;
+          // Buscar imágenes DIFERENTES a las usadas en las otras columnas
+          const usedImgsDerecha=new Set([imgSrc,imgSrcCentro||""].filter(Boolean));
+          const pbImgsD=await searchPixabay(pbQueryD,5);
+          // Tomar la primera imagen que NO sea igual a las otras columnas
+          const imgSrcDerecha=pbImgsD.find(u=>!usedImgsDerecha.has(u))||pbImgsD[0]||imgSrc;
 
           const overlayDerecha=cleanOverlay((typeof dd.overlayText==="string")?dd.overlayText:overlayText1);
           const capDerecha=(typeof dd.caption==="string"&&dd.caption.length>5)?dd.caption:cap1;
           const textYD=(typeof dd.textY==="number"&&dd.textY>0.1&&dd.textY<0.95)?dd.textY:0.75;
           const styleDerecha=dd.style===3?3:1;
+
+          // Carrusel: si el brief pide carrusel, buscar imágenes distintas de Pixabay
+          let slidesDerecha=null;
+          let slideCountDerecha=1;
+          if(slideCount>1){
+            slideCountDerecha=slideCount;
+            const pbImgsExtra=await searchPixabay(pbQueryD,slideCount+2);
+            const usedD=new Set([imgSrcDerecha]);
+            slidesDerecha=[imgSrcDerecha];
+            for(let s=1;s<slideCountDerecha;s++){
+              const next=pbImgsExtra.find(u=>!usedD.has(u));
+              if(next){usedD.add(next);slidesDerecha.push(next);}
+              else slidesDerecha.push(imgSrcDerecha);
+            }
+          }
 
           derechaOption={
             id:2,style:styleDerecha,styleName:"Diseño IA",
@@ -2445,7 +2464,7 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
             fontSize:(typeof dd.fontSize==="number"&&dd.fontSize>20)?dd.fontSize:58,
             textY:textYD,textX:0.05,
             stickers:[],
-            slideCount:1,slides:null,derechaBadge:true
+            slideCount:slideCountDerecha,slides:slidesDerecha,derechaBadge:true
           };
         } catch(e){
           const industryQ=[brand.industry||"",...(brand.subIndustries||[])].filter(Boolean).join(" ")||"nature";
