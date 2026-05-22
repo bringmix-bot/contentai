@@ -2327,14 +2327,12 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
         const overlayPrompt2=postBrief?`${overlayBase}${briefNote} Escribí una frase de EXACTAMENTE 3 a 5 palabras para diseño gráfico bold sobre "${postBrief}". Sin hashtags, sin emojis, sin puntuación.`:`${overlayBase}${themeNote} Escribí una frase de EXACTAMENTE 3 a 5 palabras para diseño gráfico. Titular de impacto. Sin hashtags, sin emojis.`;
         const overlayPrompt3=postBrief?`${overlayBase}${briefNote} Escribí un texto de EXACTAMENTE 3 a 5 palabras que capture la ESENCIA de "${postBrief}". Sin hashtags, sin emojis, sin puntuación.`:`${overlayBase}${themeNote} Escribí un texto de EXACTAMENTE 3 a 5 palabras, creativo y conceptual. Sin hashtags, sin emojis.`;
         const cap3Prompt=postBrief?`Sos un community manager experto. El cliente pidió un post sobre: "${postBrief}". Template elegido: ${tmplForPost?.name||""}. Redactá un caption para Instagram que hable exactamente de ese tema para ${brand.name} (${brand.industry||""}). ${ctx}`:PROMPTS[i]+" Versión orientada a ventas y conversión. "+ctx;
-        const [cap1,cap2,cap3,raw1,raw2,raw3]=await Promise.all([
+        const [cap1,raw1]=await Promise.all([
           generateText(PROMPTS[i]+ctx),
-          generateText(PROMPTS[i]+" Versión más cercana y coloquial. "+ctx),
-          generateText(cap3Prompt),
           generateText(overlayPrompt1),
-          generateText(overlayPrompt2),
-          generateText(overlayPrompt3),
         ]);
+        const cap2=cap1; const cap3=cap1;
+        const raw2=raw1; const raw3=raw1;
         const cleanOverlay=(raw)=>raw.trim().replace(/['"\*\_\#\.\,\!\?]/g,"").replace(/\s+/g," ").slice(0,40);
         const overlayText1=cleanOverlay(raw1);
         const overlayText2=cleanOverlay(raw2);
