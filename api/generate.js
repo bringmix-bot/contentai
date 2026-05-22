@@ -44,7 +44,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-opus-4-5',
-        max_tokens: isVision ? 10 : 2048,
+        max_tokens: isVision ? 200 : 2048,
         messages: [{ role: 'user', content: userContent }]
       }),
     });
