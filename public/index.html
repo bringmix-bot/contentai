@@ -2436,8 +2436,36 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
         let personalizedHtml=tmplForPost?.html||"";
         let personalizedBg=tmplForPost?.bg||"#1a1a2e";
 
+        // ── COLUMNA IZQUIERDA: Pixabay fondo + template premium + stickers IA ──
+        setProgressMsg(`Post ${i+1}: diseñando columna izquierda...`);
+        let izqOption;
+        try {
+          const izqPrompt=`Sos el mejor publicista de marketing de Argentina. Brief: "${postBrief||PROMPTS[i]}". Marca: ${brand.name}. Rubro: ${brand.industry||""}. Diseñá el post perfecto. Respondé SOLO con JSON sin backticks: {"overlayText":"3 a 5 palabras impactantes en mayúsculas","caption":"caption profesional con hashtags","pixabayQuery":"3 palabras en español para buscar imagen de fondo correlacionada al brief","style":1,"stickers":[{"emoji":"🌿","x":0.85,"y":0.15,"size":0.08}],"fontColor":"#ffffff","fontSize":60}. El array stickers puede tener 0, 1 o 2 stickers relevantes al brief, o estar vacío si no aplica.`;
+          const izqResp=await generateText(izqPrompt);
+          let izqData={};
+          try{ const m=izqResp.match(/\{[\s\S]*\}/); izqData=JSON.parse(m?m[0]:izqResp); }catch{}
+
+          // Buscar imagen en Pixabay correlacionada al brief
+          const pbQueryIzq=izqData.pixabayQuery||(postBrief||brand.industry||brand.name)+" "+brand.industry;
+          const pbImgsIzq=await searchPixabay(pbQueryIzq,1);
+          const imgSrcIzq=pbImgsIzq[0]||imgSrc;
+
+          const overlayIzq=cleanOverlay(izqData.overlayText||overlayText1);
+          const capIzq=izqData.caption||cap1;
+          const stickersIzq=Array.isArray(izqData.stickers)?izqData.stickers:[];
+          const styleIzq=izqData.style||1;
+          const fontColorIzq=izqData.fontColor||"#ffffff";
+          const fontSizeIzq=izqData.fontSize||60;
+
+          izqOption={id:0,style:styleIzq,styleName:"Diseño IA",caption:capIzq,overlayText:overlayIzq,imgSrc:imgSrcIzq,...baseOpt,fontColor:fontColorIzq,fontSize:fontSizeIzq,stickers:stickersIzq,slideCount:1,slides:null,izqBadge:true};
+        } catch(e){
+          // fallback: Pixabay simple
+          const pbFallback=await searchPixabay((postBrief||brand.industry||brand.name),1);
+          izqOption={id:0,style:1,styleName:"Diseño",caption:cap1,overlayText:overlayText1,imgSrc:pbFallback[0]||imgSrc,...baseOpt,slideCount:1,slides:null};
+        }
+
         const options=[
-          {id:0,style:1,styleName:"Revista",caption:cap1,overlayText:overlayText1,imgSrc,...baseOpt,imgMatchWarning,slideCount,slides:slideCount>1?makeCarouselSlides(slideCount,imgSrc):null},
+          izqOption,
           centroOption,
           derechaOption,
         ];
@@ -2662,7 +2690,7 @@ function WeekPostCard({opt,postIdx,optIdx,selected,onSelect,onEdit}) {
           : <canvas ref={canvasRef} style={{width:"100%",height:"100%",display:"block"}} />
         }
         <div style={{position:"absolute",top:8,left:8,background:"rgba(0,0,0,.7)",backdropFilter:"blur(4px)",borderRadius:6,padding:"3px 8px",fontSize:11,fontWeight:600}}>
-          {opt.style===1?"📸 Revista":opt.style===2?`🤖 ${opt.formatoBadge||"post"}`:`✨ ${opt.styleName||"Template"}`}
+          {opt.izqBadge?"🎨 Diseño IA":opt.style===1?"📸 Revista":opt.style===2?`🤖 ${opt.formatoBadge||"post"}`:`✨ ${opt.styleName||"Template"}`}
         </div>
         {opt.trendBadge&&opt.trendTopic&&(
           <div style={{position:"absolute",bottom:hasCarousel?28:8,left:8,right:8,background:"rgba(109,40,217,.85)",backdropFilter:"blur(4px)",borderRadius:6,padding:"3px 8px",fontSize:10,fontWeight:600,color:"#e9d5ff",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
