@@ -2361,12 +2361,7 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
         const baseOpt={fontSize:prefs.fontSize||56,fontColor:prefs.fontColor||"#ffffff",fontFamily:prefs.fontFamily||"Impact",fontWeight:prefs.fontWeight||"900",textBg:false,showLogo:true,logoBase64:brand.logoBase64||null,brandColor:brand.color||"#6d28d9",industry:[brand.industry||"",...(brand.subIndustries||[]),brand.customIndustry||""].filter(Boolean).join("|"),logoX:prefs.logoX,logoY:prefs.logoY,logoSize:prefs.logoSize||0.15,stickers:[]};
         let personalizedHtml=tmplForPost?.html||"";
         let personalizedBg=tmplForPost?.bg||"#1a1a2e";
-        if(tmplForPost){
-          }
-            const tmplResp=await generateText(tmplPersonPrompt);
-            if(tmplResp&&tmplResp.length>50&&tmplResp.includes("<")) personalizedHtml=tmplResp;
-          }catch(e){}
-        }
+       
         const options=[
           {id:0,style:1,styleName:"Revista",caption:cap1,overlayText:overlayText1,imgSrc,...baseOpt,imgMatchWarning,slideCount,slides:slideCount>1?makeCarouselSlides(slideCount,imgSrc):null},
           {id:1,style:2,styleName:"Diseño",caption:cap2,overlayText:overlayText2,imgSrc,...baseOpt,slideCount,slides:null},
