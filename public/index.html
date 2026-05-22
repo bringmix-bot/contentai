@@ -2364,9 +2364,7 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
         let personalizedHtml=tmplForPost?.html||"";
         let personalizedBg=tmplForPost?.bg||"#1a1a2e";
         if(tmplForPost){
-          try{
-            setProgressMsg(`Post ${i+1}: personalizando template "${tmplForPost.name}"...`);
-            const tmplPersonPrompt=`Sos un diseñador gráfico experto. Tenés este template HTML de diseño:\n\n${tmplForPost.html}\n\nEl cliente es: ${brand.name} — ${brand.industry||brand.description||""}\nBrief del post: ${postBrief||PROMPTS[i]||tmplForPost.desc}\nTono: ${brand.tone||"Profesional"}\nInstrucciones especiales: ${brand.cmInstructions||"ninguna"}\n\nPersonalizá ÚNICAMENTE los textos del template reemplazando los textos genéricos por contenido real del cliente.\nMantené EXACTAMENTE la misma estructura HTML, colores, estilos y layout. Solo cambiá los textos.\nRespondé ÚNICAMENTE con el HTML modificado, sin explicaciones ni markdown.`;
+          }
             const tmplResp=await generateText(tmplPersonPrompt);
             if(tmplResp&&tmplResp.length>50&&tmplResp.includes("<")) personalizedHtml=tmplResp;
           }catch(e){}
