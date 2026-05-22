@@ -2331,41 +2331,115 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
           generateText(PROMPTS[i]+ctx),
           generateText(overlayPrompt1),
         ]);
-        const cap2=cap1; const cap3=cap1;
-        const raw2=raw1; const raw3=raw1;
         const cleanOverlay=(raw)=>raw.trim().replace(/['"\*\_\#\.\,\!\?]/g,"").replace(/\s+/g," ").slice(0,40);
         const overlayText1=cleanOverlay(raw1);
-        const overlayText2=cleanOverlay(raw2);
-        const overlayText3=cleanOverlay(raw3);
+
+        // ── COLUMNA CENTRO: Vision AI elige mejor imagen del cliente para el brief ──
+        setProgressMsg(`Post ${i+1}: buscando imagen para columna centro...`);
+        let imgSrcCentro=imgSrc; // fallback a la imagen ya elegida por Vision
+        let formatoCentro="post";
+        let slidesCentro=null;
+        let slideCountCentro=1;
+        try {
+          // Pedir a la IA que decida formato y overlay para columna centro
+          const centroPrompt=`Sos el mejor publicista de marketing digital de Argentina. Analizá este brief: "${postBrief||PROMPTS[i]}". Marca: ${brand.name}. Rubro: ${brand.industry||""}. Respondé SOLO con JSON: {"formato":"post","overlayText":"3 a 5 palabras impactantes","caption":"caption optimizado para engagement con hashtags","razon":"por qué elegiste este formato"}. Formatos posibles: post, carrusel, historia, reel.`;
+          const centroResp=await generateText(centroPrompt);
+          let centroData={};
+          try{ const m=centroResp.match(/\{[\s\S]*\}/); centroData=JSON.parse(m?m[0]:centroResp); }catch{}
+          formatoCentro=centroData.formato||"post";
+          const overlayCentro=cleanOverlay(centroData.overlayText||raw1);
+          const capCentro=centroData.caption||cap1;
+
+          // Si no hay imagen del cliente relevante → Pixabay
+          if(!imgSrc||(imgMatchWarning&&imgs.length<=1)){
+            const pbQuery=(postBrief||brand.industry||brand.name)+" "+brand.industry;
+            const pbImgs=await searchPixabay(pbQuery,formatoCentro==="carrusel"?4:1);
+            if(pbImgs.length>0){
+              imgSrcCentro=pbImgs[0];
+              if(formatoCentro==="carrusel"&&pbImgs.length>1){
+                slideCountCentro=Math.min(pbImgs.length,slideCounts[i]||3);
+                slidesCentro=pbImgs.slice(0,slideCountCentro);
+              }
+            }
+          } else {
+            imgSrcCentro=imgSrc;
+            if(formatoCentro==="carrusel"){
+              slideCountCentro=slideCounts[i]||3;
+              // Buscar imágenes distintas del cliente para cada slide
+              const usedC=new Set([imgSrcCentro]);
+              slidesCentro=[imgSrcCentro];
+              for(let s=1;s<slideCountCentro;s++){
+                const available=imgs.filter(img=>{const u=img.preview||img.url||"";return u.length>10&&!usedC.has(u);});
+                if(available.length>0){const u=available[0].preview||available[0].url;usedC.add(u);slidesCentro.push(u);}
+                else{
+                  const pb=await searchPixabay((postBrief||brand.industry)+" "+s,1);
+                  const pbu=pb[0]||imgSrcCentro;
+                  usedC.add(pbu); slidesCentro.push(pbu);
+                }
+              }
+            }
+          }
+
+          // Guardar datos columna centro en el option
+          var centroOption={id:1,style:2,styleName:"Centro IA",caption:capCentro,overlayText:overlayCentro,imgSrc:imgSrcCentro,...baseOpt,slideCount:slideCountCentro,slides:slidesCentro,formato:formatoCentro,formatoBadge:formatoCentro};
+        } catch(e){ var centroOption={id:1,style:2,styleName:"Centro",caption:cap1,overlayText:overlayText1,imgSrc,...baseOpt,slideCount,slides:null}; }
+
+        // ── COLUMNA DERECHA: template según tendencias + Pixabay ──
+        setProgressMsg(`Post ${i+1}: generando columna derecha con tendencias...`);
+        let derechaOption;
+        try {
+          // Elegir template basado en la tendencia más relevante
+          const trendTopic=intelligence?.trends?.[i%Math.max(1,(intelligence.trends||[]).length)]?.topic||postBrief||PROMPTS[i];
+          const trendAngle=intelligence?.trends?.[i%Math.max(1,(intelligence.trends||[]).length)]?.content_angle||"";
+          const selectedTmplIds=brand.selectedTemplates||[];
+          const tmplPool=selectedTmplIds.length>0?TEMPLATES_40.filter(t=>selectedTmplIds.includes(t.id)):TEMPLATES_40;
+
+          // IA elige el template más apropiado para la tendencia
+          const tmplChoicePrompt=`Sos el mejor publicista de marketing. La tendencia del momento es: "${trendTopic}". El ángulo de contenido es: "${trendAngle}". Templates disponibles: ${tmplPool.slice(0,15).map(t=>t.id+":"+t.name).join(", ")}. Respondé SOLO con JSON: {"templateId":"t01","overlayText":"frase de 3-4 palabras basada en la tendencia","caption":"caption que aprovecha la tendencia para ${brand.name} con hashtags trending"}`;
+          const tmplResp=await generateText(tmplChoicePrompt);
+          let tmplData={};
+          try{ const m=tmplResp.match(/\{[\s\S]*\}/); tmplData=JSON.parse(m?m[0]:tmplResp); }catch{}
+          const chosenTmpl=TEMPLATES_40.find(t=>t.id===tmplData.templateId)||tmplPool[i%tmplPool.length];
+          const overlayDerecha=cleanOverlay(tmplData.overlayText||trendTopic.split(" ").slice(0,4).join(" "));
+          const capDerecha=tmplData.caption||cap1;
+
+          // Imagen Pixabay basada en la tendencia
+          const pbQueryD=trendTopic+" "+brand.industry+" "+brand.name;
+          const pbImgsD=await searchPixabay(pbQueryD,1);
+          const imgSrcDerecha=pbImgsD[0]||imgSrc;
+
+          derechaOption={id:2,style:3,styleName:chosenTmpl.name,caption:capDerecha,overlayText:overlayDerecha,imgSrc:imgSrcDerecha,...baseOpt,templateHtml:chosenTmpl.html,templateBg:chosenTmpl.bg,templateName:chosenTmpl.name,templateId:chosenTmpl.id,slideCount:1,slides:null,trendTopic,trendBadge:true};
+        } catch(e){ derechaOption={id:2,style:3,styleName:tmplForPost?.name||"Template",caption:cap1,overlayText:overlayText1,imgSrc,...baseOpt,templateHtml:personalizedHtml,templateBg:personalizedBg,templateName:tmplForPost?.name||"Template",slideCount,slides:slideCount>1?makeCarouselSlides(slideCount,imgSrc):null}; }
+
         const makeCarouselSlides=(count,baseImgSrc)=>{
           if(visionSlides&&visionSlides.length>0){
             const sl=visionSlides.slice(0,count);
             while(sl.length<count) sl.push(sl[sl.length-1]);
             visionSlides=null; return sl;
           }
-         const sl=[];
-        const used=new Set();
-        const startIdx=imgs.findIndex(img=>(img.preview||img.url)===baseImgSrc);
-        if(startIdx>=0) used.add(startIdx);
-        sl.push(baseImgSrc);
-        for(let s=1;s<count;s++){
-          let chosen=-1;
-          for(let j=0;j<imgs.length;j++){
-            if(!used.has(j)){chosen=j;break;}
+          const sl=[];
+          const used=new Set();
+          const startIdx=imgs.findIndex(img=>(img.preview||img.url)===baseImgSrc);
+          if(startIdx>=0) used.add(startIdx);
+          sl.push(baseImgSrc);
+          for(let s=1;s<count;s++){
+            let chosen=-1;
+            for(let j=0;j<imgs.length;j++){
+              if(!used.has(j)){chosen=j;break;}
+            }
+            if(chosen>=0){used.add(chosen);sl.push(imgs[chosen].preview||imgs[chosen].url);}
+            else sl.push(baseImgSrc);
           }
-          if(chosen>=0){used.add(chosen);sl.push(imgs[chosen].preview||imgs[chosen].url);}
-          else sl.push(baseImgSrc);
-        }
-        return sl;
+          return sl;
         };
         const baseOpt={fontSize:prefs.fontSize||56,fontColor:prefs.fontColor||"#ffffff",fontFamily:prefs.fontFamily||"Impact",fontWeight:prefs.fontWeight||"900",textBg:false,showLogo:true,logoBase64:brand.logoBase64||null,brandColor:brand.color||"#6d28d9",industry:[brand.industry||"",...(brand.subIndustries||[]),brand.customIndustry||""].filter(Boolean).join("|"),logoX:prefs.logoX,logoY:prefs.logoY,logoSize:prefs.logoSize||0.15,stickers:[]};
         let personalizedHtml=tmplForPost?.html||"";
         let personalizedBg=tmplForPost?.bg||"#1a1a2e";
-       
+
         const options=[
           {id:0,style:1,styleName:"Revista",caption:cap1,overlayText:overlayText1,imgSrc,...baseOpt,imgMatchWarning,slideCount,slides:slideCount>1?makeCarouselSlides(slideCount,imgSrc):null},
-          {id:1,style:2,styleName:"Diseño",caption:cap2,overlayText:overlayText2,imgSrc,...baseOpt,slideCount,slides:null},
-          {id:2,style:3,styleName:tmplForPost?.name||"Template",caption:cap3,overlayText:overlayText3,imgSrc,...baseOpt,templateHtml:personalizedHtml,templateBg:personalizedBg,templateName:tmplForPost?.name||"Template",slideCount,slides:slideCount>1?makeCarouselSlides(slideCount,imgSrc):null},
+          centroOption,
+          derechaOption,
         ];
         allPosts.push({postIdx:i,label:"Post "+(i+1),theme:PROMPTS[i].slice(8,40)+"...",options,slideCount});
         setWeekPosts([...allPosts]);
@@ -2587,7 +2661,19 @@ function WeekPostCard({opt,postIdx,optIdx,selected,onSelect,onEdit}) {
           ? tmplPreview
           : <canvas ref={canvasRef} style={{width:"100%",height:"100%",display:"block"}} />
         }
-        <div style={{position:"absolute",top:8,left:8,background:"rgba(0,0,0,.7)",backdropFilter:"blur(4px)",borderRadius:6,padding:"3px 8px",fontSize:11,fontWeight:600}}>{opt.style===3?(opt.templateName||"Template"):"Revista"===opt.styleName?"Revista":opt.styleName}</div>
+        <div style={{position:"absolute",top:8,left:8,background:"rgba(0,0,0,.7)",backdropFilter:"blur(4px)",borderRadius:6,padding:"3px 8px",fontSize:11,fontWeight:600}}>
+          {opt.style===1?"📸 Revista":opt.style===2?`🤖 ${opt.formatoBadge||"post"}`:`✨ ${opt.styleName||"Template"}`}
+        </div>
+        {opt.trendBadge&&opt.trendTopic&&(
+          <div style={{position:"absolute",bottom:hasCarousel?28:8,left:8,right:8,background:"rgba(109,40,217,.85)",backdropFilter:"blur(4px)",borderRadius:6,padding:"3px 8px",fontSize:10,fontWeight:600,color:"#e9d5ff",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+            📈 {opt.trendTopic}
+          </div>
+        )}
+        {opt.formatoBadge&&opt.formatoBadge!=="post"&&opt.style===2&&(
+          <div style={{position:"absolute",top:8,right:selected?40:8,background:"rgba(34,211,238,.8)",borderRadius:6,padding:"2px 6px",fontSize:10,fontWeight:700,color:"#fff"}}>
+            {opt.formatoBadge==="carrusel"?"🖼":opt.formatoBadge==="historia"?"📱":opt.formatoBadge==="reel"?"🎬":"📸"} {opt.formatoBadge}
+          </div>
+        )}
         {selected&&<div style={{position:"absolute",top:8,right:8,background:"var(--accent)",borderRadius:"50%",width:22,height:22,display:"grid",placeItems:"center",fontSize:12}}>✓</div>}
         {opt.imgMatchWarning&&(
           <div style={{position:"absolute",bottom:hasCarousel?24:8,left:0,right:0,margin:"0 8px",background:"rgba(245,158,11,.9)",borderRadius:6,padding:"4px 8px",fontSize:10,fontWeight:600,color:"#000",textAlign:"center"}}>
