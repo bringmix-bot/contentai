@@ -2207,6 +2207,44 @@ const selectOption=(pi,oi)=>setSelections(p=>({...p,[pi]:oi}));
     return `Empresa: ${brand.name}. Rubro: ${industryList}. Descripción: ${brand.description||""}. Cliente ideal: ${brand.target||""}. Tono: ${tone}. Instrucciones de tono: ${toneInstr}.${cmNote}${briefNote}${tmplList}${tmplNote}${learnedNote} Incluye 5-6 hashtags relevantes. Solo el caption, sin explicaciones.`;
   };
 
+  const generateFullPost = async (idea, idx) => {
+    const imgs = files.filter(f=>f.type==="image");
+    const prefs = store.get("stylePrefs")||{};
+    const industryList = [brand.industry||"",...(brand.subIndustries||[]),brand.customIndustry||""].filter(Boolean).join(", ");
+    const creativePrompt = `Sos un director creativo experto en redes sociales. Marca: ${brand.name}. Rubro: ${industryList}. Tono: ${brand.tone||"Profesional"}. Idea: "${idea.title}". Hook: "${idea.hook}". Formato sugerido: ${idea.format}. Templates disponibles: ${TEMPLATES_40.slice(0,10).map(t=>t.id+":"+t.name).join(", ")}. Respondé SOLO con JSON válido sin backticks: {"format":"post","slideCount":1,"templateId":"t01","fontFamily":"Impact","fontSize":56,"fontColor":"#ffffff","overlayText":"3 a 5 palabras","caption":"caption con hashtags"}`;
+    const r = await generateText(creativePrompt);
+    let creative = {};
+    try { const match = r.match(/\{[\s\S]*\}/); creative = JSON.parse(match?match[0]:r); } catch(e) { creative = {format:idea.format||"post",slideCount:1,templateId:"t01",fontFamily:"Impact",fontSize:56,fontColor:"#ffffff",overlayText:idea.title.split(" ").slice(0,4).join(" "),caption:idea.hook||idea.title}; }
+    let imgSrc = imgs[idx%Math.max(1,imgs.length)]?.preview || null;
+    if(imgs.length > 0) {
+      try {
+        const validImgs = imgs.map((img,i)=>({idx:i,url:img.preview||img.url||""})).filter(d=>d.url.length>10);
+        if(validImgs.length > 0) {
+          const vd = await fetch("/api/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt:`Tenés ${validImgs.length} imágenes. El post es sobre: "${idea.title}". Elegí la más relevante. Respondé SOLO con el número.`,visionImages:validImgs.map(d=>({url:d.url}))})}).then(r=>r.json());
+          const chosen = parseInt((vd.text||"0").trim());
+          if(!isNaN(chosen) && chosen >= 0 && chosen < validImgs.length) imgSrc = imgs[validImgs[chosen].idx]?.preview || imgSrc;
+        }
+      } catch(e) {}
+    }
+    const slideCount = creative.format==="carrusel" ? Math.min(creative.slideCount||2,5) : 1;
+    const slides = slideCount > 1 ? Array.from({length:slideCount},(_,s)=>imgs[(idx+s)%Math.max(1,imgs.length)]?.preview||imgSrc) : null;
+    const tmpl = TEMPLATES_40.find(t=>t.id===creative.templateId) || TEMPLATES_40[idx%TEMPLATES_40.length];
+    return {
+      id:idx, style:3, styleName:tmpl.name, caption:creative.caption||idea.hook||idea.title,
+      overlayText:creative.overlayText||idea.title.split(" ").slice(0,4).join(" "),
+      imgSrc, slides, slideCount,
+      fontFamily:creative.fontFamily||prefs.fontFamily||"Impact",
+      fontSize:creative.fontSize||prefs.fontSize||56,
+      fontColor:creative.fontColor||prefs.fontColor||"#ffffff",
+      fontWeight:"900", textBg:false, showLogo:true,
+      logoBase64:brand.logoBase64||null, brandColor:brand.color||"#6d28d9",
+      industry:[brand.industry||"",...(brand.subIndustries||[])].join("|"),
+      logoSize:prefs.logoSize||0.15, stickers:[],
+      templateHtml:tmpl.html, templateBg:tmpl.bg, templateId:creative.templateId,
+      format:creative.format, idea:idea,
+    };
+  };
+
   const generate=async()=>{
     if(!brand.name){showToast("Primero completá el perfil de tu marca","err");return;}
     const imgs=files.filter(f=>f.type==="image");
