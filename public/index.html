@@ -3340,8 +3340,8 @@ function ReelModal({video, brand, onClose, showToast, pixabayKey}) {
     const frames = await extractFrames(videoEl, 6);
     showToast("Analizando con IA... (puede tardar 30 segundos)","info");
     const briefNote = brief ? `El brief del Reel es: "${brief}".` : "";
-    const prompt = `Sos un director creativo experto en Reels de Instagram. ${briefNote} Analizá estos frames de video de ${brand.name} (${brand.industry||""}) y respondé en JSON con exactamente este formato:
-{"description":"descripción de 2 líneas de qué muestra el video","overlay":"texto impactante de 3-5 palabras para superponer","musicKeywords":"3 palabras en inglés para buscar música"}`;
+    const prompt = `Sos un director creativo. ${briefNote} Analizá estos frames de video de ${brand.name||"la empresa"} y respondé ÚNICAMENTE con un objeto JSON válido, sin backticks, sin markdown, sin explicaciones. Solo el JSON puro:
+{"description":"descripción breve del video en español","overlay":"frase impactante de 3-4 palabras en español","musicKeywords":"3 palabras en inglés para música de fondo"}`;
 
     const r = await fetch("/api/generate", {
       method:"POST", headers:{"Content-Type":"application/json"},
