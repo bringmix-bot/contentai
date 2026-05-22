@@ -2334,8 +2334,8 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
         }
         const options=[
           {id:0,style:1,styleName:"Revista",caption:cap1,overlayText:overlayText1,imgSrc,...baseOpt,imgMatchWarning,slideCount,slides:slideCount>1?makeCarouselSlides(slideCount,imgSrc):null},
-          {id:1,style:2,styleName:"Diseño",caption:cap2,overlayText:overlayText2,imgSrc,...baseOpt,
-          {id:2,style:3,styleName:tmplForPost?.name||"Template",caption:cap3,overlayText:overlayText3,imgSrc,...baseOpt,
+          {id:1,style:2,styleName:"Diseño",caption:cap2,overlayText:overlayText2,imgSrc,...baseOpt,slideCount,slides:null},
+          {id:2,style:3,styleName:tmplForPost?.name||"Template",caption:cap3,overlayText:overlayText3,imgSrc,...baseOpt,templateHtml:personalizedHtml,templateBg:personalizedBg,templateName:tmplForPost?.name||"Template",slideCount,slides:slideCount>1?makeCarouselSlides(slideCount,imgSrc):null},
         ];
         allPosts.push({postIdx:i,label:"Post "+(i+1),theme:PROMPTS[i].slice(8,40)+"...",options,slideCount});
         setWeekPosts([...allPosts]);
