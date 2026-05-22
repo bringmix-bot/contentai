@@ -2077,7 +2077,7 @@ const [intelligence, setIntelligence] = useState(null);
         <button className="btn btn-ghost" style={{flex:1,borderColor:"rgba(168,85,247,.4)",color:"var(--accent2)"}} onClick={researchTrends} disabled={researching}>
           {researching?<><div className="spin"/>Investigando...</>:"🔍 Investigar tendencias"}
         </button>
-        <button className="btn btn-primary" style={{flex:1}} onClick={()=>{save();onNext();}}>Siguiente →
+        <button className="btn btn-primary" style={{flex:1}} onClick={()=>{save();onNext();}}>Siguiente →</button>
     </div>
   );
 }
