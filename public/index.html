@@ -2256,8 +2256,9 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
       slides=allSlideImgs;
     }
     const tmpl=TEMPLATES_40.find(t=>t.id===creative.templateId)||TEMPLATES_40[idx%TEMPLATES_40.length];
+    const useImgStyle = imgSrc ? (slideCount>1 ? 1 : 3) : 3;
     return {
-      id:idx,style:3,styleName:tmpl.name,caption:creative.caption||idea.hook||idea.title,
+      id:idx,style:useImgStyle,styleName:useImgStyle===3?tmpl.name:"Revista",
       overlayText:creative.overlayText||idea.title.split(" ").slice(0,4).join(" "),
       imgSrc,slides,slideCount,
       fontFamily:creative.fontFamily||prefs.fontFamily||"Impact",
