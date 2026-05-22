@@ -3310,6 +3310,7 @@ function ReelModal({video, brand, onClose, showToast, pixabayKey}) {
   const [textY, setTextY] = useState(0.8);
   const [fontSize, setFontSize] = useState(40);
   const [fontColor, setFontColor] = useState("#ffffff");
+  const [fontFamily, setFontFamily] = useState("Impact");
   const [publishing, setPublishing] = useState(false);
 
   const extractFrames = async (videoEl, count=10) => {
@@ -3399,14 +3400,31 @@ const jsonStr = jsonMatch ? jsonMatch[0] : d.text; result = JSON.parse(jsonStr);
         {/* LEFT: Video preview */}
         <div style={{flex:"0 0 280px",display:"flex",flexDirection:"column",gap:10}}>
           <div className="lbl">Preview del Reel</div>
-          <div style={{position:"relative",borderRadius:14,overflow:"hidden",aspectRatio:"9/16",background:"#000"}}>
-           <video ref={videoRef} src={video.url||video.preview} crossOrigin="anonymous" style={{width:"100%",height:"100%",objectFit:"cover"}} controls />
-            {overlayText&&(
-              <div style={{position:"absolute",left:`${textX*100}%`,top:`${textY*100}%`,transform:"translate(-50%,-50%)",color:fontColor,fontSize:fontSize,fontWeight:900,fontFamily:"Impact",textShadow:"2px 2px 8px rgba(0,0,0,.8)",textAlign:"center",pointerEvents:"none",maxWidth:"80%",wordBreak:"break-word"}}>
-                {overlayText.toUpperCase()}
-              </div>
-            )}
-          </div>
+         <div style={{position:"relative",borderRadius:14,overflow:"hidden",aspectRatio:"9/16",background:"#000",cursor:"crosshair",userSelect:"none"}}
+  onMouseDown={e=>{
+    const rect=e.currentTarget.getBoundingClientRect();
+    const fx=(e.clientX-rect.left)/rect.width;
+    const fy=(e.clientY-rect.top)/rect.height;
+    setTextX(Math.max(0,Math.min(1,fx)));
+    setTextY(Math.max(0,Math.min(1,fy)));
+    const onMove=ev=>{
+      const fx2=(ev.clientX-rect.left)/rect.width;
+      const fy2=(ev.clientY-rect.top)/rect.height;
+      setTextX(Math.max(0,Math.min(1,fx2)));
+      setTextY(Math.max(0,Math.min(1,fy2)));
+    };
+    const onUp=()=>{document.removeEventListener("mousemove",onMove);document.removeEventListener("mouseup",onUp);};
+    document.addEventListener("mousemove",onMove);
+    document.addEventListener("mouseup",onUp);
+  }}>
+  <video ref={videoRef} src={video.url||video.preview} crossOrigin="anonymous" style={{width:"100%",height:"100%",objectFit:"cover",pointerEvents:"none"}} controls />
+  {overlayText&&(
+    <div style={{position:"absolute",left:`${textX*100}%`,top:`${textY*100}%`,transform:"translate(-50%,-50%)",color:fontColor,fontSize:fontSize,fontWeight:900,fontFamily:fontFamily||"Impact",textShadow:"2px 2px 8px rgba(0,0,0,.8)",textAlign:"center",pointerEvents:"none",maxWidth:"90%",wordBreak:"break-word"}}>
+      {overlayText.toUpperCase()}
+    </div>
+  )}
+  <div style={{position:"absolute",bottom:6,left:0,right:0,textAlign:"center",fontSize:9,color:"rgba(255,255,255,.4)",pointerEvents:"none"}}>Arrastrá para mover el texto</div>
+</div>
         </div>
 
         {/* RIGHT: Controls */}
