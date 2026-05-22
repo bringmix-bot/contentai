@@ -3354,8 +3354,8 @@ function ReelModal({video, brand, onClose, showToast, pixabayKey}) {
     console.log("Vision response:", d.text);
     let result = {};
     try { 
-      const cleaned = d.text.replace(/```json\n?|```/g,"").trim();
-      result = JSON.parse(cleaned); 
+      const jsonMatch = d.text.match(/\{[\s\S]*\}/);
+const jsonStr = jsonMatch ? jsonMatch[0] : d.text; result = JSON.parse(jsonStr);
     } catch(e) { 
       result = {description: d.text, overlay: brief||"NATURALEZA PURA", musicKeywords: "nature organic peaceful"};
     }
