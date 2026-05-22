@@ -2306,9 +2306,20 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
             while(sl.length<count) sl.push(sl[sl.length-1]);
             visionSlides=null; return sl;
           }
-          const sl=[]; const startIdx=imgs.findIndex(img=>(img.preview||img.url)===baseImgSrc); const base=startIdx>=0?startIdx:i;
-          for(let s=0;s<count;s++) sl.push(imgs[(base+s)%imgs.length].preview||imgs[(base+s)%imgs.length].url);
-          return sl;
+         const sl=[];
+        const used=new Set();
+        const startIdx=imgs.findIndex(img=>(img.preview||img.url)===baseImgSrc);
+        if(startIdx>=0) used.add(startIdx);
+        sl.push(baseImgSrc);
+        for(let s=1;s<count;s++){
+          let chosen=-1;
+          for(let j=0;j<imgs.length;j++){
+            if(!used.has(j)){chosen=j;break;}
+          }
+          if(chosen>=0){used.add(chosen);sl.push(imgs[chosen].preview||imgs[chosen].url);}
+          else sl.push(baseImgSrc);
+        }
+        return sl;
         };
         const baseOpt={fontSize:prefs.fontSize||56,fontColor:prefs.fontColor||"#ffffff",fontFamily:prefs.fontFamily||"Impact",fontWeight:prefs.fontWeight||"900",textBg:false,showLogo:true,logoBase64:brand.logoBase64||null,brandColor:brand.color||"#6d28d9",industry:[brand.industry||"",...(brand.subIndustries||[]),brand.customIndustry||""].filter(Boolean).join("|"),logoX:prefs.logoX,logoY:prefs.logoY,logoSize:prefs.logoSize||0.15,stickers:[]};
         let personalizedHtml=tmplForPost?.html||"";
@@ -2323,8 +2334,8 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
         }
         const options=[
           {id:0,style:1,styleName:"Revista",caption:cap1,overlayText:overlayText1,imgSrc,...baseOpt,imgMatchWarning,slideCount,slides:slideCount>1?makeCarouselSlides(slideCount,imgSrc):null},
-          {id:1,style:2,styleName:"Diseño",caption:cap2,overlayText:overlayText2,imgSrc:null,...baseOpt,slideCount,slides:null},
-          {id:2,style:3,styleName:tmplForPost?.name||"Template",caption:cap3,overlayText:overlayText3,imgSrc:null,...baseOpt,templateHtml:personalizedHtml,templateBg:personalizedBg,templateName:tmplForPost?.name||"Template",slideCount,slides:null},
+          {id:1,style:2,styleName:"Diseño",caption:cap2,overlayText:overlayText2,imgSrc,...baseOpt,
+          {id:2,style:3,styleName:tmplForPost?.name||"Template",caption:cap3,overlayText:overlayText3,imgSrc,...baseOpt,
         ];
         allPosts.push({postIdx:i,label:"Post "+(i+1),theme:PROMPTS[i].slice(8,40)+"...",options,slideCount});
         setWeekPosts([...allPosts]);
