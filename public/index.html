@@ -2155,6 +2155,17 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
   const [progress,setProgress]=useState(0);
 
   // 7 briefs individuales
+  const [intelligence] = useState(store.get("brandIntelligence")||null);
+
+  const useIntelligenceIdeas = () => {
+    if(!intelligence?.content_ideas) return;
+    const newBriefs = intelligence.content_ideas.slice(0,7).map(idea => idea.title + (idea.hook ? " — " + idea.hook : ""));
+    while(newBriefs.length < 7) newBriefs.push("");
+    setBriefs(newBriefs);
+    store.set("weekBriefs", newBriefs);
+    showToast("7 briefs cargados desde las ideas de la IA ✓","ok");
+  };
+
   const [briefs,setBriefs]=useState(store.get("weekBriefs")||Array(7).fill(""));
   // Cantidad de imágenes por post (carrusel)
   const [slideCounts,setSlideCounts]=useState(store.get("slideCounts")||Array(7).fill(1));
@@ -2408,6 +2419,36 @@ Respondé ÚNICAMENTE con el HTML modificado, sin explicaciones ni markdown.`;
           {generating?<><div className="spin"/>Generando {progress}/7...</>:"✦ Generar semana completa"}
         </button>
       </div>
+
+      {/* Panel ideas de la IA */}
+      {intelligence?.content_ideas?.length>0&&(
+        <div style={{background:"rgba(109,40,217,.06)",border:"1px solid rgba(168,85,247,.25)",borderRadius:14,padding:"16px",marginBottom:24}} className="fade-in">
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+            <div>
+              <div style={{fontWeight:700,fontSize:14,color:"var(--accent2)"}}>💡 Ideas de la semana — generadas por IA</div>
+              <div style={{fontSize:12,color:"var(--muted)",marginTop:2}}>Basadas en tendencias reales de tu rubro esta semana</div>
+            </div>
+            <button className="btn btn-primary" style={{fontSize:12,padding:"8px 16px"}} onClick={useIntelligenceIdeas}>
+              Usar estas ideas →
+            </button>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {intelligence.content_ideas.slice(0,7).map((idea,i)=>(
+              <div key={i} style={{background:"rgba(255,255,255,.03)",borderRadius:10,padding:"10px 12px",display:"flex",gap:10,alignItems:"flex-start"}}>
+                <div style={{background:"rgba(109,40,217,.2)",borderRadius:6,padding:"2px 8px",fontSize:10,fontWeight:700,color:"var(--accent2)",flexShrink:0,minWidth:52,textAlign:"center"}}>{idea.format}</div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:12,fontWeight:600,color:"var(--text)"}}>{idea.title}</div>
+                  <div style={{fontSize:11,color:"var(--muted)",fontStyle:"italic"}}>{idea.hook}</div>
+                </div>
+                <button onClick={()=>{const b=[...briefs];b[i]=idea.title+(idea.hook?" — "+idea.hook:"");setBriefs(b);store.set("weekBriefs",b);showToast("Brief "+( i+1)+" cargado ✓","ok");}}
+                  style={{background:"none",border:"1px solid var(--border)",color:"var(--muted)",borderRadius:6,padding:"3px 8px",fontSize:10,cursor:"pointer",flexShrink:0}}>
+                  + Post {i+1}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 7 briefs individuales */}
       <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:14,padding:"16px",marginBottom:24}}>
