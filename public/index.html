@@ -2412,31 +2412,50 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
         // ── COLUMNA IZQUIERDA: foto cliente + style:1 (Revista) — sin cambios ──
         const izqOption={id:0,style:1,styleName:"Revista",caption:cap1,overlayText:overlayText1,imgSrc,...baseOpt,imgMatchWarning,slideCount,slides:slideCount>1?makeCarouselSlides(slideCount,imgSrc):null};
 
-        // ── COLUMNA DERECHA: Diseño IA — Pixabay + template elegido por IA + stickers ──
+        // ── COLUMNA DERECHA: Diseño IA — Pixabay fondo real + stickers bien posicionados ──
         setProgressMsg(`Post ${i+1}: diseñando columna derecha con IA...`);
         let derechaOption;
         try {
-          const derechaPrompt=`Sos el mejor publicista de marketing de Argentina. Brief: "${postBrief||PROMPTS[i]}". Marca: ${brand.name}. Rubro: ${brand.industry||""}. Diseñá el post perfecto para la columna derecha. Respondé SOLO con JSON sin backticks ni markdown: {"overlayText":"3 a 5 palabras impactantes en mayúsculas","caption":"caption profesional con hashtags","pixabayQuery":"3 palabras en inglés para buscar imagen de fondo en Pixabay correlacionada al brief","style":1,"stickers":[{"emoji":"🌿","x":0.85,"y":0.15,"size":0.08}],"fontColor":"#ffffff","fontSize":60}. Reglas para stickers: máximo 2, posicionados en esquinas o bordes (x/y entre 0.05 y 0.95), size entre 0.06 y 0.12, relevantes al rubro. El array puede estar vacío si no aplica. style puede ser 1, 2 o 3.`;
+          // IA genera query Pixabay + overlay + caption + stickers
+          // Style SIEMPRE 1 o 3 para que la imagen de fondo sea visible
+          const derechaPrompt=`Sos el mejor publicista de marketing de Argentina. Brief: "${postBrief||PROMPTS[i]}". Marca: ${brand.name}. Rubro: ${brand.industry||""}. Diseñá un post de Instagram impactante. Respondé SOLO con JSON puro sin backticks: {"overlayText":"máximo 4 palabras en mayúsculas sin puntuación","caption":"caption con emojis y hashtags","pixabayQuery":"2 o 3 palabras en inglés para Pixabay muy relacionadas al brief (ej: organic vegetables farm)","style":1,"fontColor":"#ffffff","fontSize":58,"textY":0.72,"stickers":[]}. REGLAS CRÍTICAS: style solo puede ser 1 o 3 (NUNCA 2). Los stickers son OPCIONALES: solo incluí máximo 1 si es muy relevante al rubro, posicionado en esquina superior derecha (x:0.88, y:0.10) o inferior izquierda (x:0.12, y:0.88), NUNCA cerca del texto (textY). Si no hay sticker obvio para el rubro, dejá el array vacío.`;
           const derechaResp=await generateText(derechaPrompt);
-          let derechaData={};
-          try{ const m=derechaResp.match(/\{[\s\S]*\}/); derechaData=JSON.parse(m?m[0]:derechaResp); }catch{}
+          let dd={};
+          try{ const m=derechaResp.match(/\{[\s\S]*\}/); dd=JSON.parse(m?m[0]:derechaResp); }catch{}
 
-          // Imagen Pixabay correlacionada al brief
-          const pbQueryD=derechaData.pixabayQuery||(postBrief||brand.industry||brand.name)+" "+brand.industry;
+          // Imagen Pixabay — query específica al brief
+          const pbQueryD=dd.pixabayQuery||(postBrief||"").split(" ").slice(0,3).join(" ")||brand.industry||"nature";
           const pbImgsD=await searchPixabay(pbQueryD,1);
           const imgSrcDerecha=pbImgsD[0]||imgSrc;
 
-          const overlayDerecha=cleanOverlay(derechaData.overlayText||overlayText1);
-          const capDerecha=derechaData.caption||cap1;
-          const stickersDerecha=Array.isArray(derechaData.stickers)?derechaData.stickers.slice(0,2):[];
-          const styleDerecha=([1,2,3].includes(derechaData.style)?derechaData.style:1);
-          const fontColorDerecha=derechaData.fontColor||"#ffffff";
-          const fontSizeDerecha=derechaData.fontSize||60;
+          const overlayDerecha=cleanOverlay(dd.overlayText||overlayText1);
+          const capDerecha=dd.caption||cap1;
 
-          derechaOption={id:2,style:styleDerecha,styleName:"Diseño IA",caption:capDerecha,overlayText:overlayDerecha,imgSrc:imgSrcDerecha,...baseOpt,fontColor:fontColorDerecha,fontSize:fontSizeDerecha,stickers:stickersDerecha,slideCount:1,slides:null,derechaBadge:true};
+          // Stickers: validar posición para que no pisen el texto
+          const textYD=dd.textY||0.72;
+          const rawStickers=Array.isArray(dd.stickers)?dd.stickers:[];
+          const stickersDerecha=rawStickers.slice(0,1).filter(s=>{
+            // Descartar stickers que estén cerca del área de texto (textY ± 0.2)
+            const sy=typeof s.y==="number"?s.y:0.5;
+            return Math.abs(sy-textYD)>0.22;
+          }).map(s=>({...s, size:Math.min(Math.max(s.size||0.08,0.06),0.10)}));
+
+          // Style solo 1 o 3 para garantizar imagen de fondo visible
+          const styleDerecha=dd.style===3?3:1;
+
+          derechaOption={
+            id:2, style:styleDerecha, styleName:"Diseño IA",
+            caption:capDerecha, overlayText:overlayDerecha,
+            imgSrc:imgSrcDerecha, ...baseOpt,
+            fontColor:dd.fontColor||"#ffffff",
+            fontSize:dd.fontSize||58,
+            textY:textYD, textX:dd.textX||0.05,
+            stickers:stickersDerecha,
+            slideCount:1, slides:null, derechaBadge:true
+          };
         } catch(e){
-          const pbFallback=await searchPixabay((postBrief||brand.industry||brand.name),1);
-          derechaOption={id:2,style:1,styleName:"Diseño",caption:cap1,overlayText:overlayText1,imgSrc:pbFallback[0]||imgSrc,...baseOpt,slideCount:1,slides:null};
+          const pbFallback=await searchPixabay((postBrief||brand.industry||"nature").split(" ").slice(0,3).join(" "),1);
+          derechaOption={id:2,style:1,styleName:"Diseño IA",caption:cap1,overlayText:overlayText1,imgSrc:pbFallback[0]||imgSrc,...baseOpt,stickers:[],slideCount:1,slides:null,derechaBadge:true};
         }
 
         const options=[
