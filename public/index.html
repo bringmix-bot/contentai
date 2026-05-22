@@ -2177,7 +2177,14 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
     const nb=intelligence.content_ideas.slice(0,7).map(idea=>idea.title+(idea.hook?" — "+idea.hook:""));
     while(nb.length<7) nb.push("");
     setBriefs(nb); store.set("weekBriefs",nb);
-    showToast("7 briefs cargados desde las ideas de la IA ✓","ok");
+    const ns=intelligence.content_ideas.slice(0,7).map(idea=>{
+      if(idea.format==="carrusel") return 4;
+      if(idea.format==="historia") return 1;
+      return 1;
+    });
+    while(ns.length<7) ns.push(1);
+    setSlideCounts(ns); store.set("slideCounts",ns);
+    showToast("7 briefs y formatos cargados desde las ideas de la IA ✓","ok");
   };
 
   const PROMPTS=[
@@ -2256,7 +2263,8 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
       slides=allSlideImgs;
     }
     const tmpl=TEMPLATES_40.find(t=>t.id===creative.templateId)||TEMPLATES_40[idx%TEMPLATES_40.length];
-    const useImgStyle = imgSrc ? (slideCount>1 ? 1 : 3) : 3;
+    const slideCountFinal=creative.format==="carrusel"?Math.min(creative.slideCount||2,5):1;
+    const useImgStyle = imgSrc ? (slideCountFinal>1 ? 1 : 3) : 3;
     return {
       id:idx,style:useImgStyle,styleName:useImgStyle===3?tmpl.name:"Revista",
       overlayText:creative.overlayText||idea.title.split(" ").slice(0,4).join(" "),
