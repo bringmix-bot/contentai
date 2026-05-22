@@ -2489,7 +2489,8 @@ Respondé ÚNICAMENTE con el HTML modificado, sin explicaciones ni markdown.`;
                 finally{setGenerating(false);setProgress(0);setProgressMsg("");}
               }} disabled={generating}>
                 {generating?<><div className="spin"/>Generando...</>:"✦ Generar con IA →"}
-              </button>
+            </button>
+            </div>
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
             {intelligence.content_ideas.slice(0,7).map((idea,i)=>(
               <div key={i} style={{background:"rgba(255,255,255,.03)",borderRadius:10,padding:"10px 12px",display:"flex",gap:10,alignItems:"flex-start"}}>
