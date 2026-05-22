@@ -2384,33 +2384,6 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
           var centroOption={id:1,style:2,styleName:"Centro IA",caption:capCentro,overlayText:overlayCentro,imgSrc:imgSrcCentro,...baseOpt,slideCount:slideCountCentro,slides:slidesCentro,formato:formatoCentro,formatoBadge:formatoCentro};
         } catch(e){ var centroOption={id:1,style:2,styleName:"Centro",caption:cap1,overlayText:overlayText1,imgSrc,...baseOpt,slideCount,slides:null}; }
 
-        // ── COLUMNA DERECHA: template según tendencias + Pixabay ──
-        setProgressMsg(`Post ${i+1}: generando columna derecha con tendencias...`);
-        let derechaOption;
-        try {
-          // Elegir template basado en la tendencia más relevante
-          const trendTopic=intelligence?.trends?.[i%Math.max(1,(intelligence.trends||[]).length)]?.topic||postBrief||PROMPTS[i];
-          const trendAngle=intelligence?.trends?.[i%Math.max(1,(intelligence.trends||[]).length)]?.content_angle||"";
-          const selectedTmplIds=brand.selectedTemplates||[];
-          const tmplPool=selectedTmplIds.length>0?TEMPLATES_40.filter(t=>selectedTmplIds.includes(t.id)):TEMPLATES_40;
-
-          // IA elige el template más apropiado para la tendencia
-          const tmplChoicePrompt=`Sos el mejor publicista de marketing. La tendencia del momento es: "${trendTopic}". El ángulo de contenido es: "${trendAngle}". Templates disponibles: ${tmplPool.slice(0,15).map(t=>t.id+":"+t.name).join(", ")}. Respondé SOLO con JSON: {"templateId":"t01","overlayText":"frase de 3-4 palabras basada en la tendencia","caption":"caption que aprovecha la tendencia para ${brand.name} con hashtags trending"}`;
-          const tmplResp=await generateText(tmplChoicePrompt);
-          let tmplData={};
-          try{ const m=tmplResp.match(/\{[\s\S]*\}/); tmplData=JSON.parse(m?m[0]:tmplResp); }catch{}
-          const chosenTmpl=TEMPLATES_40.find(t=>t.id===tmplData.templateId)||tmplPool[i%tmplPool.length];
-          const overlayDerecha=cleanOverlay(tmplData.overlayText||trendTopic.split(" ").slice(0,4).join(" "));
-          const capDerecha=tmplData.caption||cap1;
-
-          // Imagen Pixabay basada en la tendencia
-          const pbQueryD=trendTopic+" "+brand.industry+" "+brand.name;
-          const pbImgsD=await searchPixabay(pbQueryD,1);
-          const imgSrcDerecha=pbImgsD[0]||imgSrc;
-
-          derechaOption={id:2,style:3,styleName:chosenTmpl.name,caption:capDerecha,overlayText:overlayDerecha,imgSrc:imgSrcDerecha,...baseOpt,templateHtml:chosenTmpl.html,templateBg:chosenTmpl.bg,templateName:chosenTmpl.name,templateId:chosenTmpl.id,slideCount:1,slides:null,trendTopic,trendBadge:true};
-        } catch(e){ derechaOption={id:2,style:3,styleName:tmplForPost?.name||"Template",caption:cap1,overlayText:overlayText1,imgSrc,...baseOpt,templateHtml:personalizedHtml,templateBg:personalizedBg,templateName:tmplForPost?.name||"Template",slideCount,slides:slideCount>1?makeCarouselSlides(slideCount,imgSrc):null}; }
-
         const makeCarouselSlides=(count,baseImgSrc)=>{
           if(visionSlides&&visionSlides.length>0){
             const sl=visionSlides.slice(0,count);
@@ -2436,32 +2409,34 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
         let personalizedHtml=tmplForPost?.html||"";
         let personalizedBg=tmplForPost?.bg||"#1a1a2e";
 
-        // ── COLUMNA IZQUIERDA: Pixabay fondo + template premium + stickers IA ──
-        setProgressMsg(`Post ${i+1}: diseñando columna izquierda...`);
-        let izqOption;
+        // ── COLUMNA IZQUIERDA: foto cliente + style:1 (Revista) — sin cambios ──
+        const izqOption={id:0,style:1,styleName:"Revista",caption:cap1,overlayText:overlayText1,imgSrc,...baseOpt,imgMatchWarning,slideCount,slides:slideCount>1?makeCarouselSlides(slideCount,imgSrc):null};
+
+        // ── COLUMNA DERECHA: Diseño IA — Pixabay + template elegido por IA + stickers ──
+        setProgressMsg(`Post ${i+1}: diseñando columna derecha con IA...`);
+        let derechaOption;
         try {
-          const izqPrompt=`Sos el mejor publicista de marketing de Argentina. Brief: "${postBrief||PROMPTS[i]}". Marca: ${brand.name}. Rubro: ${brand.industry||""}. Diseñá el post perfecto. Respondé SOLO con JSON sin backticks: {"overlayText":"3 a 5 palabras impactantes en mayúsculas","caption":"caption profesional con hashtags","pixabayQuery":"3 palabras en español para buscar imagen de fondo correlacionada al brief","style":1,"stickers":[{"emoji":"🌿","x":0.85,"y":0.15,"size":0.08}],"fontColor":"#ffffff","fontSize":60}. El array stickers puede tener 0, 1 o 2 stickers relevantes al brief, o estar vacío si no aplica.`;
-          const izqResp=await generateText(izqPrompt);
-          let izqData={};
-          try{ const m=izqResp.match(/\{[\s\S]*\}/); izqData=JSON.parse(m?m[0]:izqResp); }catch{}
+          const derechaPrompt=`Sos el mejor publicista de marketing de Argentina. Brief: "${postBrief||PROMPTS[i]}". Marca: ${brand.name}. Rubro: ${brand.industry||""}. Diseñá el post perfecto para la columna derecha. Respondé SOLO con JSON sin backticks ni markdown: {"overlayText":"3 a 5 palabras impactantes en mayúsculas","caption":"caption profesional con hashtags","pixabayQuery":"3 palabras en inglés para buscar imagen de fondo en Pixabay correlacionada al brief","style":1,"stickers":[{"emoji":"🌿","x":0.85,"y":0.15,"size":0.08}],"fontColor":"#ffffff","fontSize":60}. Reglas para stickers: máximo 2, posicionados en esquinas o bordes (x/y entre 0.05 y 0.95), size entre 0.06 y 0.12, relevantes al rubro. El array puede estar vacío si no aplica. style puede ser 1, 2 o 3.`;
+          const derechaResp=await generateText(derechaPrompt);
+          let derechaData={};
+          try{ const m=derechaResp.match(/\{[\s\S]*\}/); derechaData=JSON.parse(m?m[0]:derechaResp); }catch{}
 
-          // Buscar imagen en Pixabay correlacionada al brief
-          const pbQueryIzq=izqData.pixabayQuery||(postBrief||brand.industry||brand.name)+" "+brand.industry;
-          const pbImgsIzq=await searchPixabay(pbQueryIzq,1);
-          const imgSrcIzq=pbImgsIzq[0]||imgSrc;
+          // Imagen Pixabay correlacionada al brief
+          const pbQueryD=derechaData.pixabayQuery||(postBrief||brand.industry||brand.name)+" "+brand.industry;
+          const pbImgsD=await searchPixabay(pbQueryD,1);
+          const imgSrcDerecha=pbImgsD[0]||imgSrc;
 
-          const overlayIzq=cleanOverlay(izqData.overlayText||overlayText1);
-          const capIzq=izqData.caption||cap1;
-          const stickersIzq=Array.isArray(izqData.stickers)?izqData.stickers:[];
-          const styleIzq=izqData.style||1;
-          const fontColorIzq=izqData.fontColor||"#ffffff";
-          const fontSizeIzq=izqData.fontSize||60;
+          const overlayDerecha=cleanOverlay(derechaData.overlayText||overlayText1);
+          const capDerecha=derechaData.caption||cap1;
+          const stickersDerecha=Array.isArray(derechaData.stickers)?derechaData.stickers.slice(0,2):[];
+          const styleDerecha=([1,2,3].includes(derechaData.style)?derechaData.style:1);
+          const fontColorDerecha=derechaData.fontColor||"#ffffff";
+          const fontSizeDerecha=derechaData.fontSize||60;
 
-          izqOption={id:0,style:styleIzq,styleName:"Diseño IA",caption:capIzq,overlayText:overlayIzq,imgSrc:imgSrcIzq,...baseOpt,fontColor:fontColorIzq,fontSize:fontSizeIzq,stickers:stickersIzq,slideCount:1,slides:null,izqBadge:true};
+          derechaOption={id:2,style:styleDerecha,styleName:"Diseño IA",caption:capDerecha,overlayText:overlayDerecha,imgSrc:imgSrcDerecha,...baseOpt,fontColor:fontColorDerecha,fontSize:fontSizeDerecha,stickers:stickersDerecha,slideCount:1,slides:null,derechaBadge:true};
         } catch(e){
-          // fallback: Pixabay simple
           const pbFallback=await searchPixabay((postBrief||brand.industry||brand.name),1);
-          izqOption={id:0,style:1,styleName:"Diseño",caption:cap1,overlayText:overlayText1,imgSrc:pbFallback[0]||imgSrc,...baseOpt,slideCount:1,slides:null};
+          derechaOption={id:2,style:1,styleName:"Diseño",caption:cap1,overlayText:overlayText1,imgSrc:pbFallback[0]||imgSrc,...baseOpt,slideCount:1,slides:null};
         }
 
         const options=[
@@ -2690,7 +2665,7 @@ function WeekPostCard({opt,postIdx,optIdx,selected,onSelect,onEdit}) {
           : <canvas ref={canvasRef} style={{width:"100%",height:"100%",display:"block"}} />
         }
         <div style={{position:"absolute",top:8,left:8,background:"rgba(0,0,0,.7)",backdropFilter:"blur(4px)",borderRadius:6,padding:"3px 8px",fontSize:11,fontWeight:600}}>
-          {opt.izqBadge?"🎨 Diseño IA":opt.style===1?"📸 Revista":opt.style===2?`🤖 ${opt.formatoBadge||"post"}`:`✨ ${opt.styleName||"Template"}`}
+          {opt.derechaBadge?"🎨 Diseño IA":opt.style===1?"📸 Revista":opt.style===2?`🤖 ${opt.formatoBadge||"post"}`:`✨ ${opt.styleName||"Template"}`}
         </div>
         {opt.trendBadge&&opt.trendTopic&&(
           <div style={{position:"absolute",bottom:hasCarousel?28:8,left:8,right:8,background:"rgba(109,40,217,.85)",backdropFilter:"blur(4px)",borderRadius:6,padding:"3px 8px",fontSize:10,fontWeight:600,color:"#e9d5ff",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
