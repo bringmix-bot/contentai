@@ -1551,17 +1551,55 @@ function PlanScreen({currentPlan, user, onUpgrade, showToast}) {
 // CONNECT SCREEN
 // ════════════════════════════════════════════════════════════════
 function ConnectScreen({socials,saveSocials,showToast,onNext}) {
-  const connect=(id)=>{
-    if(id==="instagram"){saveSocials(socials.map(s=>s.id===id?{...s,connected:true,user:"@gonvinardell"}:s));showToast("Instagram conectado!","ok");}
-    else showToast("Próximamente — "+socials.find(s=>s.id===id).name,"info");
+
+  // Leer params de URL al montar (callback de OAuth)
+  useEffect(()=>{
+    const params=new URLSearchParams(window.location.search);
+    const igConnected=params.get("ig_connected");
+    const igUser=params.get("ig_user");
+    const igId=params.get("ig_id");
+    const igToken=params.get("ig_token");
+    const igError=params.get("ig_error");
+
+    if(igConnected==="1"&&igUser){
+      // Guardar token en localStorage para usarlo al publicar
+      localStorage.setItem("mcm_ig_token", igToken||"");
+      localStorage.setItem("mcm_ig_account_id", igId||"");
+      localStorage.setItem("mcm_ig_username", "@"+igUser);
+      // Actualizar estado de socials
+      saveSocials(socials.map(s=>s.id==="instagram"?{...s,connected:true,user:"@"+igUser,accountId:igId}:s));
+      showToast("Instagram @"+igUser+" conectado ✓","ok");
+      // Limpiar URL
+      window.history.replaceState({},"","/");
+    }
+    if(igError){
+      showToast("Error al conectar Instagram: "+decodeURIComponent(igError),"err");
+      window.history.replaceState({},"","/");
+    }
+  },[]);
+
+  const connectInstagram=()=>{
+    // Redirigir al endpoint OAuth
+    window.location.href="/api/auth/instagram";
   };
-  const disconnect=(id)=>saveSocials(socials.map(s=>s.id===id?{...s,connected:false,user:""}:s));
+
+  const disconnect=(id)=>{
+    saveSocials(socials.map(s=>s.id===id?{...s,connected:false,user:"",accountId:""}:s));
+    if(id==="instagram"){
+      localStorage.removeItem("mcm_ig_token");
+      localStorage.removeItem("mcm_ig_account_id");
+      localStorage.removeItem("mcm_ig_username");
+    }
+    showToast("Cuenta desconectada","ok");
+  };
+
   return (
     <div style={{padding:"32px 36px",maxWidth:600}} className="fade-in">
       <div style={{marginBottom:28}}>
         <h2 style={{fontSize:22,fontWeight:800,marginBottom:6}}>Conectá tus redes sociales</h2>
-        <p style={{color:"var(--muted)",fontSize:14}}>MCM publicará en las redes que conectes.</p>
+        <p style={{color:"var(--muted)",fontSize:14}}>MCM publicará en las redes que conectes. La conexión es segura via OAuth oficial de Meta.</p>
       </div>
+
       {socials.map(s=>(
         <div key={s.id} className={"social-card"+(s.connected?" connected":"")}>
           <div className="social-icon" style={{background:s.color+"22"}}>{s.icon}</div>
@@ -1570,13 +1608,42 @@ function ConnectScreen({socials,saveSocials,showToast,onNext}) {
             <div style={{fontSize:12,color:s.connected?"var(--success)":"var(--muted)",marginTop:2}}>
               {s.connected?"● Conectado — "+s.user:"No conectado"}
             </div>
+            {s.id==="instagram"&&!s.connected&&(
+              <div style={{fontSize:11,color:"var(--muted)",marginTop:4,lineHeight:1.5}}>
+                Necesitás una cuenta de Instagram Business o Creador conectada a una Página de Facebook.
+              </div>
+            )}
           </div>
-          {s.connected
-            ?<button className="btn btn-ghost" style={{fontSize:12,padding:"7px 14px"}} onClick={()=>disconnect(s.id)}>Desconectar</button>
-            :<button className="btn btn-primary" style={{fontSize:12,padding:"7px 14px"}} onClick={()=>connect(s.id)}>Conectar</button>}
+          {s.connected?(
+            <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"flex-end"}}>
+              <button className="btn btn-ghost" style={{fontSize:12,padding:"7px 14px"}} onClick={()=>disconnect(s.id)}>Desconectar</button>
+              {s.id==="instagram"&&(
+                <button className="btn btn-ghost" style={{fontSize:11,padding:"5px 12px",borderColor:"rgba(168,85,247,.4)",color:"var(--accent2)"}} onClick={connectInstagram}>
+                  Cambiar cuenta
+                </button>
+              )}
+            </div>
+          ):(
+            s.id==="instagram"
+              ?<button className="btn btn-primary" style={{fontSize:12,padding:"7px 14px",background:"linear-gradient(135deg,#E1306C,#833AB4)"}} onClick={connectInstagram}>
+                Conectar con Meta →
+              </button>
+              :<button className="btn btn-ghost" style={{fontSize:12,padding:"7px 14px"}} onClick={()=>showToast("Próximamente — "+s.name,"info")}>
+                Próximamente
+              </button>
+          )}
         </div>
       ))}
-      <div style={{marginTop:28}}>
+
+      <div style={{background:"rgba(109,40,217,.06)",border:"1px solid rgba(168,85,247,.2)",borderRadius:12,padding:"14px 16px",marginTop:20}}>
+        <div style={{fontSize:12,fontWeight:600,color:"var(--accent2)",marginBottom:6}}>🔒 Conexión segura</div>
+        <div style={{fontSize:11,color:"var(--muted)",lineHeight:1.7}}>
+          MCM usa OAuth oficial de Meta. Nunca almacenamos tu contraseña. 
+          El token de acceso se guarda encriptado y se renueva automáticamente cada 60 días.
+        </div>
+      </div>
+
+      <div style={{marginTop:20}}>
         <button className="btn btn-primary" style={{width:"100%"}} onClick={onNext}>Siguiente — Mi Marca →</button>
       </div>
     </div>
@@ -3234,40 +3301,6 @@ function ScheduleScreen({socials,showToast}) {
   const [dragPost,setDragPost]=useState(null);
   const connected=socials.filter(s=>s.connected);
 
-  // Cargar inteligencia de marca para usar horarios y formatos sugeridos
-  const intelligence=store.get("brandIntelligence")||null;
-  const bestSlots=intelligence?.best_posting_times?.slots||[];
-  const contentIdeas=intelligence?.content_ideas||[];
-
-  // Mapear día de semana en español → número JS (0=Dom)
-  const DAY_MAP={"domingo":0,"lunes":1,"martes":2,"miércoles":3,"jueves":4,"viernes":5,"sábado":6,"miercoles":3,"sabado":6};
-
-  // Obtener hora sugerida por la IA para un día de semana dado
-  const getSuggestedSlot=(dayOfWeek)=>{
-    if(!bestSlots.length) return {hour:"09:00",format:"post"};
-    const match=bestSlots.find(s=>{
-      const d=(s.day||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
-      const target=["dom","lun","mar","mie","jue","vie","sab"][dayOfWeek];
-      return d.startsWith(target)||d.includes(target);
-    });
-    const slot=match||bestSlots[dayOfWeek%bestSlots.length]||bestSlots[0];
-    // Parsear hora "18:00hs" → "18:00"
-    const rawHour=(slot.time||"09:00").replace(/hs|h$/i,"").trim();
-    const hour=rawHour.match(/^\d{1,2}:\d{2}$/)?rawHour:rawHour.match(/^\d{1,2}$/)?rawHour.padStart(2,"0")+":00":"09:00";
-    return {hour, format:"post"};
-  };
-
-  // Obtener formato sugerido para un post según las ideas de contenido
-  const getSuggestedFormat=(postNum)=>{
-    const idea=contentIdeas[postNum-1];
-    if(!idea) return "post";
-    const fmt=(idea.format||"post").toLowerCase();
-    if(fmt.includes("carrusel")||fmt.includes("carousel")) return "post";
-    if(fmt.includes("historia")||fmt.includes("story")) return "story";
-    if(fmt.includes("reel")) return "reel";
-    return "post";
-  };
-
   const MONTHS=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
   const DAYS_HEADER=["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
   const FORMAT_ICONS={"post":"🖼","story":"📱","reel":"🎬"};
@@ -3280,88 +3313,11 @@ function ScheduleScreen({socials,showToast}) {
   const dateKey=(y,m,d)=>`${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
   const todayKey=dateKey(now.getFullYear(),now.getMonth(),now.getDate());
 
-  // Auto-programar los 7 posts en los mejores días/horarios de la semana actual
-  const autoProgramar=()=>{
-    const postsCount=Math.min(posts.length,7);
-    if(!postsCount){showToast("Primero generá las publicaciones","err");return;}
-    // Encontrar los próximos 7 días hábiles desde hoy
-    const newSchedules={...schedules};
-    const hist=store.get("postHistory")||[];
-    let assigned=0;
-    let d=new Date(now);
-    d.setHours(0,0,0,0);
-    // Si hay slots de IA, usar sus días preferidos; si no, distribuir lunes a viernes
-    const preferredDays=bestSlots.length>0
-      ? bestSlots.map(s=>{
-          const dayName=(s.day||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
-          for(const [k,v] of Object.entries(DAY_MAP)){
-            const kn=k.normalize("NFD").replace(/[̀-ͯ]/g,"");
-            if(dayName.startsWith(kn.slice(0,3))||kn.startsWith(dayName.slice(0,3))) return v;
-          }
-          return -1;
-        }).filter(v=>v>=0)
-      : [1,2,3,4,5,6,0]; // lun-dom como fallback
-
-    let attempts=0;
-    while(assigned<postsCount&&attempts<60){
-      attempts++;
-      const dayOfWeek=d.getDay();
-      const key=dateKey(d.getFullYear(),d.getMonth(),d.getDate());
-      const isPast=key<todayKey;
-      const alreadyScheduled=!!newSchedules[key];
-      const isPreferred=preferredDays.length===0||preferredDays.includes(dayOfWeek);
-      if(!isPast&&!alreadyScheduled&&isPreferred){
-        const postNum=assigned+1;
-        const slot=getSuggestedSlot(dayOfWeek);
-        const format=getSuggestedFormat(postNum);
-        const net=connected[0]?.id||"instagram";
-        newSchedules[key]={postNum,hour:slot.hour,net,format};
-        // Guardar en historial
-        const postData=posts.find(p=>p.postIdx===postNum-1)||{};
-        hist.unshift({id:Date.now()+assigned,caption:postData.caption||"",date:key+"T"+slot.hour+":00",network:net,format,status:"scheduled",postNum});
-        assigned++;
-      }
-      d.setDate(d.getDate()+1);
-    }
-    // Si no alcanzaron días preferidos, rellenar con cualquier día libre
-    if(assigned<postsCount){
-      d=new Date(now); d.setHours(0,0,0,0);
-      attempts=0;
-      while(assigned<postsCount&&attempts<60){
-        attempts++;
-        const key=dateKey(d.getFullYear(),d.getMonth(),d.getDate());
-        const isPast=key<todayKey;
-        if(!isPast&&!newSchedules[key]){
-          const postNum=assigned+1;
-          const slot=getSuggestedSlot(d.getDay());
-          const format=getSuggestedFormat(postNum);
-          const net=connected[0]?.id||"instagram";
-          newSchedules[key]={postNum,hour:slot.hour,net,format};
-          assigned++;
-        }
-        d.setDate(d.getDate()+1);
-      }
-    }
-    try{store.set("postHistory",hist.slice(0,50).map(p=>{const{imgSrc,slides,...r}=p;return r;}));}catch(e){}
-    saveSchedules(newSchedules);
-    const msg=bestSlots.length>0?"según los mejores horarios de tu rubro":"distribuidos esta semana";
-    showToast(assigned+" posts auto-programados "+msg+" ✓","ok");
-  };
-
   const openModal=(day)=>{
     const key=dateKey(year,month,day);
     setSelectedDate({day,key,label:day+" de "+MONTHS[month]+" "+year});
     const existing=schedules[key];
-    // Si no hay schedule existente, preconfigurar con sugerencia de IA
-    if(!existing){
-      const dayOfWeek=new Date(year,month,day).getDay();
-      const slot=getSuggestedSlot(dayOfWeek);
-      const postNum=dragPost||((Object.keys(schedules).length%7)+1);
-      const format=getSuggestedFormat(postNum);
-      setModalData({postNum,hour:slot.hour,net:connected[0]?.id||"instagram",format});
-    } else {
-      setModalData(existing);
-    }
+    setModalData(existing||{postNum:dragPost||1,hour:"09:00",net:connected[0]?.id||"instagram",format:"post"});
     setShowModal(true);
   };
 
@@ -3390,20 +3346,6 @@ function ScheduleScreen({socials,showToast}) {
       <div style={{width:200,flexShrink:0,display:"flex",flexDirection:"column",gap:8}}>
         <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:15,marginBottom:4}}>Mis publicaciones</div>
         <div style={{fontSize:11,color:"var(--muted)",marginBottom:8,lineHeight:1.5}}>Hacé click en un día del calendario para asignar.</div>
-        {intelligence&&bestSlots.length>0&&(
-          <div style={{background:"rgba(109,40,217,.08)",border:"1px solid rgba(168,85,247,.25)",borderRadius:10,padding:"10px 12px",marginBottom:6}}>
-            <div style={{fontSize:10,color:"var(--accent2)",fontWeight:700,marginBottom:4}}>⏰ MEJORES HORARIOS</div>
-            {bestSlots.slice(0,3).map((s,i)=>(
-              <div key={i} style={{fontSize:10,color:"var(--muted)",marginBottom:2}}>
-                <span style={{color:"var(--text)",fontWeight:600}}>{s.day}</span> · {s.time}
-              </div>
-            ))}
-          </div>
-        )}
-        <button className="btn btn-primary" style={{fontSize:12,padding:"9px 10px",width:"100%",marginBottom:4}} onClick={autoProgramar}>
-          ✦ Auto-programar semana
-        </button>
-        {intelligence&&<div style={{fontSize:10,color:"var(--muted)",textAlign:"center",lineHeight:1.5,marginBottom:8}}>{intelligence.best_posting_times?.recommendation||"Según tendencias de tu rubro"}</div>}
         {selectedPosts.length===0?(<div style={{color:"var(--muted)",fontSize:12,textAlign:"center",padding:"20px 0"}}>Primero generá las publicaciones.</div>):(
           <div style={{display:"flex",flexDirection:"column",gap:10,overflowY:"auto"}}>
             {selectedPosts.map((post,i)=>(
