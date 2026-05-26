@@ -2497,15 +2497,26 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
 
           // Query específica al brief+rubro
           // Query Pixabay: usar la de la IA, o construir desde el brief directamente
+          // Construir query desde el brief directamente (más confiable que dejar a la IA)
+          const briefKeywords=briefForQuery.toLowerCase()
+            .replace(/[^\w\s]/g,"").split(" ")
+            .filter(w=>w.length>3&&!["para","como","que","con","una","los","las","del","este","esta","sus","más","por","son","hay","cuando","cada"].includes(w))
+            .slice(0,3).join(" ");
+          const industryKeyword=industryForQuery.split(" ")[0]?.toLowerCase()||"";
+          // Usar query de IA si es específica, sino construir desde brief
           const aiQuery=(typeof dd.pixabayQuery==="string"&&dd.pixabayQuery.trim().length>3)?dd.pixabayQuery.trim():"";
-          const briefWords=briefForQuery.toLowerCase().split(" ").filter(w=>w.length>3).slice(0,3).join(" ");
-          const pbQueryD=aiQuery||(briefWords+" "+(industryForQuery.split(" ")[0]||"")).trim();
+          const pbQueryD=aiQuery||(briefKeywords+" "+industryKeyword).trim()||"farm organic";
 
           // Buscar imágenes DIFERENTES a las usadas en las otras columnas
           const usedImgsDerecha=new Set([imgSrc,imgSrcCentro||""].filter(Boolean));
-          const pbImgsD=await searchPixabay(pbQueryD,5);
-          // Tomar la primera imagen que NO sea igual a las otras columnas
-          const imgSrcDerecha=pbImgsD.find(u=>!usedImgsDerecha.has(u))||pbImgsD[0]||imgSrc;
+          const pbImgsD=await searchPixabay(pbQueryD,6);
+          // Si el primer resultado es igual a otro usado, buscar el siguiente diferente
+          let imgSrcDerecha=pbImgsD.find(u=>!usedImgsDerecha.has(u))||pbImgsD[0]||imgSrc;
+          // Si no encontramos nada útil con la query de IA, intentar con brief directo
+          if((!imgSrcDerecha||imgSrcDerecha===imgSrc)&&aiQuery&&briefKeywords){
+            const pbFallback2=await searchPixabay(briefKeywords+" "+industryKeyword,3);
+            imgSrcDerecha=pbFallback2.find(u=>!usedImgsDerecha.has(u))||imgSrcDerecha;
+          }
 
           const overlayDerecha=cleanOverlay((typeof dd.overlayText==="string")?dd.overlayText:overlayText1);
           const capDerecha=(typeof dd.caption==="string"&&dd.caption.length>5)?dd.caption:cap1;
