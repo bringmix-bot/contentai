@@ -3,7 +3,7 @@
 
 export default function handler(req, res) {
   const APP_ID = "1670117560696079";
-  const REDIRECT_URI = "https://contentai-bk5na9kky-gonzalo-s-projecto-ia.vercel.app/api/auth/instagram/callback";
+  const REDIRECT_URI = "https://contentai-nine.vercel.app/api/auth/instagram/callback";
   
   const scopes = [
     "instagram_basic",
