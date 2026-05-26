@@ -3389,16 +3389,43 @@ function ScheduleScreen({socials,showToast}) {
     setShowModal(true);
   };
 
-  const assignPost=()=>{
+  const assignPost=async()=>{
     saveSchedules({...schedules,[selectedDate.key]:modalData});
-    // Guardar en historial como programado
     const posts2=store.get("posts")||[];
     const postData=posts2.find(p=>p.postIdx===modalData.postNum-1)||{};
     const hist=store.get("postHistory")||[];
-    hist.unshift({id:Date.now(),caption:postData.caption||"",date:selectedDate.key+"T"+modalData.hour+":00",network:modalData.net,format:modalData.format||"post",status:"scheduled",postNum:modalData.postNum});
+    const scheduledAt=selectedDate.key+"T"+modalData.hour+":00:00";
+    hist.unshift({id:Date.now(),caption:postData.caption||"",date:scheduledAt,network:modalData.net,format:modalData.format||"post",status:"scheduled",postNum:modalData.postNum});
     try{store.set("postHistory",hist.slice(0,50).map(p=>{const{imgSrc,slides,...r}=p;return r;}));}catch(e){}
+
+    // Guardar en Supabase para que el cron lo publique automáticamente
+    try{
+      const igAccountId=localStorage.getItem("mcm_ig_account_id")||process?.env?.INSTAGRAM_ACCOUNT_ID||"";
+      const uid=store.uid()||null;
+      // Subir imagen a Cloudinary primero si hay imgSrc
+      let imageUrl=postData.imageUrl||null;
+      if(!imageUrl&&postData.imgSrc){
+        const uploadRes=await fetch("/api/instagram?action=upload",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({imageBase64:postData.imgSrc})});
+        const uploadData=await uploadRes.json();
+        if(uploadData.success) imageUrl=uploadData.url;
+      }
+      await fetch("/api/instagram?action=schedule",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          caption:postData.caption||"",
+          imageUrl,
+          slides:postData.slides||null,
+          format:modalData.format||"post",
+          scheduledAt,
+          igAccountId,
+          userId:uid
+        })
+      });
+      showToast("Post #"+modalData.postNum+" programado para "+selectedDate.label+" a las "+modalData.hour+" ✓","ok");
+    }catch(e){
+      showToast("Post guardado localmente (error Supabase: "+e.message+")","info");
+    }
     setShowModal(false); setDragPost(null);
-    showToast("Post #"+modalData.postNum+" programado para "+selectedDate.label+" "+modalData.hour,"ok");
   };
 
   const removeSchedule=(key,e)=>{ if(e)e.stopPropagation(); const s={...schedules}; delete s[key]; saveSchedules(s); };
