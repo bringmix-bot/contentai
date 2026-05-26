@@ -2381,12 +2381,14 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
         let slideCountCentro=1;
         try {
           // Pedir a la IA que decida formato y overlay para columna centro
-          const centroPrompt=`Sos el mejor publicista de marketing digital de Argentina. Analizá este brief: "${postBrief||PROMPTS[i]}". Marca: ${brand.name}. Rubro: ${brand.industry||""}. Respondé SOLO con JSON: {"formato":"post","overlayText":"3 a 5 palabras impactantes","caption":"caption optimizado para engagement con hashtags","razon":"por qué elegiste este formato"}. Formatos posibles: post, carrusel, historia, reel.`;
+          const centroPrompt=`Sos el mejor publicista de marketing digital de Argentina. Analizá este brief: "${postBrief||PROMPTS[i]}". Marca: ${brand.name}. Rubro: ${brand.industry||""}. Respondé SOLO con JSON: {"formato":"post","overlayText":"MÁXIMO 3 palabras cortas e impactantes para superponer sobre imagen — NUNCA más de 3 palabras, nunca una frase larga","caption":"caption optimizado para engagement con hashtags","razon":"por qué elegiste este formato"}. Formatos posibles: post, carrusel, historia, reel.`;
           const centroResp=await generateText(centroPrompt);
           let centroData={};
           try{ const m=centroResp.match(/\{[\s\S]*\}/); centroData=JSON.parse(m?m[0]:centroResp); }catch{}
           formatoCentro=centroData.formato||"post";
-          const overlayCentro=cleanOverlay(centroData.overlayText||raw1);
+          // Máximo 3 palabras para overlay del centro
+          const rawCentroOverlay=(centroData.overlayText||raw1||"").replace(/[*_#.,!?]/g,"").trim();
+          const overlayCentro=rawCentroOverlay.split(" ").slice(0,3).join(" ").toUpperCase();
           const capCentro=centroData.caption||cap1;
 
           // Si no hay imagen del cliente relevante → Pixabay
@@ -2448,8 +2450,37 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
         let personalizedHtml=tmplForPost?.html||"";
         let personalizedBg=tmplForPost?.bg||"#1a1a2e";
 
-        // ── COLUMNA IZQUIERDA: foto cliente + style:1 (Revista) — sin cambios ──
-        const izqOption={id:0,style:1,styleName:"Revista",caption:cap1,overlayText:overlayText1,imgSrc,...baseOpt,imgMatchWarning,slideCount,slides:slideCount>1?makeCarouselSlides(slideCount,imgSrc):null};
+        // ── COLUMNA IZQUIERDA: foto cliente + style:1 (Revista) — carrusel con imágenes relevantes al brief ──
+        let slidesIzq=null;
+        if(slideCount>1){
+          // Para carrusel, usar Vision AI para elegir las mejores imágenes del cliente relacionadas al brief
+          try{
+            const validAll=imgs.map((img,idx)=>({idx,url:img.preview||img.url||""})).filter(d=>d.url.length>10);
+            if(validAll.length>=slideCount){
+              const visionCarouselResp=await fetch("/api/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+                prompt:`Tenés ${validAll.length} imágenes del cliente. El brief del post es: "${postBrief||PROMPTS[i]}". Elegí las ${slideCount} imágenes más relevantes para ese brief, en orden de relevancia. Respondé SOLO con los números separados por comas (ej: 3,7,1). Si hay imágenes que no tienen nada que ver con el brief, no las incluyas.`,
+                visionImages:validAll.map(d=>({url:d.url}))
+              })});
+              const vcd=await visionCarouselResp.json();
+              const chosenIdxs=(vcd.text||"").split(",").map(n=>parseInt(n.trim(),10)).filter(n=>!isNaN(n)&&n>=0&&n<validAll.length);
+              if(chosenIdxs.length>0){
+                const usedIzq=new Set();
+                slidesIzq=[];
+                for(const ci of chosenIdxs.slice(0,slideCount)){
+                  const origIdx=validAll[ci].idx;
+                  if(!usedIzq.has(origIdx)){usedIzq.add(origIdx);slidesIzq.push(imgs[origIdx].preview||imgs[origIdx].url);}
+                }
+                // Si no alcanzaron, completar con Pixabay del mismo rubro
+                if(slidesIzq.length<slideCount){
+                  const pbIzq=await searchPixabay((postBrief||brand.industry||"farm").split(" ").slice(0,3).join(" "),slideCount);
+                  for(const u of pbIzq){if(slidesIzq.length<slideCount&&!slidesIzq.includes(u))slidesIzq.push(u);}
+                }
+              }
+            }
+          }catch(e){}
+          if(!slidesIzq||slidesIzq.length===0) slidesIzq=makeCarouselSlides(slideCount,imgSrc);
+        }
+        const izqOption={id:0,style:1,styleName:"Revista",caption:cap1,overlayText:overlayText1,imgSrc,...baseOpt,imgMatchWarning,slideCount,slides:slidesIzq};
 
         // ── COLUMNA DERECHA: Diseño IA — sigue el brief, carrusel si corresponde, Pixabay único ──
         setProgressMsg(`Post ${i+1}: diseñando columna derecha con IA...`);
@@ -2459,15 +2490,16 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
           const briefForQuery=postBrief||PROMPTS[i]||"";
 
           // IA genera diseño siguiendo el mismo brief que las otras columnas
-          const derechaPrompt=`Sos el mejor publicista de marketing. Marca: ${brand.name}. Rubro: ${industryForQuery}. Brief EXACTO del post: "${briefForQuery}". Diseñá la columna derecha siguiendo ese brief. Respondé SOLO con JSON puro sin backticks: {"overlayText":"máximo 4 palabras en mayúsculas relacionadas al brief","caption":"caption diferente al resto, con emojis y hashtags, sobre el brief","pixabayQuery":"2 a 3 palabras en INGLÉS para Pixabay, foto limpia SIN texto ni logos, muy específica del brief Y rubro. Ej huerta+meriendas sanas: 'organic snack healthy food'. Ej huerta+temporada: 'seasonal vegetables harvest'. Ej gastronomía+pizza: 'homemade pizza ingredients'. Siempre relacionada al brief real.","style":1,"fontColor":"#ffffff","fontSize":58,"textY":0.75}. REGLAS CRÍTICAS: style solo 1 o 3. NO incluyas stickers. La imagen y el texto DEBEN hablar del brief.`;
+          const derechaPrompt=`Sos el mejor publicista de marketing. Marca: ${brand.name}. Rubro: ${industryForQuery}. Brief EXACTO del post: "${briefForQuery}". Diseñá la columna derecha. Respondé SOLO con JSON puro sin backticks: {"overlayText":"MÁXIMO 3 palabras cortas en mayúsculas directamente relacionadas al brief","caption":"caption diferente al resto con emojis y hashtags","pixabayQuery":"2 a 3 palabras en INGLÉS para Pixabay MUY específicas del brief. EJEMPLOS: si el brief habla de gallinas felices → 'happy chickens farm'. Si habla de huevos → 'fresh eggs farm'. Si habla de verduras orgánicas → 'organic vegetables harvest'. Si habla de meriendas → 'healthy snack kids'. SIEMPRE relacionado al brief exacto, NUNCA genérico.","style":1,"fontColor":"#ffffff","fontSize":58,"textY":0.75}. REGLAS: style solo 1 o 3. Sin stickers. Imagen Y texto DEBEN hablar del brief exacto.`;
           const derechaResp=await generateText(derechaPrompt);
           let dd={};
           try{ const m=derechaResp.match(/\{[\s\S]*\}/); dd=JSON.parse(m?m[0]:derechaResp); }catch{}
 
           // Query específica al brief+rubro
-          const pbQueryD=(typeof dd.pixabayQuery==="string"&&dd.pixabayQuery.trim().length>3)
-            ? dd.pixabayQuery.trim()
-            : (briefForQuery.split(" ").slice(0,2).join(" ")+" "+industryForQuery.split(" ")[0]).toLowerCase();
+          // Query Pixabay: usar la de la IA, o construir desde el brief directamente
+          const aiQuery=(typeof dd.pixabayQuery==="string"&&dd.pixabayQuery.trim().length>3)?dd.pixabayQuery.trim():"";
+          const briefWords=briefForQuery.toLowerCase().split(" ").filter(w=>w.length>3).slice(0,3).join(" ");
+          const pbQueryD=aiQuery||(briefWords+" "+(industryForQuery.split(" ")[0]||"")).trim();
 
           // Buscar imágenes DIFERENTES a las usadas en las otras columnas
           const usedImgsDerecha=new Set([imgSrc,imgSrcCentro||""].filter(Boolean));
