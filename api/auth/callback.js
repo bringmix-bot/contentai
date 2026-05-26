@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const APP_ID = "1670117560696079";
 const APP_SECRET = "98ed03a1d79ed2fc6b2601f41aa41e1b";
-const REDIRECT_URI = "https://contentai-bk5na9kky-gonzalo-s-projecto-ia.vercel.app/api/auth/instagram/callback";
+const REDIRECT_URI = "https://contentai-nine.vercel.app/api/auth/instagram/callback";
 const SUPABASE_URL = "https://ffbmazlunqbtyzrajqnk.supabase.co";
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
