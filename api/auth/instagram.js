@@ -8,7 +8,6 @@ export default function handler(req, res) {
   const scopes = [
     "instagram_basic",
     "instagram_content_publish",
-    "instagram_manage_insights",
     "pages_read_engagement",
     "pages_show_list"
   ].join(",");
