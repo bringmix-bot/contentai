@@ -2497,26 +2497,51 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
 
           // Query específica al brief+rubro
           // Query Pixabay: usar la de la IA, o construir desde el brief directamente
-          // Construir query desde el brief directamente (más confiable que dejar a la IA)
-          const briefKeywords=briefForQuery.toLowerCase()
-            .replace(/[^\w\s]/g,"").split(" ")
-            .filter(w=>w.length>3&&!["para","como","que","con","una","los","las","del","este","esta","sus","más","por","son","hay","cuando","cada"].includes(w))
-            .slice(0,3).join(" ");
-          const industryKeyword=industryForQuery.split(" ")[0]?.toLowerCase()||"";
-          // Usar query de IA si es específica, sino construir desde brief
+          // ── Traducción directa brief → query Pixabay en inglés ──
+          // Diccionario español → inglés para rubros comunes
+          const TRANSLATE={
+            "huevo":"eggs","huevos":"eggs","gallina":"chicken","gallinas":"chickens",
+            "pollo":"chicken","verdura":"vegetables","verduras":"vegetables",
+            "orgánico":"organic","organico":"organic","orgánica":"organic","organica":"organic",
+            "campo":"farm","granja":"farm","huerta":"garden","cosecha":"harvest",
+            "tomate":"tomato","zanahoria":"carrot","lechuga":"lettuce","espinaca":"spinach",
+            "zapallo":"pumpkin","acelga":"chard","brócoli":"broccoli","brocoli":"broccoli",
+            "merienda":"snack","alimento":"food","comida":"food","natural":"natural",
+            "libre":"free range","pastoreo":"pasture","campo":"farm","agroecología":"agroecology",
+            "fresco":"fresh","sano":"healthy","sana":"healthy","nutritivo":"nutritious",
+            "temporada":"seasonal","estación":"seasonal","primavera":"spring","otoño":"autumn",
+            "invierno":"winter","verano":"summer","semilla":"seed","semillas":"seeds",
+            "gastronomía":"gastronomy","restaurante":"restaurant","cocina":"kitchen","chef":"chef",
+            "pizza":"pizza","pasta":"pasta","carne":"meat","pescado":"fish",
+            "fitness":"fitness","ejercicio":"exercise","gimnasio":"gym","entrenamiento":"workout",
+            "moda":"fashion","ropa":"clothing","estilo":"style","diseño":"design",
+            "tecnología":"technology","software":"software","digital":"digital",
+            "inmobiliaria":"real estate","casa":"house","departamento":"apartment",
+            "educación":"education","aprendizaje":"learning","curso":"course",
+          };
+          // Extraer palabras clave del brief y traducirlas
+          const briefLower=(briefForQuery+" "+industryForQuery).toLowerCase()
+            .normalize("NFD").replace(/[̀-ͯ]/g,"");
+          const stopWords=new Set(["para","como","que","con","una","uno","los","las","del","este","esta","sus","mas","por","son","hay","cuando","cada","entre","sobre","desde","hasta","muy","bien","todo","todos"]);
+          const translated=briefLower.split(/\s+/)
+            .filter(w=>w.length>3&&!stopWords.has(w))
+            .map(w=>TRANSLATE[w]||null)
+            .filter(Boolean);
+          // Si no hay traducción directa, usar las palabras más largas del brief en inglés via IA
           const aiQuery=(typeof dd.pixabayQuery==="string"&&dd.pixabayQuery.trim().length>3)?dd.pixabayQuery.trim():"";
-          const pbQueryD=aiQuery||(briefKeywords+" "+industryKeyword).trim()||"farm organic";
+          // Prioridad: 1) palabras traducidas del brief, 2) query de IA, 3) industria en inglés
+          const pbQueryD= translated.slice(0,3).join(" ") || aiQuery || (industryForQuery.split(" ")[0]+" farm").toLowerCase();
 
           // Buscar imágenes DIFERENTES a las usadas en las otras columnas
           const usedImgsDerecha=new Set([imgSrc,imgSrcCentro||""].filter(Boolean));
           const pbImgsD=await searchPixabay(pbQueryD,6);
-          // Si el primer resultado es igual a otro usado, buscar el siguiente diferente
-          let imgSrcDerecha=pbImgsD.find(u=>!usedImgsDerecha.has(u))||pbImgsD[0]||imgSrc;
-          // Si no encontramos nada útil con la query de IA, intentar con brief directo
-          if((!imgSrcDerecha||imgSrcDerecha===imgSrc)&&aiQuery&&briefKeywords){
-            const pbFallback2=await searchPixabay(briefKeywords+" "+industryKeyword,3);
-            imgSrcDerecha=pbFallback2.find(u=>!usedImgsDerecha.has(u))||imgSrcDerecha;
+          let imgSrcDerecha=pbImgsD.find(u=>!usedImgsDerecha.has(u))||pbImgsD[0]||null;
+          // Fallback: si no encontró nada, usar query de IA
+          if(!imgSrcDerecha&&aiQuery){
+            const pbFallback2=await searchPixabay(aiQuery,3);
+            imgSrcDerecha=pbFallback2.find(u=>!usedImgsDerecha.has(u))||pbFallback2[0]||imgSrc;
           }
+          imgSrcDerecha=imgSrcDerecha||imgSrc;
 
           const overlayDerecha=cleanOverlay((typeof dd.overlayText==="string")?dd.overlayText:overlayText1);
           const capDerecha=(typeof dd.caption==="string"&&dd.caption.length>5)?dd.caption:cap1;
