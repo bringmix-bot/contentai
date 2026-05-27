@@ -2489,7 +2489,7 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
             const validAll=imgs.map((img,idx)=>({idx,url:img.preview||img.url||""})).filter(d=>d.url.length>10);
             if(validAll.length>=slideCount){
               const visionCarouselResp=await fetch("/api/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-                prompt:`Tenés ${validAll.length} imágenes del cliente. El brief del post es: "${postBrief||PROMPTS[i]}". Elegí las ${slideCount} imágenes más relevantes para ese brief, en orden de relevancia. Respondé SOLO con los números separados por comas (ej: 3,7,1). Si hay imágenes que no tienen nada que ver con el brief, no las incluyas.`,
+                prompt:`Tenés ${validAll.length} imágenes numeradas del 0 al ${validAll.length-1}. El brief EXACTO es: "${postBrief||PROMPTS[i]}". TAREA ESTRICTA: revisá cada imagen y elegí SOLO las que muestran visualmente lo que dice el brief. Ejemplos: si dice "huevos" → solo fotos con huevos. "gallinas" → solo gallinas. "tortilla" → tortilla o huevos. "agroecología" → campo o verduras. RECHAZÁ imágenes de otros temas aunque sean bonitas. Elegí máximo ${slideCount}. Respondé SOLO con números separados por comas. Si ninguna aplica, respondé "0".`,
                 visionImages:validAll.map(d=>toVisionImg(d.url)).filter(Boolean)
               })});
               const vcd=await visionCarouselResp.json();
@@ -2693,7 +2693,7 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
       <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:14,padding:"16px",marginBottom:24}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
           <div style={{fontWeight:700,fontSize:14}}>Brief por publicación</div>
-          <button className="btn btn-ghost" style={{fontSize:11,padding:"5px 12px",color:"var(--muted)"}}
+          <button className="btn btn-ghost" style={{fontSize:12,padding:"6px 14px",color:"var(--error)",borderColor:"rgba(244,63,94,.4)",background:"rgba(244,63,94,.08)"}}
             onClick={()=>{const empty=Array(7).fill("");setBriefs(empty);store.set("weekBriefs",empty);const sc=Array(7).fill(1);setSlideCounts(sc);store.set("slideCounts",sc);showToast("Briefs limpiados ✓","ok");}}>
             🗑 Limpiar todo
           </button>
