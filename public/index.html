@@ -421,7 +421,15 @@ const SOCIALS_DEFAULT = [
   {id:"tiktok",name:"TikTok",icon:"🎵",color:"#69C9D0",connected:false,user:""},
 ];
 
-const INDUSTRIES = ["Gastronomía","Moda","Salud","Tecnología","Inmobiliaria","Educación","Turismo","Retail","Servicios","Construcción","Paisajismo","Fitness","Belleza","Fotografía","Otro"];
+const INDUSTRIES_BASE = ["Gastronomía","Moda","Salud","Tecnología","Inmobiliaria","Educación","Turismo","Retail","Servicios","Construcción","Paisajismo","Fitness","Belleza","Fotografía","Otro"];
+// INDUSTRIES es dinámico — incluye rubros personalizados guardados
+const getIndustries = () => {
+  try {
+    const custom = JSON.parse(localStorage.getItem("mcm_custom_industries")||"[]");
+    return [...INDUSTRIES_BASE, ...custom.filter(c=>!INDUSTRIES_BASE.includes(c))];
+  } catch { return INDUSTRIES_BASE; }
+};
+const INDUSTRIES = getIndustries();
 const TONES = ["Profesional","Cercano","Divertido","Inspirador","Urgente","Educativo"];
 
 // Instrucciones de tono detalladas para los prompts
@@ -1900,15 +1908,23 @@ function BrandScreen({brand,saveBrand,showToast,onNext}) {
                   <button className="btn btn-primary" style={{marginTop:10,fontSize:11,padding:"5px 14px"}} onClick={()=>{
                     const nombre=form.customIndustry.trim();
                     if(!nombre) return;
+                    // Guardar en localStorage para que aparezca siempre en el listado
+                    try{
+                      const customs=JSON.parse(localStorage.getItem("mcm_custom_industries")||"[]");
+                      if(!customs.includes(nombre)){
+                        customs.push(nombre);
+                        localStorage.setItem("mcm_custom_industries",JSON.stringify(customs));
+                      }
+                    }catch{}
                     // Agregar al array de rubros secundarios si no está ya
                     const subs=form.subIndustries||[];
                     if(!subs.includes(nombre)&&form.industry!==nombre){
                       upd("subIndustries",[...subs,nombre]);
-                      upd("industry",form.industry||nombre);
+                      if(!form.industry) upd("industry",nombre);
                     }
                     upd("customIndustry","");
                     upd("customIndustryDesc","");
-                    showToast("Rubro '"+nombre+"' agregado ✓","ok");
+                    showToast("Rubro '"+nombre+"' agregado al listado ✓","ok");
                   }}>+ Agregar a mis rubros</button>
                 </div>
               )}
@@ -2653,7 +2669,13 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
       )}
 
       <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:14,padding:"16px",marginBottom:24}}>
-        <div style={{fontWeight:700,fontSize:14,marginBottom:4}}>Brief por publicación</div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+          <div style={{fontWeight:700,fontSize:14}}>Brief por publicación</div>
+          <button className="btn btn-ghost" style={{fontSize:11,padding:"5px 12px",color:"var(--muted)"}}
+            onClick={()=>{const empty=Array(7).fill("");setBriefs(empty);store.set("weekBriefs",empty);const sc=Array(7).fill(1);setSlideCounts(sc);store.set("slideCounts",sc);showToast("Briefs limpiados ✓","ok");}}>
+            🗑 Limpiar todo
+          </button>
+        </div>
         <div style={{fontSize:12,color:"var(--muted)",marginBottom:14}}>Opcional — si querés guiar la IA en algún post específico</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12}}>
           {Array(7).fill(0).map((_,i)=>(
@@ -2886,6 +2908,7 @@ function EditorModal({opt,brand,onClose,onSave,showToast}) {
 
   const [texts,setTexts]=useState([makeText(opt,0),makeText(opt,1)]);
   const [activeText,setActiveText]=useState(0);
+  const [currentSlideEdit,setCurrentSlideEdit]=useState(0);
   const [form,setForm]=useState({
     ...opt,
     showLogo: opt.showLogo!==undefined?opt.showLogo:true,
@@ -2894,7 +2917,9 @@ function EditorModal({opt,brand,onClose,onSave,showToast}) {
     logoY: opt.logoY!==undefined?opt.logoY:undefined,
     logoSize: opt.logoSize!==undefined?opt.logoSize:0.15,
     stickers: opt.stickers||[],
+    slides: opt.slides||null,
   });
+  const hasSlides = form.slides && form.slides.length > 1;
 
   const [publishing,setPublishing]=useState(false);
   const [pubMsg,setPubMsg]=useState(null);
@@ -2915,26 +2940,37 @@ function EditorModal({opt,brand,onClose,onSave,showToast}) {
 
   useEffect(()=>{
     if(!canvasRef.current) return;
+    // Para carrusel, mostrar el slide activo
+    const activeImgSrc=hasSlides?form.slides[currentSlideEdit]:form.imgSrc;
     drawPost(canvasRef.current,{
       ...form,
+      imgSrc:activeImgSrc,
       overlayText:texts[0].text, textX:texts[0].x, textY:texts[0].y,
       fontFamily:texts[0].fontFamily, fontWeight:texts[0].fontWeight, fontSize:texts[0].fontSize, fontColor:texts[0].fontColor, textBg:texts[0].textBg,
       overlayText2:texts[1].visible?texts[1].text:"",
       text2X:texts[1].x, text2Y:texts[1].y,
       fontFamily2:texts[1].fontFamily, fontWeight2:texts[1].fontWeight, fontSize2:texts[1].fontSize, fontColor2:texts[1].fontColor, textBg2:texts[1].textBg,
     });
-  },[form,texts]);
+  },[form,texts,currentSlideEdit]);
 
   // Cambio de imagen de fondo
   const handleBgChange=(e)=>{
     const file=e.target.files[0]; if(!file) return;
     const reader=new FileReader();
     reader.onload=ev=>{
-      updForm("imgSrc",ev.target.result);
-      // Aprender que el cliente prefiere cambiar imágenes
+      const newSrc=ev.target.result;
+      if(hasSlides){
+        // Actualizar solo el slide activo
+        const newSlides=[...form.slides];
+        newSlides[currentSlideEdit]=newSrc;
+        updForm("slides",newSlides);
+        if(currentSlideEdit===0) updForm("imgSrc",newSrc);
+      } else {
+        updForm("imgSrc",newSrc);
+      }
       const prefs=store.get("stylePrefs")||{};
       store.set("stylePrefs",{...prefs,preferCustomBg:true,lastBgChange:Date.now()});
-      showToast("Imagen de fondo cambiada ✓","ok");
+      showToast("Imagen "+(hasSlides?`del slide ${currentSlideEdit+1}`:"de fondo")+" cambiada ✓","ok");
     };
     reader.readAsDataURL(file);
   };
@@ -2964,11 +3000,20 @@ function EditorModal({opt,brand,onClose,onSave,showToast}) {
     }
   };
 
-  const handleMouseDown=(e)=>{ e.preventDefault(); const tgt=getClickTarget(e.clientX,e.clientY); setDragMode(tgt); if(tgt.startsWith("sticker:"))setActiveSticker(+tgt.split(":")[1]); };
-  const handleMouseMove=(e)=>{ if(!dragMode) return; const rect=previewRef.current.getBoundingClientRect(); applyDrag(Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width)),Math.max(0,Math.min(1,(e.clientY-rect.top)/rect.height))); };
-  const handleMouseUp=()=>setDragMode(null);
-  const handleTouchStart=(e)=>{ e.preventDefault(); const t2=e.touches[0]; const tgt=getClickTarget(t2.clientX,t2.clientY); setDragMode(tgt); if(tgt.startsWith("sticker:"))setActiveSticker(+tgt.split(":")[1]); };
-  const handleTouchMove=(e)=>{ if(!dragMode) return; const rect=previewRef.current.getBoundingClientRect(); const t2=e.touches[0]; applyDrag(Math.max(0,Math.min(1,(t2.clientX-rect.left)/rect.width)),Math.max(0,Math.min(1,(t2.clientY-rect.top)/rect.height))); };
+  const dragModeRef=useRef(null);
+  const handleMouseDown=(e)=>{ e.preventDefault(); e.stopPropagation(); const tgt=getClickTarget(e.clientX,e.clientY); setDragMode(tgt); dragModeRef.current=tgt; if(tgt.startsWith("sticker:"))setActiveSticker(+tgt.split(":")[1]); };
+  const handleMouseMove=(e)=>{ if(!dragModeRef.current) return; e.preventDefault(); const rect=previewRef.current.getBoundingClientRect(); applyDrag(Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width)),Math.max(0,Math.min(1,(e.clientY-rect.top)/rect.height))); };
+  const handleMouseUp=(e)=>{ dragModeRef.current=null; setDragMode(null); };
+  const handleTouchStart=(e)=>{ e.preventDefault(); const t2=e.touches[0]; const tgt=getClickTarget(t2.clientX,t2.clientY); setDragMode(tgt); dragModeRef.current=tgt; if(tgt.startsWith("sticker:"))setActiveSticker(+tgt.split(":")[1]); };
+  const handleTouchMove=(e)=>{ if(!dragModeRef.current) return; const rect=previewRef.current.getBoundingClientRect(); const t2=e.touches[0]; applyDrag(Math.max(0,Math.min(1,(t2.clientX-rect.left)/rect.width)),Math.max(0,Math.min(1,(t2.clientY-rect.top)/rect.height))); };
+
+  // Soltar el drag cuando el mouse sale de la ventana o suelta en cualquier lado
+  useEffect(()=>{
+    const up=()=>{ dragModeRef.current=null; setDragMode(null); };
+    document.addEventListener("mouseup",up);
+    document.addEventListener("touchend",up);
+    return ()=>{ document.removeEventListener("mouseup",up); document.removeEventListener("touchend",up); };
+  },[]);
 
   const addSticker=(emoji)=>{ setForm(p=>({...p,stickers:[...p.stickers,{emoji,x:0.5,y:0.5,size:0.1}]})); setActiveSticker(form.stickers.length); setShowStickerPanel(false); };
   const removeSticker=(idx)=>{ setForm(p=>({...p,stickers:p.stickers.filter((_,i)=>i!==idx)})); setActiveSticker(null); };
@@ -3034,10 +3079,23 @@ function EditorModal({opt,brand,onClose,onSave,showToast}) {
           </div>
           <div style={{fontSize:10,color:"var(--muted)",textAlign:"center"}}>1080×1080px</div>
 
-          {/* Cambiar imagen de fondo */}
+          {/* Navegación de slides para carrusel */}
+          {hasSlides&&(
+            <div style={{display:"flex",alignItems:"center",gap:6,justifyContent:"center",flexWrap:"wrap"}}>
+              {form.slides.map((slideUrl,si)=>(
+                <div key={si} onClick={()=>setCurrentSlideEdit(si)}
+                  style={{width:42,height:42,borderRadius:8,overflow:"hidden",cursor:"pointer",border:`2px solid ${currentSlideEdit===si?"var(--accent2)":"var(--border)"}`,flexShrink:0,position:"relative"}}>
+                  <img src={slideUrl} style={{width:"100%",height:"100%",objectFit:"cover"}} />
+                  <div style={{position:"absolute",bottom:0,left:0,right:0,background:"rgba(0,0,0,.6)",fontSize:9,color:"#fff",textAlign:"center"}}>{si+1}</div>
+                </div>
+              ))}
+              <div style={{fontSize:10,color:"var(--muted)",width:"100%",textAlign:"center"}}>Click en slide para editar</div>
+            </div>
+          )}
+          {/* Cambiar imagen de fondo del slide activo */}
           <input ref={bgInputRef} type="file" accept="image/*" style={{display:"none"}} onChange={handleBgChange} />
           <button className="btn btn-ghost" style={{fontSize:12,padding:"8px"}} onClick={()=>bgInputRef.current.click()}>
-            🖼 Cambiar imagen de fondo
+            🖼 {hasSlides?`Cambiar imagen slide ${currentSlideEdit+1}`:"Cambiar imagen de fondo"}
           </button>
         </div>
 
