@@ -2337,16 +2337,23 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
   };
 
 
-  // Helper para preparar imágenes para Vision AI (base64 o URL pública)
+  // Helper para preparar imágenes para Vision AI
+  // Usa URL pública si existe (Supabase), si no usa base64 reducida
   const toVisionImg = (url) => {
     if(!url) return null;
+    // URL pública (Supabase, http/https) - ideal para Vision AI
+    if(url.startsWith("http")) return {url};
+    // Base64 - extraer datos
     if(url.startsWith("data:")) {
       const mtype = url.split(";")[0].replace("data:","") || "image/jpeg";
       const b64 = url.split(",")[1] || "";
       return b64 ? {b64, mtype} : null;
     }
-    return {url};
+    return null;
   };
+  
+  // Helper para obtener URL pública preferida de una imagen del cliente
+  const getImgUrl = (img) => img?.url || img?.preview || "";
 
   const generate=async()=>{
     if(!brand.name){showToast("Primero completá el perfil de tu marca","err");return;}
@@ -2373,7 +2380,14 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
               const slideCount=slideCounts[i]||1;
               const visionResp=await fetch("/api/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
                 prompt:`Tenés ${validImgs.length} imágenes numeradas del 0 al ${validImgs.length-1}. El brief EXACTO es: "${postBrief}". Mirá cada imagen y elegí SOLO las que muestran exactamente lo que dice el brief. Si dice "huevos" → solo fotos con huevos. Si dice "gallinas" → solo gallinas. Si dice "tortilla" → tortilla o huevos. EXCLUÍ imágenes de otros temas. Respondé SOLO con números separados por comas. Si ninguna aplica, respondé "0".`,
-                visionImages:validImgs.map(d=>toVisionImg(d.url)).filter(Boolean)
+                visionImages:validImgs.map(d=>{
+                  const img=imgs[d.idx];
+                  const pub=(img?.url||"").startsWith("http")?img.url:"";
+                  const prev=(img?.preview||"").startsWith("http")?img.preview:"";
+                  const best=pub||prev;
+                  if(best) return {url:best};
+                  return toVisionImg(d.url);
+                }).filter(Boolean)
               })});
               const visionData=await visionResp.json();
               const raw=(visionData.text||"").trim();
@@ -2490,7 +2504,14 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
             if(validAll.length>=slideCount){
               const visionCarouselResp=await fetch("/api/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
                 prompt:`Tenés ${validAll.length} imágenes numeradas del 0 al ${validAll.length-1}. El brief EXACTO es: "${postBrief||PROMPTS[i]}". TAREA ESTRICTA: revisá cada imagen y elegí SOLO las que muestran visualmente lo que dice el brief. Ejemplos: si dice "huevos" → solo fotos con huevos. "gallinas" → solo gallinas. "tortilla" → tortilla o huevos. "agroecología" → campo o verduras. RECHAZÁ imágenes de otros temas aunque sean bonitas. Elegí máximo ${slideCount}. Respondé SOLO con números separados por comas. Si ninguna aplica, respondé "0".`,
-                visionImages:validAll.map(d=>toVisionImg(d.url)).filter(Boolean)
+                visionImages:validAll.map(d=>{
+                  const img=imgs[d.idx];
+                  const pub=img?.url||"";
+                  const prev=img?.preview||"";
+                  const best=pub.startsWith("http")?pub:prev.startsWith("http")?prev:"";
+                  if(best) return {url:best};
+                  return toVisionImg(d.url);
+                }).filter(Boolean)
               })});
               const vcd=await visionCarouselResp.json();
               const chosenIdxs=(vcd.text||"").split(",").map(n=>parseInt(n.trim(),10)).filter(n=>!isNaN(n)&&n>=0&&n<validAll.length);
@@ -2520,8 +2541,29 @@ function GenerateScreen({brand,files,posts,savePosts,showToast,onNext}) {
           const industryForQuery=[brand.industry||"",...(brand.subIndustries||[]),brand.customIndustry||""].filter(Boolean).join(" ");
           const briefForQuery=postBrief||PROMPTS[i]||"";
 
-          // IA genera diseño siguiendo el mismo brief que las otras columnas
-          const derechaPrompt=`Sos el mejor publicista de marketing. Marca: ${brand.name}. Rubro: ${industryForQuery}. Brief EXACTO del post: "${briefForQuery}". Diseñá la columna derecha. Respondé SOLO con JSON puro sin backticks: {"overlayText":"MÁXIMO 3 palabras cortas en mayúsculas directamente relacionadas al brief","caption":"caption diferente al resto con emojis y hashtags","pixabayQuery":"2 a 3 palabras en INGLÉS para Pixabay MUY específicas del brief. EJEMPLOS: si el brief habla de gallinas felices → 'happy chickens farm'. Si habla de huevos → 'fresh eggs farm'. Si habla de verduras orgánicas → 'organic vegetables harvest'. Si habla de meriendas → 'healthy snack kids'. SIEMPRE relacionado al brief exacto, NUNCA genérico.","style":1,"fontColor":"#ffffff","fontSize":58,"textY":0.75}. REGLAS: style solo 1 o 3. Sin stickers. Imagen Y texto DEBEN hablar del brief exacto.`;
+          // IA analiza contexto completo antes de buscar imagen
+          const intelligence=store.get("brandIntelligence")||{};
+          const trendsContext=intelligence.trends?.slice(0,2).map(t=>t.topic).join(", ")||"";
+          const weekIdeas=intelligence.content_ideas?.slice(0,3).map(i=>i.title).join(", ")||"";
+          const derechaPrompt=`Sos un director creativo experto en redes sociales. Analizá este contexto completo:
+MARCA: ${brand.name}
+RUBRO: ${industryForQuery}  
+DESCRIPCIÓN: ${brand.description||""}
+BRIEF DEL POST: "${briefForQuery}"
+TENDENCIAS ACTUALES DEL RUBRO: ${trendsContext||"no disponibles"}
+IDEAS DE CONTENIDO ESTA SEMANA: ${weekIdeas||"no disponibles"}
+
+Tu tarea: diseñar la columna derecha con una imagen de Pixabay que sea 100% coherente con el brief y el rubro.
+Respondé SOLO con JSON puro sin backticks ni markdown:
+{
+  "overlayText": "MÁXIMO 3 palabras en MAYÚSCULAS relacionadas al brief",
+  "caption": "caption diferente con emojis y hashtags del rubro",
+  "pixabayQuery": "2-3 palabras EN INGLÉS muy específicas. Reglas: si el brief habla de huevos → 'farm fresh eggs'. Si de gallinas → 'free range hens'. Si de verduras → 'organic vegetables garden'. Si de agroecología → 'organic farm sustainable'. SIEMPRE derivá las palabras del BRIEF EXACTO, nunca genérico.",
+  "style": 1,
+  "fontColor": "#ffffff",
+  "fontSize": 58,
+  "textY": 0.75
+}`;
           const derechaResp=await generateText(derechaPrompt);
           let dd={};
           try{ const m=derechaResp.match(/\{[\s\S]*\}/); dd=JSON.parse(m?m[0]:derechaResp); }catch{}
@@ -3687,6 +3729,9 @@ function ReelModal({video, brand, onClose, showToast, pixabayKey}) {
   const [overlayText, setOverlayText] = useState("");
   const [music, setMusic] = useState([]);
   const [selectedMusic, setSelectedMusic] = useState(null);
+  const [loadingMusic, setLoadingMusic] = useState(false);
+  const [audioMode, setAudioMode] = useState("original"); // "original" | "music" | "none"
+  const audioRef = React.useRef(null);
   const [textX, setTextX] = useState(0.1);
   const [textY, setTextY] = useState(0.8);
   const [fontSize, setFontSize] = useState(40);
@@ -3781,55 +3826,79 @@ const jsonStr = jsonMatch ? jsonMatch[0] : d.text; result = JSON.parse(jsonStr);
         {/* LEFT: Video preview */}
         <div style={{flex:"0 0 280px",display:"flex",flexDirection:"column",gap:10}}>
           <div className="lbl">Preview del Reel</div>
-         <div style={{position:"relative",borderRadius:14,overflow:"hidden",aspectRatio:"9/16",background:"#000"}}>
+         <div data-reel-container style={{position:"relative",borderRadius:14,overflow:"hidden",aspectRatio:"9/16",background:"#000"}}>
   {/* Video con controles normales */}
   <video ref={videoRef} src={video.url||video.preview} crossOrigin="anonymous"
     style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}} controls />
-  {/* Texto overlay - solo aparece cuando hay texto, arrastrable sin tapar controles */}
+  {/* Texto overlay con handles en esquinas para mover */}
   {overlayText&&(
-    <div
-      style={{
-        position:"absolute",
-        left:`${textX*100}%`,
-        top:`${Math.min(textY,0.70)*100}%`,
-        transform:"translate(-50%,-50%)",
-        color:fontColor,
-        fontSize:fontSize,
-        fontWeight:900,
-        fontFamily:fontFamily||"Impact",
-        textShadow:"2px 2px 8px rgba(0,0,0,.9)",
-        textAlign:"center",
-        maxWidth:"85%",
-        wordBreak:"break-word",
-        cursor:"move",
-        userSelect:"none",
-        border:"2px dashed rgba(255,255,255,.7)",
-        borderRadius:6,
-        padding:"6px 12px",
-        background:"rgba(0,0,0,.25)",
-        zIndex:10,
-        lineHeight:1.2
-      }}
-      onMouseDown={e=>{
-        e.preventDefault();
-        e.stopPropagation();
-        const rect=e.currentTarget.parentElement.getBoundingClientRect();
-        const startX=e.clientX, startY=e.clientY;
-        const startTX=textX, startTY=textY;
-        const onMove=ev=>{
-          const dx=(ev.clientX-startX)/rect.width;
-          const dy=(ev.clientY-startY)/rect.height;
-          setTextX(Math.max(0.05,Math.min(0.95,startTX+dx)));
-          setTextY(Math.max(0.05,Math.min(0.70,startTY+dy)));
-        };
-        const onUp=()=>{document.removeEventListener("mousemove",onMove);document.removeEventListener("mouseup",onUp);};
-        document.addEventListener("mousemove",onMove);
-        document.addEventListener("mouseup",onUp);
-      }}>
-      {overlayText.toUpperCase()}
+    <div style={{
+      position:"absolute",
+      left:`${textX*100}%`,
+      top:`${Math.min(textY,0.68)*100}%`,
+      transform:"translate(-50%,-50%)",
+      zIndex:10,
+      userSelect:"none",
+    }}>
+      {/* Texto principal */}
+      <div
+        style={{
+          color:fontColor,
+          fontSize:fontSize,
+          fontWeight:900,
+          fontFamily:fontFamily||"Impact",
+          textShadow:"2px 2px 8px rgba(0,0,0,.9)",
+          textAlign:"center",
+          wordBreak:"break-word",
+          cursor:"move",
+          border:"2px dashed rgba(255,255,255,.8)",
+          borderRadius:6,
+          padding:"6px 14px",
+          background:"rgba(0,0,0,.3)",
+          lineHeight:1.2,
+          minWidth:80,
+          position:"relative",
+        }}
+        onMouseDown={e=>{
+          e.preventDefault(); e.stopPropagation();
+          const rect=e.currentTarget.closest('[data-reel-container]').getBoundingClientRect();
+          const startX=e.clientX, startY=e.clientY, startTX=textX, startTY=textY;
+          const onMove=ev=>{
+            setTextX(Math.max(0.05,Math.min(0.95,startTX+(ev.clientX-startX)/rect.width)));
+            setTextY(Math.max(0.05,Math.min(0.68,startTY+(ev.clientY-startY)/rect.height)));
+          };
+          const onUp=()=>{document.removeEventListener("mousemove",onMove);document.removeEventListener("mouseup",onUp);};
+          document.addEventListener("mousemove",onMove);
+          document.addEventListener("mouseup",onUp);
+        }}>
+        {overlayText.toUpperCase()}
+        {/* Handles en las 4 esquinas */}
+        {[["0%","0%","-50%","-50%"],["100%","0%","50%","-50%"],["0%","100%","-50%","50%"],["100%","100%","50%","50%"]].map(([l,t,tx,ty],hi)=>(
+          <div key={hi} style={{
+            position:"absolute", left:l, top:t,
+            transform:`translate(${tx},${ty})`,
+            width:14, height:14,
+            background:"white", borderRadius:3,
+            border:"2px solid rgba(109,40,217,.8)",
+            cursor:"nwse-resize", zIndex:11,
+          }}
+          onMouseDown={e=>{
+            e.preventDefault(); e.stopPropagation();
+            const startSize=fontSize;
+            const startY=e.clientY;
+            const onMove=ev=>{
+              const delta=(ev.clientY-startY)*(hi<2?-1:1);
+              setFontSize(Math.max(16,Math.min(80,startSize+Math.round(delta/2))));
+            };
+            const onUp=()=>{document.removeEventListener("mousemove",onMove);document.removeEventListener("mouseup",onUp);};
+            document.addEventListener("mousemove",onMove);
+            document.addEventListener("mouseup",onUp);
+          }}/>
+        ))}
+      </div>
     </div>
   )}
-  {overlayText&&<div style={{position:"absolute",top:4,left:0,right:0,textAlign:"center",fontSize:9,color:"rgba(255,255,255,.6)",pointerEvents:"none",background:"rgba(0,0,0,.4)",padding:"2px 0"}}>Arrastrá el recuadro para mover · Play disponible abajo</div>}
+  {overlayText&&<div style={{position:"absolute",top:4,left:0,right:0,textAlign:"center",fontSize:9,color:"rgba(255,255,255,.7)",pointerEvents:"none",background:"rgba(0,0,0,.5)",padding:"2px 0"}}>Arrastrá el recuadro · Handles blancos = redimensionar</div>}
 </div>
         </div>
 
@@ -3892,11 +3961,84 @@ const jsonStr = jsonMatch ? jsonMatch[0] : d.text; result = JSON.parse(jsonStr);
             </div>
           )}
 
-          {/* Música sugerida */}
-          {analysis?.musicKeywords&&(
-            <div>
-              <span className="lbl">🎵 Música sugerida para: "{analysis.musicKeywords}"</span>
-              <div style={{fontSize:12,color:"var(--muted)",marginBottom:8}}>Buscá en Pixabay: <a href={`https://pixabay.com/music/search/${encodeURIComponent(analysis.musicKeywords)}`} target="_blank" style={{color:"var(--accent2)"}}>{analysis.musicKeywords} →</a></div>
+          {/* Música - 5 opciones + audio original */}
+          {analysis&&(
+            <div style={{background:"var(--surface2)",borderRadius:10,padding:"10px 12px"}}>
+              <div style={{fontWeight:600,fontSize:12,marginBottom:8}}>🎵 Audio del Reel</div>
+              {/* Modo de audio */}
+              <div style={{display:"flex",gap:4,marginBottom:10}}>
+                {[["original","🎥 Original"],["music","🎵 Música"],["none","🔇 Sin audio"]].map(([mode,label])=>(
+                  <button key={mode} onClick={()=>{setAudioMode(mode);if(audioRef.current){audioRef.current.pause();audioRef.current=null;}}}
+                    className="btn" style={{flex:1,padding:"5px 4px",fontSize:10,fontWeight:600,
+                      background:audioMode===mode?"rgba(109,40,217,.3)":"var(--surface2)",
+                      border:"1px solid "+(audioMode===mode?"var(--accent2)":"var(--border)"),
+                      color:audioMode===mode?"var(--accent2)":"var(--muted)"}}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {/* 5 opciones de música */}
+              {audioMode==="music"&&(
+                <div>
+                  {loadingMusic&&<div style={{fontSize:11,color:"var(--muted)",textAlign:"center",padding:"8px"}}>Buscando música...</div>}
+                  {!loadingMusic&&music.length===0&&analysis?.musicKeywords&&(
+                    <button className="btn btn-ghost" style={{width:"100%",fontSize:11,padding:"7px"}}
+                      onClick={async()=>{
+                        setLoadingMusic(true);
+                        try{
+                          const queries=[
+                            analysis.musicKeywords,
+                            "acoustic folk organic",
+                            "nature ambient peaceful",
+                            "uplifting country farm",
+                            "warm rural acoustic"
+                          ];
+                          const results=[];
+                          for(const q of queries){
+                            const r=await fetch("/api/pixabay",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:q,count:1,type:"video"})});
+                            const d=await r.json();
+                            if(d.success&&d.results?.[0]?.url){
+                              results.push({url:d.results[0].url,label:q,thumb:d.results[0].thumb});
+                            }
+                          }
+                          setMusic(results);
+                        }catch(e){showToast("Error cargando música","err");}
+                        setLoadingMusic(false);
+                      }}>
+                      🔍 Buscar 5 opciones musicales
+                    </button>
+                  )}
+                  {music.length>0&&(
+                    <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                      {music.map((track,ti)=>(
+                        <div key={ti} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 8px",borderRadius:8,
+                          background:selectedMusic===ti?"rgba(109,40,217,.2)":"rgba(255,255,255,.03)",
+                          border:"1px solid "+(selectedMusic===ti?"var(--accent2)":"var(--border)"),cursor:"pointer"}}
+                          onClick={()=>{
+                            setSelectedMusic(ti);
+                            if(audioRef.current) audioRef.current.pause();
+                            const a=new Audio(track.url);
+                            audioRef.current=a;
+                            a.play().catch(()=>{});
+                          }}>
+                          <div style={{width:28,height:28,borderRadius:6,background:"rgba(109,40,217,.3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0}}>
+                            {selectedMusic===ti?"⏸":"▶"}
+                          </div>
+                          <div style={{flex:1,minWidth:0}}>
+                            <div style={{fontSize:11,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{track.label}</div>
+                            <div style={{fontSize:9,color:"var(--muted)"}}>Click para preview</div>
+                          </div>
+                          {selectedMusic===ti&&<div style={{width:6,height:6,borderRadius:"50%",background:"var(--accent2)"}}/>}
+                        </div>
+                      ))}
+                      <button onClick={()=>{if(audioRef.current){audioRef.current.pause();audioRef.current=null;}setSelectedMusic(null);}}
+                        style={{background:"none",border:"none",color:"var(--muted)",fontSize:10,cursor:"pointer",textAlign:"center",padding:"4px"}}>
+                        ⏹ Detener preview
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
